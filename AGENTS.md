@@ -37,6 +37,7 @@ Run everything through `just` from the repo root. CI runs `just check`. Every `o
 | `just no-assets` | Fail if game files, archive keys or large binaries are in the tree |
 | `just deny` | cargo-deny: advisories, licenses, bans, sources |
 | `just notices` | The third-party notices the Windows release ships, into `target/THIRD-PARTY-NOTICES.txt`; `just check` writes them too, so a package without a licence text fails there, not at the release |
+| `just changelog [TAG]` | A release's changelog as Markdown: the commit subjects since the previous `v*` tag, grouped into Features, Fixes and Other changes (`--from REF` for another start); the release's notes start with it |
 | `just preflight` | Report missing tools |
 | `just openm2 <args>` | Run the CLI, e.g. `just openm2 messages --dir s2c` |
 | `just openm2 message decode --dir s2c <hex>` | Split hex bytes into frames and decode each message |
@@ -138,7 +139,7 @@ docs/
   - A new license in `deny.toml` is a design choice: record it in `docs/architecture.md`'s Design choices.
   - Upgrade one dependency at a time.
 - **Docs follow code:** a behaviour change updates the matching spec in `docs/specs/` in the same change.
-- **Releases:** a tag `vX.Y.Z`, the workspace's version, runs `.github/workflows/release.yml`, which publishes the server's image to GHCR and the Windows client to a GitHub Release. The human raises the version and pushes the tag; agents never tag.
+- **Releases:** a tag `vX.Y.Z`, the workspace's version, runs `.github/workflows/release.yml`, which publishes the server's image to GHCR and the Windows client to a GitHub Release, whose notes start with the changelog since the previous tag (`just changelog`). The human raises the version and pushes the tag; agents never tag.
 
 ## Recipe: add a message
 Use the `add-message` skill (`.claude/skills/add-message/SKILL.md`). In short:
@@ -192,6 +193,7 @@ The human owns the git history. **By default, agents never commit.**
 
      - what changed and why, in plain words
      ```
+     The summary line goes into the next release's changelog as it is (`feat` under Features, `fix` under Fixes, the rest under Other changes; `docs`, `test`, `ci`, `style` and `chore(release)` are left out), so write it for someone reading the release.
   3. List anything you deliberately left unstaged.
 
   The human reviews, commits and pushes.

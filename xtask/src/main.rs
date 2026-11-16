@@ -1,5 +1,6 @@
 //! Repo automation behind the `just` recipes. Run `cargo xtask --help`.
 
+mod changelog;
 mod checks;
 mod ci;
 mod codegen;
@@ -49,6 +50,21 @@ enum Command {
         #[arg(long, default_value = "target/THIRD-PARTY-NOTICES.txt")]
         out: PathBuf,
     },
+    /// Print a release's changelog: the commits since the previous release,
+    /// grouped by type, as Markdown
+    Changelog {
+        /// The release's tag, or any commit
+        #[arg(default_value = "HEAD")]
+        to: String,
+        /// Where it starts (default: the last v* tag before it; every commit
+        /// when there is none)
+        #[arg(long)]
+        from: Option<String>,
+        /// The repository's address (https://github.com/OWNER/REPO), for a
+        /// link to every commit
+        #[arg(long)]
+        repo_url: Option<String>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -70,6 +86,9 @@ fn main() -> Result<()> {
                 packages.iter().map(String::as_str).collect()
             };
             notices::write(&packages, &target, &out)
+        }
+        Command::Changelog { to, from, repo_url } => {
+            changelog::print(&to, from.as_deref(), repo_url.as_deref())
         }
     }
 }

@@ -2,8 +2,9 @@ name: release
 
 # A tag vX.Y.Z publishes a release: the server's image to
 # GHCR, ghcr.io/<owner>/openm2-server:X.Y.Z, and the Windows client with its
-# launcher to a GitHub Release with its SHA-256. The tag must
-# be the workspace's version.
+# launcher to a GitHub Release with its SHA-256, the release's notes starting
+# with the changelog since the previous tag. The tag must be the workspace's
+# version.
 on:
   push:
     tags: ["v*"]
@@ -137,13 +138,30 @@ jobs:
     name: GitHub Release
     needs: [version, server-image, client-windows]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
+      # The whole history and its tags, for the changelog since the previous
+      # release. Before the download: checkout empties the folder.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: client-windows
+
+      - name: Install the toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+
+      # The commits since the previous v* tag, grouped by type (`just changelog`).
+      - name: The changelog
+        env:
+          TAG: ${{ github.ref_name }}
+          SOURCE: ${{ github.server_url }}/${{ github.repository }}
+        run: cargo xtask changelog "$TAG" --repo-url "$SOURCE" > changelog.md
 
       - name: Publish the release
         env:
@@ -154,7 +172,10 @@ jobs:
           IMAGE: ${{ needs.server-image.outputs.image }}
           DIGEST: ${{ needs.server-image.outputs.digest }}
         run: |
-          cat > notes.md <<EOF
+          cp changelog.md notes.md
+          cat >> notes.md <<EOF
+
+          ## Downloads
           The server's image: \`$IMAGE:$VERSION\`, digest \`$DIGEST\`
           (\`docker pull $IMAGE@$DIGEST\`).
 

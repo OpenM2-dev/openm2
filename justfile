@@ -52,6 +52,10 @@ no-assets:
 deny:
     cargo deny check
 
+# A release's changelog as Markdown: the commits since the previous v* tag (e.g. `just changelog v0.19.0`, `just changelog HEAD --from v0.18.0`)
+changelog *args:
+    cargo xtask changelog {{args}}
+
 # The third-party notices the Windows release ships with, into target/THIRD-PARTY-NOTICES.txt (--out FILE, --package NAME, --target TRIPLE)
 notices *args:
     cargo xtask notices {{args}}
