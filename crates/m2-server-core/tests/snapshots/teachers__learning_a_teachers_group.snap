@@ -1,0 +1,46 @@
+---
+source: crates/m2-server-core/tests/teachers.rs
+expression: h.log
+---
+@1000 conn#4 sends EnterGame
+   -> send conn#4 Phase 3
+   -> send conn#4 GameTime 1000
+   -> send conn#4 Channel 1
+   -> send conn#4 EntitySpawn vid=6 (475000, 966100) kind=6 race=0 angle=0 speed=150/100
+   -> send conn#4 EntityInfo vid=6 Alice empire=1 level=5
+   -> send conn#4 Skills
+   -> send conn#4 Chat kind=1 vid=0 "You can choose your skills now: talk to a teacher of your class."
+   -> event: conn#4: character 1 entered as vid 6
+   -> send conn#4 EntitySpawn vid=1 (475000, 965900) kind=0 race=1001 angle=75 speed=100/100
+   -> send conn#4 EntitySpawn vid=2 (474800, 966100) kind=1 race=1002 angle=0 speed=100/100
+   -> send conn#4 EntityInfo vid=2 Keeper Ilsa empire=0 level=0
+   -> send conn#4 EntitySpawn vid=3 (475200, 966100) kind=1 race=1101 angle=0 speed=100/100
+   -> send conn#4 EntityInfo vid=3 Blade Teacher empire=0 level=0
+   -> send conn#4 EntitySpawn vid=4 (475000, 966300) kind=1 race=1102 angle=0 speed=100/100
+   -> send conn#4 EntityInfo vid=4 Spirit Teacher empire=0 level=0
+   -> send conn#4 EntitySpawn vid=5 (475000, 969100) kind=1 race=1103 angle=0 speed=100/100
+   -> send conn#4 EntityInfo vid=5 Far Teacher empire=0 level=0
+-- the shaman's teacher teaches another class
+@1000 conn#4 sends LearnSkillGroup vid=4
+   -> send conn#4 Chat kind=1 vid=0 "This teacher teaches another class."
+-- ignored: the far teacher is 30 m away, the keeper and the hopper teach nothing, vid 99 is nobody
+@1000 conn#4 sends LearnSkillGroup vid=5
+@1000 conn#4 sends LearnSkillGroup vid=2
+@1000 conn#4 sends LearnSkillGroup vid=1
+@1000 conn#4 sends LearnSkillGroup vid=99
+-- the warrior's teacher: group 1, then a line; no talk needed first
+@1000 conn#4 sends LearnSkillGroup vid=3
+   -> send conn#4 SkillGroup 1
+   -> event: conn#4: character 1 chose skill group 1
+   -> send conn#4 Chat kind=1 vid=0 "You have chosen your skills: spend skill points on them."
+-- once only
+@1000 conn#4 sends LearnSkillGroup vid=3
+   -> send conn#4 Chat kind=1 vid=0 "You have chosen your skills already."
+-- /skillgroup is a game master's command in a world with teachers
+@1000 conn#4 sends SendChat kind=0 "/skillgroup 2"
+   -> send conn#4 Chat kind=1 vid=0 "Unknown command skillgroup"
+-- the group is saved with the character
+@1000 conn#4 closed: the client left
+   -> store #8: save #1 at (475000, 966100) played 0s group=1
+   -> event: conn#4: closed: the client left
+@1000 store answers #8: saved: Ok(())

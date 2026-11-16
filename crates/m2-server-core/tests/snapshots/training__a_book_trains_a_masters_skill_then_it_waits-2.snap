@@ -1,0 +1,8 @@
+---
+source: crates/m2-server-core/tests/training.rs
+expression: trained(&h)
+---
+[
+    "conn#4: character 1 trained skill 1 with item 3001: learned, level 21",
+    "conn#4: character 1 trained skill 1 with item 3001: learned, level 22",
+]

@@ -1,0 +1,80 @@
+---
+source: crates/m2-server-core/tests/friends.rs
+expression: h.log
+---
+-- Alice ends it, by name in any case: both are told
+@1000 conn#2 sends RemoveFriend BOB
+   -> send conn#2 FriendChanged Bob status=0
+   -> store #10: end the friendship of #1 and #2
+   -> send conn#4 FriendChanged Alice status=0
+   -> event: character 1 is no longer friends with character 2
+@1000 store answers #10: friendship written: Ok(())
+-- a name not in her list is ignored
+@1000 conn#2 sends RemoveFriend Bob
+   -> event: conn#2: ignored RemoveFriend
+-- friends again; Bob leaves and Alice ends it while he is away
+@1000 conn#2 sends AskFriend Bob
+   -> send conn#4 FriendAsked Alice
+   -> send conn#2 FriendNotice Bob notice=1
+@1000 conn#4 sends AnswerFriend Alice accept=true
+   -> store #11: make #2 and #1 friends
+   -> send conn#4 FriendChanged Alice status=2
+   -> send conn#2 FriendChanged Bob status=2
+   -> event: characters 2 and 1 became friends
+@1000 store answers #11: friendship written: Ok(())
+@1000 conn#4 closed: the client left
+   -> store #12: save #2 at (963400, 278200) played 0s
+   -> send conn#2 FriendChanged Bob status=1
+   -> send conn#2 EntityRemove vid=2
+   -> event: conn#4: closed: the client left
+@1000 store answers #12: saved: Ok(())
+@1000 conn#2 sends RemoveFriend Bob
+   -> send conn#2 FriendChanged Bob status=0
+   -> store #13: end the friendship of #1 and #2
+   -> event: character 1 is no longer friends with character 2
+@1000 store answers #13: friendship written: Ok(())
+-- Bob comes back with no friends
+@1000 conn#5 accepted on auth from 10.0.0.1
+   -> event: conn#5: accepted on auth
+@1000 conn#5 sends Hello protocol=3 "openm2 test"
+   -> event: conn#5: openm2 test speaks protocol 3
+   -> send conn#5 Welcome protocol=3
+@1000 conn#5 sends StartSignIn
+   -> send conn#5 SignInOptions [example] nonce="de0ea89a53f1ecf3f3d0a462fb77d2ba"
+@1000 conn#5 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #14: example http://127.0.0.1:50000/callback nonce=de0ea89a53f1ecf3f3d0a462fb77d2ba
+@1000 sign-in #14 checked: https://id.example bob
+   -> store #15: identity login example https://id.example bob
+@1000 store answers #15: login ok, account 2 Some(3)
+   -> event: conn#5: account 2 signed in with example
+   -> send conn#5 SignedIn example:bob f5e0… (32 bytes)
+@1000 conn#5 closed: the client left
+   -> event: conn#5: closed: the client left
+@1000 conn#6 accepted on game from 10.0.0.1
+   -> event: conn#6: accepted on game
+@1000 conn#6 sends Hello protocol=3 "openm2 test"
+   -> event: conn#6: openm2 test speaks protocol 3
+   -> send conn#6 Welcome protocol=3
+@1000 conn#6 sends TicketLogin example:bob f5e0… (32 bytes)
+   -> event: conn#6: account 2 joined the game server
+   -> store #16: load characters of 2
+@1000 store answers #16: characters [0:Bob]
+   -> send conn#6 Empire 3
+   -> send conn#6 Phase 1
+   -> send conn#6 CharacterList [0: #2 Bob lv1]
+@1000 conn#6 sends SelectCharacter 0
+   -> send conn#6 Phase 2
+   -> send conn#6 MainCharacter vid=3 Bob class=0 (963400, 278200) empire=3 group=0 run=450
+   -> send conn#6 Points 1=1 4=300 5=796 6=796 7=304 8=304 12=6 13=4 14=3 15=3 16=4 17=100 18=14 19=150 20=4 27=1
+@1000 conn#6 sends EnterGame
+   -> send conn#6 Phase 3
+   -> send conn#6 GameTime 1000
+   -> send conn#6 Channel 1
+   -> send conn#6 EntitySpawn vid=3 (963400, 278200) race=0 speed=150/100
+   -> send conn#6 EntityInfo vid=3 Bob empire=3 level=1
+   -> send conn#6 Skills
+   -> event: conn#6: character 2 entered as vid 3
+   -> send conn#2 EntitySpawn vid=3 (963400, 278200) race=0 speed=150/100
+   -> send conn#2 EntityInfo vid=3 Bob empire=3 level=1
+   -> send conn#6 EntitySpawn vid=1 (963400, 278200) race=0 speed=150/100
+   -> send conn#6 EntityInfo vid=1 Alice empire=3 level=1

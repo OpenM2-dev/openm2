@@ -1,0 +1,21 @@
+// The launcher's skin: flat colours only, no art (every image name is
+// empty, so the fallback colour draws). launcher.toml's window.accent and
+// window.background replace the blue and the slate, and the texts and the
+// see-through greys follow the background (screen.rs). Format:
+// docs/specs/ui.md.
+(
+    // The first family installed is used; openm2 ships no fonts.
+    font: (families: ["Segoe UI", "Tahoma", "Verdana", "Arial", "DejaVu Sans", "Liberation Sans", "Noto Sans"], size: 14),
+    text_colour: (232, 234, 238, 255),
+    skins: {
+        "background": Colour((28, 32, 38, 255)),
+        "gauge_slot": Colour((255, 255, 255, 30)),
+        "gauge": Gauge(slot: "gauge_slot", fill: "", fallback: (61, 123, 217, 255)),
+        // The main button: the accent.
+        "primary": Button(normal: "", hover: "", down: "", text_colour: (255, 255, 255, 255), fallback: (61, 123, 217, 255)),
+        "secondary": Button(normal: "", hover: "", down: "", text_colour: (232, 234, 238, 255), fallback: (255, 255, 255, 28)),
+        "field": Colour((0, 0, 0, 110)),
+        // Behind errors and logs.
+        "well": Colour((0, 0, 0, 70)),
+    },
+)

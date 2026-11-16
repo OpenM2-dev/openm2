@@ -1,0 +1,125 @@
+---
+source: crates/m2-server-core/tests/skill_effects.rs
+expression: h.log
+---
+-- the venom cut poisons and burns the hopper: its update, then a loss each second
+@1000 conn#4 sends UseSkill 1 target=Some(1)
+   -> send conn#4 PointsChanged 7=479
+@1000 conn#4 sends Hit vid=1 skill=1
+   -> send conn#4 Damage vid=1 flags=1 amount=9
+   -> send conn#4 EntityUpdate vid=1 parts=[0, 0, 0, 0] speed=100/100 poisoned burning
+@2000 conn#4 sends Pong
+@2000 tick
+   -> send conn#4 Damage vid=1 flags=2 amount=100
+   -> send conn#4 Damage vid=1 flags=128 amount=200
+   -> send conn#4 EntityMove kind=1 vid=1 (475031, 966216) angle=195 duration=335
+   -> send conn#4 Damage vid=4 flags=1 amount=56
+   -> send conn#4 PointsChanged 5=884
+   -> send conn#4 EntityMove kind=2 vid=2 (474966, 966177) angle=155 duration=0
+   -> send conn#4 Damage vid=4 flags=1 amount=55
+   -> send conn#4 PointsChanged 5=829
+   -> send conn#4 EntityMove kind=2 vid=3 (474980, 966176) angle=165 duration=0
+@3000 conn#4 sends Pong
+@3000 tick
+   -> send conn#4 Damage vid=1 flags=2 amount=100
+   -> send conn#4 Damage vid=1 flags=128 amount=200
+   -> send conn#4 Damage vid=4 flags=1 amount=50
+   -> send conn#4 PointsChanged 5=779
+   -> send conn#4 EntityMove kind=2 vid=1 (475031, 966216) angle=195 duration=0
+@4000 conn#4 sends Pong
+@4000 tick
+   -> send conn#4 PointsChanged 5=841 7=480
+   -> send conn#4 Damage vid=1 flags=2 amount=100
+   -> send conn#4 Damage vid=1 flags=128 amount=200
+   -> send conn#4 Damage vid=4 flags=1 amount=55
+   -> send conn#4 PointsChanged 5=786
+   -> send conn#4 EntityMove kind=2 vid=2 (474966, 966177) angle=155 duration=0
+   -> send conn#4 Damage vid=4 flags=1 amount=47
+   -> send conn#4 PointsChanged 5=739
+   -> send conn#4 EntityMove kind=2 vid=3 (474980, 966176) angle=165 duration=0
+-- the stun cut stuns, slows, pushes it 3 m and pierces its defence (flag 16)
+@4000 conn#4 sends UseSkill 2 target=Some(2)
+   -> send conn#4 PointsChanged 7=479
+@4000 conn#4 sends Hit vid=2 skill=2
+   -> send conn#4 Damage vid=2 flags=17 amount=20
+   -> send conn#4 EntityMove kind=0 vid=2 (474966, 966177) angle=155 duration=0
+   -> send conn#4 EntityUpdate vid=2 parts=[0, 0, 0, 0] speed=70/100 slowed stunned
+   -> send conn#4 EntityMove kind=1 vid=2 (474845, 966451) angle=155 duration=200
+-- stunned for 2 s it doesn't move or bite; burning ends after 6 s, poison after 10
+@5000 conn#4 sends Pong
+@5000 tick
+   -> send conn#4 Damage vid=1 flags=2 amount=100
+   -> send conn#4 Damage vid=1 flags=128 amount=200
+   -> send conn#4 Damage vid=4 flags=1 amount=58
+   -> send conn#4 PointsChanged 5=681
+   -> send conn#4 EntityMove kind=2 vid=1 (475031, 966216) angle=195 duration=0
+@6000 conn#4 sends Pong
+@6000 tick
+   -> send conn#4 Ping
+   -> send conn#4 Damage vid=1 flags=2 amount=100
+   -> send conn#4 Damage vid=1 flags=128 amount=200
+   -> send conn#4 EntityUpdate vid=2 parts=[0, 0, 0, 0] speed=70/100 slowed
+   -> send conn#4 Damage vid=4 flags=1 amount=56
+   -> send conn#4 PointsChanged 5=625
+   -> send conn#4 EntityMove kind=2 vid=3 (474980, 966176) angle=165 duration=0
+   -> send conn#4 EntityMove kind=1 vid=2 (474952, 966210) angle=155 duration=760
+@7000 conn#4 sends Pong
+@7000 tick
+   -> send conn#4 PointsChanged 5=687 7=480
+   -> send conn#4 Damage vid=1 flags=2 amount=100
+   -> send conn#4 Damage vid=1 flags=128 amount=200
+   -> send conn#4 EntityUpdate vid=1 parts=[0, 0, 0, 0] speed=100/100 poisoned
+   -> send conn#4 Damage vid=4 flags=1 amount=56
+   -> send conn#4 PointsChanged 5=631
+   -> send conn#4 EntityMove kind=2 vid=1 (475031, 966216) angle=195 duration=0
+   -> send conn#4 Damage vid=4 flags=1 amount=59
+   -> send conn#4 PointsChanged 5=572
+   -> send conn#4 EntityMove kind=2 vid=2 (474952, 966210) angle=155 duration=0
+@8000 conn#4 sends Pong
+@8000 tick
+   -> send conn#4 Damage vid=1 flags=2 amount=100
+   -> send conn#4 Damage vid=4 flags=1 amount=56
+   -> send conn#4 PointsChanged 5=516
+   -> send conn#4 EntityMove kind=2 vid=3 (474980, 966176) angle=165 duration=0
+@9000 conn#4 sends Pong
+@9000 tick
+   -> send conn#4 Damage vid=1 flags=2 amount=100
+   -> send conn#4 Damage vid=4 flags=1 amount=55
+   -> send conn#4 PointsChanged 5=461
+   -> send conn#4 EntityMove kind=2 vid=1 (475031, 966216) angle=195 duration=0
+   -> send conn#4 Damage vid=4 flags=1 amount=56
+   -> send conn#4 PointsChanged 5=405
+   -> send conn#4 EntityMove kind=2 vid=2 (474952, 966210) angle=155 duration=0
+@10000 conn#4 sends Pong
+@10000 tick
+   -> send conn#4 PointsChanged 5=467
+   -> send conn#4 Damage vid=1 flags=2 amount=100
+   -> send conn#4 EntityUpdate vid=2 parts=[0, 0, 0, 0] speed=100/100
+   -> send conn#4 Damage vid=4 flags=1 amount=58
+   -> send conn#4 PointsChanged 5=409
+   -> send conn#4 EntityMove kind=2 vid=3 (474980, 966176) angle=165 duration=0
+@11000 conn#4 sends Pong
+@11000 tick
+   -> send conn#4 Ping
+   -> send conn#4 Damage vid=1 flags=2 amount=100
+   -> send conn#4 EntityUpdate vid=1 parts=[0, 0, 0, 0] speed=100/100
+   -> send conn#4 Damage vid=4 flags=1 amount=56
+   -> send conn#4 PointsChanged 5=353
+   -> send conn#4 EntityMove kind=2 vid=1 (475031, 966216) angle=195 duration=0
+   -> send conn#4 Damage vid=4 flags=1 amount=59
+   -> send conn#4 PointsChanged 5=294
+   -> send conn#4 EntityMove kind=2 vid=2 (474952, 966210) angle=155 duration=0
+@12000 conn#4 sends Pong
+@12000 tick
+   -> send conn#4 Damage vid=4 flags=1 amount=58
+   -> send conn#4 PointsChanged 5=236
+   -> send conn#4 EntityMove kind=2 vid=3 (474980, 966176) angle=165 duration=0
+@13000 conn#4 sends Pong
+@13000 tick
+   -> send conn#4 PointsChanged 5=298
+   -> send conn#4 Damage vid=4 flags=1 amount=51
+   -> send conn#4 PointsChanged 5=247
+   -> send conn#4 EntityMove kind=2 vid=1 (475031, 966216) angle=195 duration=0
+   -> send conn#4 Damage vid=4 flags=1 amount=51
+   -> send conn#4 PointsChanged 5=196
+   -> send conn#4 EntityMove kind=2 vid=2 (474952, 966210) angle=155 duration=0

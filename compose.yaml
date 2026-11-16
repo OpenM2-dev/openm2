@@ -1,0 +1,81 @@
+# openm2's own server with Postgres (docs/server.md, "With Docker").
+#
+#   OPENM2_DB_PASSWORD=<a password for the database> \
+#   OPENM2_PROVIDERS_FILE=./local/providers.toml docker compose up --build
+#   docker compose run --rm server tls key    # the key players pin
+#
+# The game's ports are published on the host's 127.0.0.1, or on
+# OPENM2_PUBLISH (0.0.0.0: every address). The server's self-signed
+# certificate lives in the `data` volume (docs/server.md, "TLS"). With
+# `--profile telemetry` and
+# OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318, an OpenTelemetry
+# collector prints the server's traces and metrics. OPENM2_CONTENT_DIR names
+# the world's content folder (docs/server.md, "Content"), and
+# OPENM2_PROVIDERS_FILE the providers players sign in with (required: the
+# only way in; deploy/providers.example.toml shows the format), their secrets
+# in ./local/provider-secrets.env (docs/server.md, "Sign-in with a provider").
+name: openm2
+
+services:
+  postgres:
+    image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    environment:
+      POSTGRES_DB: openm2
+      POSTGRES_USER: openm2
+      POSTGRES_PASSWORD: ${OPENM2_DB_PASSWORD:?set OPENM2_DB_PASSWORD to a password for the database}
+    volumes:
+      # Postgres 18's image keeps its data under /var/lib/postgresql/18/.
+      - postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openm2 -d openm2"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  server:
+    build: .
+    image: openm2-server:dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # The database beside it, on compose's own network, has no TLS; one
+      # anywhere else keeps the default, verify-full (docs/server.md).
+      OPENM2_DATABASE_URL: postgres://openm2:${OPENM2_DB_PASSWORD:?set OPENM2_DB_PASSWORD to a password for the database}@postgres:5432/openm2?sslmode=disable
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      # Unset or empty: the server's own default (info, its libraries quieter).
+      RUST_LOG: ${RUST_LOG:-}
+      OPENM2_CONTENT: /content
+      OPENM2_PROVIDERS: /providers.toml
+    # Providers' client secrets, OPENM2_PROVIDER_<ID>_SECRET=…, if any: a file
+    # of yours in local/ (gitignored), never in the providers file.
+    env_file:
+      - path: ./local/provider-secrets.env
+        required: false
+    volumes:
+      # The world's content folder, read-only: OPENM2_CONTENT_DIR (for example
+      # ./local/content, made with `openm2 content import`), else an empty world.
+      - ${OPENM2_CONTENT_DIR:-./deploy/empty-content}:/content:ro
+      # The providers file, read-only: OPENM2_PROVIDERS_FILE (for example
+      # ./local/providers.toml).
+      - ${OPENM2_PROVIDERS_FILE:?set OPENM2_PROVIDERS_FILE to your providers file (deploy/providers.example.toml)}:/providers.toml:ro
+      # The server's folder: its certificate and key (OPENM2_DATA in the image).
+      - data:/data
+    ports:
+      - "${OPENM2_PUBLISH:-127.0.0.1}:11002:11002"
+      - "${OPENM2_PUBLISH:-127.0.0.1}:13001:13001"
+    # Time to save every character on `docker compose stop`.
+    stop_grace_period: 20s
+    restart: unless-stopped
+
+  otel-collector:
+    profiles: [telemetry]
+    image: otel/opentelemetry-collector:0.162.0@sha256:310a800ad69ee430e7c541796852a242c9c7db97aaad4daa5ccf843c525fbdb2
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./deploy/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+
+volumes:
+  postgres:
+  data:

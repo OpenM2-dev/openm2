@@ -1,0 +1,164 @@
+// The character window of `openm2 play`: our character, its stats and the
+// status points to spend on them on one tab, the skills of its group on the
+// other. Skins are in skin.ron; the format is in docs/specs/ui.md ("The
+// character window", "Skills"). The ids are what `play` fills in
+// (crates/m2-cli/src/interface.rs, `ids`).
+(
+    windows: [
+        (
+            // Left of the screen: C opens it on the Character tab, K on the
+            // Skills tab, the taskbar's button on the last tab shown.
+            id: "character",
+            anchor: Left,
+            // above the chat on an 800 px tall window
+            pos: (16, -44),
+            size: (253, 376),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (pos: (8, 8), size: (Fill(8), 32), kind: Panel(skin: "title_bar"), children: [
+                    (id: "character.title", pos: (6, 0), size: (Fill(18), 21), kind: Text(text: "Character", align: Center)),
+                    // over the X drawn in the bar's right end
+                    (id: "character.close", anchor: TopRight, pos: (3, 2), size: (15, 15), kind: Button(skin: "close", text: "")),
+                ]),
+                // The Character tab: the job's face, name, class and level,
+                // the experience; the four stats with a + each while status
+                // points last; what they make.
+                (id: "character.status", size: (Fill(0), Fill(0)), kind: Group, children: [
+                    (id: "character.face", pos: (16, 46), size: (43, 43), kind: Panel(skin: "face_warrior")),
+                    (id: "character.name", pos: (68, 46), size: (Fill(16), 16), kind: Text(text: "")),
+                    (id: "character.class", pos: (68, 62), size: (Fill(16), 14), kind: Text(text: "", colour: (200, 190, 160, 255), size: 11)),
+                    (id: "character.experience", pos: (68, 76), size: (Fill(16), 14), kind: Text(text: "", colour: (200, 190, 160, 255), size: 11)),
+                    (pos: (16, 100), size: (110, 18), kind: Text(text: "Strength")),
+                    (id: "character.st", anchor: TopRight, pos: (40, 100), size: (70, 18), kind: Text(text: "", align: Right)),
+                    (id: "character.st_up", anchor: TopRight, pos: (18, 102), size: (13, 13), hidden: true, kind: Button(skin: "plus", text: "")),
+                    (pos: (16, 122), size: (110, 18), kind: Text(text: "Vitality")),
+                    (id: "character.ht", anchor: TopRight, pos: (40, 122), size: (70, 18), kind: Text(text: "", align: Right)),
+                    (id: "character.ht_up", anchor: TopRight, pos: (18, 124), size: (13, 13), hidden: true, kind: Button(skin: "plus", text: "")),
+                    (pos: (16, 144), size: (110, 18), kind: Text(text: "Dexterity")),
+                    (id: "character.dx", anchor: TopRight, pos: (40, 144), size: (70, 18), kind: Text(text: "", align: Right)),
+                    (id: "character.dx_up", anchor: TopRight, pos: (18, 146), size: (13, 13), hidden: true, kind: Button(skin: "plus", text: "")),
+                    (pos: (16, 166), size: (110, 18), kind: Text(text: "Intelligence")),
+                    (id: "character.iq", anchor: TopRight, pos: (40, 166), size: (70, 18), kind: Text(text: "", align: Right)),
+                    (id: "character.iq_up", anchor: TopRight, pos: (18, 168), size: (13, 13), hidden: true, kind: Button(skin: "plus", text: "")),
+                    (id: "character.points", pos: (16, 192), size: (Fill(16), 18), kind: Text(text: "")),
+                    (pos: (16, 218), size: (120, 18), kind: Text(text: "Maximum health", colour: (200, 190, 160, 255))),
+                    (id: "character.health", anchor: TopRight, pos: (18, 218), size: (80, 18), kind: Text(text: "", align: Right)),
+                    (pos: (16, 238), size: (120, 18), kind: Text(text: "Maximum mana", colour: (200, 190, 160, 255))),
+                    (id: "character.mana", anchor: TopRight, pos: (18, 238), size: (80, 18), kind: Text(text: "", align: Right)),
+                    (pos: (16, 258), size: (120, 18), kind: Text(text: "Attack", colour: (200, 190, 160, 255))),
+                    (id: "character.attack", anchor: TopRight, pos: (18, 258), size: (80, 18), kind: Text(text: "", align: Right)),
+                    (pos: (16, 278), size: (120, 18), kind: Text(text: "Defence", colour: (200, 190, 160, 255))),
+                    (id: "character.defence", anchor: TopRight, pos: (18, 278), size: (80, 18), kind: Text(text: "", align: Right)),
+                    (pos: (16, 298), size: (120, 18), kind: Text(text: "Attack speed", colour: (200, 190, 160, 255))),
+                    (id: "character.attack_speed", anchor: TopRight, pos: (18, 298), size: (80, 18), kind: Text(text: "", align: Right)),
+                    (pos: (16, 318), size: (120, 18), kind: Text(text: "Movement speed", colour: (200, 190, 160, 255))),
+                    (id: "character.move_speed", anchor: TopRight, pos: (18, 318), size: (80, 18), kind: Text(text: "", align: Right)),
+                ]),
+                // The Skills tab, laid out as the original client's skill page:
+                // a bar with the group's name (or, before one is
+                // chosen, a button for each group to look at) and the skill
+                // points; the board with the group's six skills in two columns,
+                // a row of three icons each, one a grade (normal, master, grand
+                // master), the grades not reached covered, the level in the
+                // corner of the grade reached, a + on it while points last;
+                // then the support skills' bar and slots. The bars' pictures
+                // are 32 tall, their bar the top 17 rows, the rest clear: drawn
+                // at their own height, as the original draws them.
+                (id: "skills", size: (Fill(0), Fill(0)), hidden: true, kind: Group, children: [
+                    (pos: (15, 41), size: (223, 32), kind: Panel(skin: "horizontal_bar")),
+                    (id: "skills.group", pos: (22, 41), size: (120, 17), kind: Text(text: "", colour: (255, 227, 173, 255))),
+                    (id: "skills.group1", pos: (20, 43), size: (43, 16), hidden: true, kind: Button(skin: "skill_group", text: "")),
+                    (id: "skills.group2", pos: (65, 43), size: (43, 16), hidden: true, kind: Button(skin: "skill_group", text: "")),
+                    (pos: (160, 44), size: (75, 14), kind: Panel(skin: "skill_points")),
+                    (id: "skills.points", pos: (210, 44), size: (24, 14), kind: Text(text: "", align: Center, colour: (255, 255, 255, 255))),
+                    (pos: (13, 62), size: (227, 152), kind: Panel(skin: "skill_board")),
+                    // Skill 1: its grades, the + on the first.
+                    (id: "skills.icon0_0", pos: (17, 66), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (id: "skills.cover0_0", pos: (17, 66), size: (32, 32), hidden: true, kind: Panel(skin: "skill_cover")),
+                    (id: "skills.mark0_0", pos: (17, 86), size: (29, 11), kind: Text(text: "", align: Right, colour: (255, 255, 255, 255), size: 10)),
+                    (id: "skills.icon0_1", pos: (54, 66), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (id: "skills.cover0_1", pos: (54, 66), size: (32, 32), hidden: true, kind: Panel(skin: "skill_cover")),
+                    (id: "skills.mark0_1", pos: (54, 86), size: (29, 11), kind: Text(text: "", align: Right, colour: (255, 255, 255, 255), size: 10)),
+                    (id: "skills.icon0_2", pos: (91, 66), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (id: "skills.cover0_2", pos: (91, 66), size: (32, 32), hidden: true, kind: Panel(skin: "skill_cover")),
+                    (id: "skills.mark0_2", pos: (91, 86), size: (29, 11), kind: Text(text: "", align: Right, colour: (255, 255, 255, 255), size: 10)),
+                    (id: "skills.up0", pos: (18, 85), size: (13, 13), hidden: true, kind: Button(skin: "plus", text: "")),
+                    // Skill 2: its grades, the + on the first.
+                    (id: "skills.icon1_0", pos: (129, 66), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (id: "skills.cover1_0", pos: (129, 66), size: (32, 32), hidden: true, kind: Panel(skin: "skill_cover")),
+                    (id: "skills.mark1_0", pos: (129, 86), size: (29, 11), kind: Text(text: "", align: Right, colour: (255, 255, 255, 255), size: 10)),
+                    (id: "skills.icon1_1", pos: (166, 66), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (id: "skills.cover1_1", pos: (166, 66), size: (32, 32), hidden: true, kind: Panel(skin: "skill_cover")),
+                    (id: "skills.mark1_1", pos: (166, 86), size: (29, 11), kind: Text(text: "", align: Right, colour: (255, 255, 255, 255), size: 10)),
+                    (id: "skills.icon1_2", pos: (203, 66), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (id: "skills.cover1_2", pos: (203, 66), size: (32, 32), hidden: true, kind: Panel(skin: "skill_cover")),
+                    (id: "skills.mark1_2", pos: (203, 86), size: (29, 11), kind: Text(text: "", align: Right, colour: (255, 255, 255, 255), size: 10)),
+                    (id: "skills.up1", pos: (130, 85), size: (13, 13), hidden: true, kind: Button(skin: "plus", text: "")),
+                    // Skill 3: its grades, the + on the first.
+                    (id: "skills.icon2_0", pos: (17, 102), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (id: "skills.cover2_0", pos: (17, 102), size: (32, 32), hidden: true, kind: Panel(skin: "skill_cover")),
+                    (id: "skills.mark2_0", pos: (17, 122), size: (29, 11), kind: Text(text: "", align: Right, colour: (255, 255, 255, 255), size: 10)),
+                    (id: "skills.icon2_1", pos: (54, 102), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (id: "skills.cover2_1", pos: (54, 102), size: (32, 32), hidden: true, kind: Panel(skin: "skill_cover")),
+                    (id: "skills.mark2_1", pos: (54, 122), size: (29, 11), kind: Text(text: "", align: Right, colour: (255, 255, 255, 255), size: 10)),
+                    (id: "skills.icon2_2", pos: (91, 102), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (id: "skills.cover2_2", pos: (91, 102), size: (32, 32), hidden: true, kind: Panel(skin: "skill_cover")),
+                    (id: "skills.mark2_2", pos: (91, 122), size: (29, 11), kind: Text(text: "", align: Right, colour: (255, 255, 255, 255), size: 10)),
+                    (id: "skills.up2", pos: (18, 121), size: (13, 13), hidden: true, kind: Button(skin: "plus", text: "")),
+                    // Skill 4: its grades, the + on the first.
+                    (id: "skills.icon3_0", pos: (129, 102), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (id: "skills.cover3_0", pos: (129, 102), size: (32, 32), hidden: true, kind: Panel(skin: "skill_cover")),
+                    (id: "skills.mark3_0", pos: (129, 122), size: (29, 11), kind: Text(text: "", align: Right, colour: (255, 255, 255, 255), size: 10)),
+                    (id: "skills.icon3_1", pos: (166, 102), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (id: "skills.cover3_1", pos: (166, 102), size: (32, 32), hidden: true, kind: Panel(skin: "skill_cover")),
+                    (id: "skills.mark3_1", pos: (166, 122), size: (29, 11), kind: Text(text: "", align: Right, colour: (255, 255, 255, 255), size: 10)),
+                    (id: "skills.icon3_2", pos: (203, 102), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (id: "skills.cover3_2", pos: (203, 102), size: (32, 32), hidden: true, kind: Panel(skin: "skill_cover")),
+                    (id: "skills.mark3_2", pos: (203, 122), size: (29, 11), kind: Text(text: "", align: Right, colour: (255, 255, 255, 255), size: 10)),
+                    (id: "skills.up3", pos: (130, 121), size: (13, 13), hidden: true, kind: Button(skin: "plus", text: "")),
+                    // Skill 5: its grades, the + on the first.
+                    (id: "skills.icon4_0", pos: (17, 138), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (id: "skills.cover4_0", pos: (17, 138), size: (32, 32), hidden: true, kind: Panel(skin: "skill_cover")),
+                    (id: "skills.mark4_0", pos: (17, 158), size: (29, 11), kind: Text(text: "", align: Right, colour: (255, 255, 255, 255), size: 10)),
+                    (id: "skills.icon4_1", pos: (54, 138), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (id: "skills.cover4_1", pos: (54, 138), size: (32, 32), hidden: true, kind: Panel(skin: "skill_cover")),
+                    (id: "skills.mark4_1", pos: (54, 158), size: (29, 11), kind: Text(text: "", align: Right, colour: (255, 255, 255, 255), size: 10)),
+                    (id: "skills.icon4_2", pos: (91, 138), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (id: "skills.cover4_2", pos: (91, 138), size: (32, 32), hidden: true, kind: Panel(skin: "skill_cover")),
+                    (id: "skills.mark4_2", pos: (91, 158), size: (29, 11), kind: Text(text: "", align: Right, colour: (255, 255, 255, 255), size: 10)),
+                    (id: "skills.up4", pos: (18, 157), size: (13, 13), hidden: true, kind: Button(skin: "plus", text: "")),
+                    // Skill 6: its grades, the + on the first.
+                    (id: "skills.icon5_0", pos: (129, 138), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (id: "skills.cover5_0", pos: (129, 138), size: (32, 32), hidden: true, kind: Panel(skin: "skill_cover")),
+                    (id: "skills.mark5_0", pos: (129, 158), size: (29, 11), kind: Text(text: "", align: Right, colour: (255, 255, 255, 255), size: 10)),
+                    (id: "skills.icon5_1", pos: (166, 138), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (id: "skills.cover5_1", pos: (166, 138), size: (32, 32), hidden: true, kind: Panel(skin: "skill_cover")),
+                    (id: "skills.mark5_1", pos: (166, 158), size: (29, 11), kind: Text(text: "", align: Right, colour: (255, 255, 255, 255), size: 10)),
+                    (id: "skills.icon5_2", pos: (203, 138), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (id: "skills.cover5_2", pos: (203, 138), size: (32, 32), hidden: true, kind: Panel(skin: "skill_cover")),
+                    (id: "skills.mark5_2", pos: (203, 158), size: (29, 11), kind: Text(text: "", align: Right, colour: (255, 255, 255, 255), size: 10)),
+                    (id: "skills.up5", pos: (130, 157), size: (13, 13), hidden: true, kind: Button(skin: "plus", text: "")),
+                    (pos: (15, 224), size: (223, 32), kind: Panel(skin: "horizontal_bar")),
+                    (pos: (22, 224), size: (150, 17), kind: Text(text: "Support skills", colour: (255, 227, 173, 255))),
+                    (pos: (18, 245), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (pos: (55, 245), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (pos: (92, 245), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (pos: (129, 245), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (pos: (166, 245), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (pos: (203, 245), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (pos: (18, 281), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (pos: (55, 281), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (pos: (92, 281), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (pos: (129, 281), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (pos: (166, 281), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                    (pos: (203, 281), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                ]),
+                // The tabs, at the bottom as in the original; the open one's
+                // is held down.
+                (id: "character.tab_status", anchor: BottomLeft, pos: (16, 12), size: (78, 19), kind: Button(skin: "tab_large", text: "Character")),
+                (id: "character.tab_skills", anchor: BottomLeft, pos: (96, 12), size: (78, 19), kind: Button(skin: "tab_large", text: "Skills")),
+            ],
+        ),
+    ],
+)

@@ -1,0 +1,13 @@
+---
+source: crates/m2-server-core/tests/combat.rs
+expression: h.log
+---
+-- Bob sees Alice come back where she fell
+@14000 conn#2 sends Restart town=false
+   -> send conn#2 EntityRemove vid=7
+   -> send conn#2 EntitySpawn vid=7 (475000, 971400) kind=6 race=0 angle=90 speed=150/100
+   -> send conn#2 EntityInfo vid=7 Hero empire=1 level=1
+   -> send conn#4 EntityRemove vid=7
+   -> send conn#4 EntitySpawn vid=7 (475000, 971400) kind=6 race=0 angle=90 speed=150/100
+   -> send conn#4 EntityInfo vid=7 Hero empire=1 level=1
+   -> send conn#2 PointsChanged 5=50 7=50

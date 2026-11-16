@@ -1,0 +1,17 @@
+[package]
+name = "m2-protocol"
+description = "openm2's wire protocol: messages, encoding and decoding, frames. No I/O."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

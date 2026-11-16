@@ -1,0 +1,19 @@
+# m2-server-core must stay deterministic: time comes in as `Millis`, nothing sleeps, and
+# anything that ends up in snapshots iterates in a fixed order.
+# (Clippy reads only the nearest clippy.toml, so the test allowances are repeated.)
+
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-indexing-slicing-in-tests = true
+allow-panic-in-tests = true
+
+disallowed-methods = [
+  { path = "std::time::Instant::now", reason = "the server core never reads the clock; take `now: Millis` as an argument" },
+  { path = "std::time::SystemTime::now", reason = "the server core never reads the clock; take `now: Millis` as an argument" },
+  { path = "std::thread::sleep", reason = "the server core never blocks; schedule work with tick(now)" },
+]
+
+disallowed-types = [
+  { path = "std::collections::HashMap", reason = "iteration order changes between runs; use BTreeMap" },
+  { path = "std::collections::HashSet", reason = "iteration order changes between runs; use BTreeSet" },
+]

@@ -1,0 +1,73 @@
+# cargo-deny: security advisories, licenses, banned crates and allowed sources.
+# Run with `just deny` (part of `just check`).
+
+[graph]
+all-features = true
+# The systems openm2 builds for. Others pull in crates of their own (the
+# platform verifier's root certificates on wasm32, under CDLA-Permissive-2.0);
+# a new system is checked when it is added here.
+targets = [
+  "x86_64-pc-windows-msvc",
+  "x86_64-unknown-linux-gnu",
+  "aarch64-unknown-linux-gnu",
+  "x86_64-apple-darwin",
+  "aarch64-apple-darwin",
+]
+
+[advisories]
+version = 2
+yanked = "deny"
+ignore = [
+  # ttf-parser is unmaintained (not a vulnerability). It comes in through
+  # cosmic-text 0.19 -> fontdb 0.23 and only parses the fonts installed on the
+  # user's system; fontdb 0.24 no longer uses it. Remove this once cosmic-text
+  # moves to fontdb 0.24.
+  { id = "RUSTSEC-2026-0192", reason = "unmaintained ttf-parser via cosmic-text/fontdb 0.23; system fonts only" },
+]
+
+[licenses]
+version = 2
+confidence-threshold = 0.9
+unused-allowed-license = "allow"
+# Permissive licenses only; the project is MIT OR Apache-2.0.
+# Adding a license here is a design choice: record it in docs/architecture.md's
+# Design choices.
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Zlib",
+  "Unicode-3.0",
+]
+# Licenses allowed for one crate only; each is a decision too.
+exceptions = [
+  # kira's lock-free triple buffer: file-level copyleft that
+  # covers only its own files, used unchanged.
+  { allow = ["MPL-2.0"], crate = "triple_buffer" },
+  # Mozilla's list of certificate authorities, which the server checks its
+  # database's TLS against: its text ships in the image.
+  { allow = ["CDLA-Permissive-2.0"], crate = "webpki-roots" },
+  # The system's clipboard on Windows, under arboard: the
+  # Boost licence, as permissive as MIT, which asks for nothing in a
+  # program's copies.
+  { allow = ["BSL-1.0"], crate = "clipboard-win" },
+  { allow = ["BSL-1.0"], crate = "error-code" },
+]
+
+[licenses.private]
+# Our own crates are `publish = false`.
+ignore = true
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

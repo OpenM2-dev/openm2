@@ -1,0 +1,105 @@
+---
+source: crates/m2-server-core/tests/scenarios.rs
+expression: h.log
+---
+@1000 conn#1 accepted on auth from 10.0.0.1
+   -> event: conn#1: accepted on auth
+@1000 conn#1 sends Hello protocol=3 "openm2 test"
+   -> event: conn#1: openm2 test speaks protocol 3
+   -> send conn#1 Welcome protocol=3
+@1000 conn#1 sends StartSignIn
+   -> send conn#1 SignInOptions [example] nonce="f400927857aaf64114f561baacb37970"
+@1000 conn#1 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #1: example http://127.0.0.1:50000/callback nonce=f400927857aaf64114f561baacb37970
+@1000 sign-in #1 checked: https://id.example alice
+   -> store #2: identity login example https://id.example alice
+@1000 store answers #2: login ok, account 1 None
+   -> event: conn#1: account 1 signed in with example
+   -> send conn#1 SignedIn example:alice 8c79… (32 bytes)
+@1000 conn#1 closed: the client left
+   -> event: conn#1: closed: the client left
+@1000 conn#2 accepted on game from 10.0.0.1
+   -> event: conn#2: accepted on game
+@1000 conn#2 sends Hello protocol=3 "openm2 test"
+   -> event: conn#2: openm2 test speaks protocol 3
+   -> send conn#2 Welcome protocol=3
+@1000 conn#2 sends TicketLogin example:alice 8c79… (32 bytes)
+   -> event: conn#2: account 1 joined the game server
+   -> store #3: load characters of 1
+@1000 store answers #3: characters []
+   -> send conn#2 Empire 0
+   -> send conn#2 Phase 1
+   -> send conn#2 CharacterList []
+-- no empire picked yet
+@1000 conn#2 sends CreateCharacter slot=0 Hero class=0
+   -> send conn#2 CharacterCreateFailed 1
+-- a name with a space, a class past 7
+@1000 conn#2 sends CreateCharacter slot=0 Two Words class=0 empire=1
+   -> send conn#2 CharacterCreateFailed 1
+@1000 conn#2 sends CreateCharacter slot=0 Hero class=8 empire=1
+   -> send conn#2 CharacterCreateFailed 1
+-- a shaman in slot 2, then a name that is taken in another case
+@1000 conn#2 sends CreateCharacter slot=2 Mage class=7 empire=1
+   -> store #4: create Mage for 1 in slot 2 at (475000, 966100) empire 1
+@1000 store answers #4: created #1 Mage in slot 2
+   -> event: conn#2: character 1 created
+   -> send conn#2 CharacterCreated slot=2 #1 Mage class=7 st=3 ht=4 dx=3 iq=6
+@1000 conn#2 sends CreateCharacter slot=1 MAGE class=0 empire=1
+   -> store #5: create MAGE for 1 in slot 1 at (475000, 966100) empire 1
+@1000 store answers #5: not created: NameTaken
+   -> send conn#2 CharacterCreateFailed 0
+-- an empty slot cannot be selected
+@1000 conn#2 sends SelectCharacter 1
+   -> close conn#2
+   -> event: conn#2: closed: no character in that slot
+-- back on the list: a slot that is taken gives the first free one
+@1000 conn#3 accepted on auth from 10.0.0.1
+   -> event: conn#3: accepted on auth
+@1000 conn#3 sends Hello protocol=3 "openm2 test"
+   -> event: conn#3: openm2 test speaks protocol 3
+   -> send conn#3 Welcome protocol=3
+@1000 conn#3 sends StartSignIn
+   -> send conn#3 SignInOptions [example] nonce="03d78a3f20d154abd8ddfa6974eedf6b"
+@1000 conn#3 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #6: example http://127.0.0.1:50000/callback nonce=03d78a3f20d154abd8ddfa6974eedf6b
+@1000 sign-in #6 checked: https://id.example alice
+   -> store #7: identity login example https://id.example alice
+@1000 store answers #7: login ok, account 1 Some(1)
+   -> event: conn#3: account 1 signed in with example
+   -> send conn#3 SignedIn example:alice 3784… (32 bytes)
+@1000 conn#3 closed: the client left
+   -> event: conn#3: closed: the client left
+@1000 conn#4 accepted on game from 10.0.0.1
+   -> event: conn#4: accepted on game
+@1000 conn#4 sends Hello protocol=3 "openm2 test"
+   -> event: conn#4: openm2 test speaks protocol 3
+   -> send conn#4 Welcome protocol=3
+@1000 conn#4 sends TicketLogin example:alice 3784… (32 bytes)
+   -> event: conn#4: account 1 joined the game server
+   -> store #8: load characters of 1
+@1000 store answers #8: characters [2:Mage]
+   -> send conn#4 Empire 1
+   -> send conn#4 Phase 1
+   -> send conn#4 CharacterList [2: #1 Mage lv1]
+@1000 conn#4 sends CreateCharacter slot=2 Second class=1 empire=1
+   -> store #9: create Second for 1 in slot 0 at (475000, 966100) empire 1
+@1000 store answers #9: created #2 Second in slot 0
+   -> event: conn#4: character 2 created
+   -> send conn#4 CharacterCreated slot=0 #2 Second class=1 st=4 ht=3 dx=6 iq=3
+@1000 conn#4 sends CreateCharacter slot=3 Third class=2 empire=1
+   -> store #10: create Third for 1 in slot 3 at (475000, 966100) empire 1
+@1000 store answers #10: created #3 Third in slot 3
+   -> event: conn#4: character 3 created
+   -> send conn#4 CharacterCreated slot=3 #3 Third class=2 st=5 ht=3 dx=3 iq=5
+@1000 conn#4 sends CreateCharacter slot=0 Fourth class=3 empire=1
+   -> store #11: create Fourth for 1 in slot 1 at (475000, 966100) empire 1
+@1000 store answers #11: created #4 Fourth in slot 1
+   -> event: conn#4: character 4 created
+   -> send conn#4 CharacterCreated slot=1 #4 Fourth class=3 st=3 ht=4 dx=3 iq=6
+-- a fifth does not fit
+@1000 conn#4 sends CreateCharacter slot=0 Fifth class=0 empire=1
+   -> send conn#4 CharacterCreateFailed 1
+@1000 conn#4 sends SelectCharacter 3
+   -> send conn#4 Phase 2
+   -> send conn#4 MainCharacter vid=1 Third class=2 (475000, 966100) empire=1 group=0 run=450
+   -> send conn#4 Points 1=1 4=300 5=806 6=806 7=344 8=344 12=5 13=3 14=3 15=5 16=3 17=100 18=12 19=150 20=3 27=1

@@ -1,0 +1,24 @@
+---
+source: crates/m2-server-core/tests/shops.rs
+expression: h.log
+---
+-- a blade for 400: points, then its place in the bag
+@1000 conn#2 sends ShopBuy 0
+   -> send conn#2 PointsChanged 11=600
+   -> send conn#2 ItemSet 1:1 3001x1
+-- ten drops for 40: 5 onto the stack of 195, the rest in a place of their own
+@1000 conn#2 sends ShopBuy 1
+   -> send conn#2 PointsChanged 11=560
+   -> send conn#2 ItemSet 1:0 3004x200
+   -> send conn#2 ItemSet 1:2 3004x5
+-- the crown costs 900000: not enough gold, nothing taken
+@1000 conn#2 sends ShopBuy 2
+   -> send conn#2 ShopRefused 1
+-- ignored: an empty place, a place the blade covers
+@1000 conn#2 sends ShopBuy 3
+@1000 conn#2 sends ShopBuy 5
+-- the purchases are saved with the character
+@1000 conn#2 closed: the client left
+   -> store #5: save #1 at (475000, 966100) played 0s gold=560 items=[0:3004x200 1:3001x1 2:3004x5]
+   -> event: conn#2: closed: the client left
+@1000 store answers #5: saved: Ok(())

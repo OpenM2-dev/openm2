@@ -1,0 +1,126 @@
+---
+source: crates/m2-server-core/tests/warps.rs
+expression: h.log
+---
+@1000 conn#1 accepted on auth from 10.0.0.1
+   -> event: conn#1: accepted on auth
+@1000 conn#1 sends Hello protocol=3 "openm2 test"
+   -> event: conn#1: openm2 test speaks protocol 3
+   -> send conn#1 Welcome protocol=3
+@1000 conn#1 sends StartSignIn
+   -> send conn#1 SignInOptions [example] nonce="f400927857aaf64114f561baacb37970"
+@1000 conn#1 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #1: example http://127.0.0.1:50000/callback nonce=f400927857aaf64114f561baacb37970
+@1000 sign-in #1 checked: https://id.example alice
+   -> store #2: identity login example https://id.example alice
+@1000 store answers #2: login ok, account 1 None
+   -> event: conn#1: account 1 signed in with example
+   -> send conn#1 SignedIn example:alice 8c79… (32 bytes)
+@1000 conn#1 closed: the client left
+   -> event: conn#1: closed: the client left
+@1000 conn#2 accepted on game from 10.0.0.1
+   -> event: conn#2: accepted on game
+@1000 conn#2 sends Hello protocol=3 "openm2 test"
+   -> event: conn#2: openm2 test speaks protocol 3
+   -> send conn#2 Welcome protocol=3
+@1000 conn#2 sends TicketLogin example:alice 8c79… (32 bytes)
+   -> event: conn#2: account 1 joined the game server
+   -> store #3: load characters of 1
+@1000 store answers #3: characters []
+   -> send conn#2 Empire 0
+   -> send conn#2 Phase 1
+   -> send conn#2 CharacterList []
+@1000 conn#2 sends CreateCharacter slot=0 Alice class=0 empire=1
+   -> store #4: create Alice for 1 in slot 0 at (475000, 966100) empire 1
+@1000 store answers #4: created #1 Alice in slot 0
+   -> event: conn#2: character 1 created
+   -> send conn#2 CharacterCreated slot=0 #1 Alice class=0 st=6 ht=4 dx=3 iq=3
+@1000 conn#2 sends SelectCharacter 0
+   -> send conn#2 Phase 2
+   -> send conn#2 MainCharacter vid=4 Alice class=0 (475000, 966100) empire=1 group=0 run=450
+   -> send conn#2 Points 1=1 4=300 5=796 6=796 7=304 8=304 12=6 13=4 14=3 15=3 16=4 17=100 18=14 19=150 20=4 27=1
+@1000 conn#2 sends EnterGame
+   -> send conn#2 Phase 3
+   -> send conn#2 GameTime 1000
+   -> send conn#2 Channel 1
+   -> send conn#2 EntitySpawn vid=4 (475000, 966100) kind=6 race=0 angle=0 speed=150/100
+   -> send conn#2 EntityInfo vid=4 Alice empire=1 level=1
+   -> send conn#2 Skills
+   -> event: conn#2: character 1 entered as vid 4
+   -> send conn#2 EntitySpawn vid=1 (475000, 965500) kind=3 race=10001 angle=75 speed=100/100
+   -> send conn#2 EntitySpawn vid=2 (474000, 966100) kind=9 race=10002 angle=195 speed=100/100
+   -> send conn#2 EntitySpawn vid=3 (476000, 966100) kind=3 race=10003 angle=125 speed=100/100
+@1000 conn#3 accepted on auth from 10.0.0.1
+   -> event: conn#3: accepted on auth
+@1000 conn#3 sends Hello protocol=3 "openm2 test"
+   -> event: conn#3: openm2 test speaks protocol 3
+   -> send conn#3 Welcome protocol=3
+@1000 conn#3 sends StartSignIn
+   -> send conn#3 SignInOptions [example] nonce="03d78a3f20d154abd8ddfa6974eedf6b"
+@1000 conn#3 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #5: example http://127.0.0.1:50000/callback nonce=03d78a3f20d154abd8ddfa6974eedf6b
+@1000 sign-in #5 checked: https://id.example bob
+   -> store #6: identity login example https://id.example bob
+@1000 store answers #6: login ok, account 2 None
+   -> event: conn#3: account 2 signed in with example
+   -> send conn#3 SignedIn example:bob 3784… (32 bytes)
+@1000 conn#3 closed: the client left
+   -> event: conn#3: closed: the client left
+@1000 conn#4 accepted on game from 10.0.0.1
+   -> event: conn#4: accepted on game
+@1000 conn#4 sends Hello protocol=3 "openm2 test"
+   -> event: conn#4: openm2 test speaks protocol 3
+   -> send conn#4 Welcome protocol=3
+@1000 conn#4 sends TicketLogin example:bob 3784… (32 bytes)
+   -> event: conn#4: account 2 joined the game server
+   -> store #7: load characters of 2
+@1000 store answers #7: characters []
+   -> send conn#4 Empire 0
+   -> send conn#4 Phase 1
+   -> send conn#4 CharacterList []
+@1000 conn#4 sends CreateCharacter slot=0 Bob class=0 empire=1
+   -> store #8: create Bob for 2 in slot 0 at (475000, 966100) empire 1
+@1000 store answers #8: created #2 Bob in slot 0
+   -> event: conn#4: character 2 created
+   -> send conn#4 CharacterCreated slot=0 #2 Bob class=0 st=6 ht=4 dx=3 iq=3
+@1000 conn#4 sends SelectCharacter 0
+   -> send conn#4 Phase 2
+   -> send conn#4 MainCharacter vid=5 Bob class=0 (475000, 966100) empire=1 group=0 run=450
+   -> send conn#4 Points 1=1 4=300 5=796 6=796 7=304 8=304 12=6 13=4 14=3 15=3 16=4 17=100 18=14 19=150 20=4 27=1
+@1000 conn#4 sends EnterGame
+   -> send conn#4 Phase 3
+   -> send conn#4 GameTime 1000
+   -> send conn#4 Channel 1
+   -> send conn#4 EntitySpawn vid=5 (475000, 966100) kind=6 race=0 angle=0 speed=150/100
+   -> send conn#4 EntityInfo vid=5 Bob empire=1 level=1
+   -> send conn#4 Skills
+   -> event: conn#4: character 2 entered as vid 5
+   -> send conn#2 EntitySpawn vid=5 (475000, 966100) kind=6 race=0 angle=0 speed=150/100
+   -> send conn#2 EntityInfo vid=5 Bob empire=1 level=1
+   -> send conn#4 EntitySpawn vid=4 (475000, 966100) kind=6 race=0 angle=0 speed=150/100
+   -> send conn#4 EntityInfo vid=4 Alice empire=1 level=1
+   -> send conn#4 EntitySpawn vid=1 (475000, 965500) kind=3 race=10001 angle=75 speed=100/100
+   -> send conn#4 EntitySpawn vid=2 (474000, 966100) kind=9 race=10002 angle=195 speed=100/100
+   -> send conn#4 EntitySpawn vid=3 (476000, 966100) kind=3 race=10003 angle=125 speed=100/100
+-- the warp stands 6 m north: nobody goes yet
+@1600 tick
+-- alice walks to 1 m from it; at the next half second it takes her to the other map
+@1600 conn#2 sends CharacterMove kind=1 (475000, 965600)
+   -> send conn#4 EntityMove kind=1 vid=4 (475000, 965600) angle=90 duration=733
+@3267 conn#2 sends CharacterMove kind=0 (475000, 965600)
+   -> send conn#4 EntityMove kind=0 vid=4 (475000, 965600) angle=90 duration=0
+@3767 tick
+   -> send conn#2 EntityRemove vid=4
+   -> send conn#2 EntitySpawn vid=4 (510000, 970000) kind=6 race=0 angle=90 speed=150/100
+   -> send conn#2 EntityInfo vid=4 Alice empire=1 level=1
+   -> send conn#4 EntityRemove vid=4
+   -> send conn#2 EntityRemove vid=5
+   -> send conn#2 EntityRemove vid=1
+   -> send conn#2 EntityRemove vid=2
+   -> send conn#2 EntityRemove vid=3
+   -> event: conn#2: character 1 went through a warp to (510000, 970000)
+-- bob, at the start, no longer sees her; a walk from where she was is refused
+@3767 conn#2 sends CharacterMove kind=1 (475000, 965700)
+   -> send conn#2 MoveRefused (510000, 970000)
+   -> event: conn#2: move refused: off its map
+@4367 tick

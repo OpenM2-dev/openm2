@@ -1,0 +1,45 @@
+// The launcher's window, 640 × 400 (crates/m2-launcher/src/window/): the
+// game's picture or its name, how far the update has got, the question for
+// a client folder and keys file, and the buttons. Which nodes show, and
+// their texts, follow the stage (screen.rs). Skins are in skin.ron; the
+// format is in docs/specs/ui.md.
+(
+    windows: [
+        (
+            id: "launcher",
+            size: (Fill(0), Fill(0)),
+            kind: Panel(skin: "background"),
+            children: [
+                // The game's picture (launcher.toml's window.picture), 4 : 1.
+                (id: "launcher.picture", size: (640, 160), hidden: true, kind: Image(image: "@picture")),
+                // Its name, without a picture.
+                (id: "launcher.name", anchor: Top, pos: (0, 52), size: (Fill(32), 56), kind: Text(text: "openm2", align: Center, size: 34)),
+                (id: "launcher.status", pos: (32, 178), size: (Fill(32), 28), kind: Text(text: "", size: 18)),
+                (id: "launcher.gauge", pos: (32, 214), size: (Fill(32), 8), hidden: true, kind: Gauge(skin: "gauge")),
+                (id: "launcher.detail", pos: (32, 230), size: (Fill(32), 20), kind: Text(text: "")),
+                // Why something failed, and the end of a log.
+                (id: "launcher.errors", pos: (32, 212), size: (Fill(32), 112), hidden: true, kind: Panel(skin: "well"), children: [
+                    (id: "launcher.log", pos: (10, 6), size: (Fill(10), Fill(6)), kind: Log(max_lines: 60)),
+                ]),
+                // A game whose versions carry no files of their own asks for
+                // the player's client.
+                (id: "launcher.ask", pos: (32, 210), size: (Fill(32), 118), hidden: true, kind: Group, children: [
+                    (id: "launcher.ask.client", pos: (0, 0), size: (Fill(0), 18), kind: Text(text: "Your client folder (the one with pack in it)")),
+                    (id: "launcher.client", pos: (0, 20), size: (Fill(0), 26), kind: Edit(skin: "field", max_chars: 1024)),
+                    (id: "launcher.ask.keys", pos: (0, 52), size: (Fill(0), 18), kind: Text(text: "Your keys file (keys.toml)")),
+                    (id: "launcher.keys", pos: (0, 72), size: (Fill(0), 26), kind: Edit(skin: "field", max_chars: 1024)),
+                    (id: "launcher.ask.hint", pos: (0, 102), size: (Fill(0), 16), kind: Text(text: "Type the paths, or drop the folder and the file on this window.")),
+                ]),
+                (id: "launcher.previous", anchor: BottomLeft, pos: (32, 24), size: (196, 36), hidden: true, kind: Button(skin: "secondary", text: "Play the previous version")),
+                // Beside it when the main button plays what's installed.
+                (id: "launcher.again", anchor: BottomLeft, pos: (236, 24), size: (106, 36), hidden: true, kind: Button(skin: "secondary", text: "Try again")),
+                // Always there, in the corner; the main button beside it, one
+                // at a time.
+                (id: "launcher.close", anchor: BottomRight, pos: (32, 24), size: (100, 36), kind: Button(skin: "secondary", text: "Close")),
+                (id: "launcher.play", anchor: BottomRight, pos: (140, 24), size: (150, 36), hidden: true, kind: Button(skin: "primary", text: "Play")),
+                (id: "launcher.import", anchor: BottomRight, pos: (140, 24), size: (150, 36), hidden: true, kind: Button(skin: "primary", text: "Import")),
+                (id: "launcher.retry", anchor: BottomRight, pos: (140, 24), size: (150, 36), hidden: true, kind: Button(skin: "primary", text: "Try again")),
+            ],
+        ),
+    ],
+)

@@ -1,0 +1,46 @@
+---
+source: crates/m2-server-core/tests/sign_in.rs
+expression: h.log
+---
+-- the auth server: hello, the providers and a nonce
+@1000 conn#1 accepted on auth from 10.0.0.1
+   -> event: conn#1: accepted on auth
+@1000 conn#1 sends Hello protocol=3 "openm2 test"
+   -> event: conn#1: openm2 test speaks protocol 3
+   -> send conn#1 Welcome protocol=3
+@1000 conn#1 sends StartSignIn
+   -> send conn#1 SignInOptions [example] nonce="f400927857aaf64114f561baacb37970"
+-- the player is in the browser: the auth connection is pinged
+@6000 tick
+   -> send conn#1 Ping
+@6000 conn#1 sends Pong
+-- the code comes back; the edge checks it with the connection's nonce
+@6000 conn#1 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #1: example http://127.0.0.1:50000/callback nonce=f400927857aaf64114f561baacb37970
+@6000 sign-in #1 checked: https://id.example player-1
+   -> store #2: identity login example https://id.example player-1
+@6000 store answers #2: login ok, account 1 None
+   -> event: conn#1: account 1 signed in with example
+   -> send conn#1 SignedIn example:player-1 8c79… (32 bytes)
+@6000 conn#1 closed: the client left
+   -> event: conn#1: closed: the client left
+-- the game server takes the ticket with the account's name
+@6000 conn#2 accepted on game from 10.0.0.1
+   -> event: conn#2: accepted on game
+@6000 conn#2 sends Hello protocol=3 "openm2 test"
+   -> event: conn#2: openm2 test speaks protocol 3
+   -> send conn#2 Welcome protocol=3
+@6000 conn#2 sends TicketLogin example:player-1 8c79… (32 bytes)
+   -> event: conn#2: account 1 joined the game server
+   -> store #3: load characters of 1
+@6000 store answers #3: characters []
+   -> send conn#2 Empire 0
+   -> send conn#2 Phase 1
+   -> send conn#2 CharacterList []
+@6000 conn#2 sends CreateCharacter slot=0 Hero class=0 empire=3
+   -> store #4: create Hero for 1 in slot 0 at (963400, 278200) empire 3
+@6000 store answers #4: created #1 Hero in slot 0
+   -> event: conn#2: character 1 created
+   -> send conn#2 CharacterCreated slot=0 #1 Hero class=0 st=6 ht=4 dx=3 iq=3
+@6000 conn#2 closed: the client left
+   -> event: conn#2: closed: the client left

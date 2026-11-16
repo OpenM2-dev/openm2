@@ -1,0 +1,103 @@
+---
+source: crates/m2-core/tests/scenarios.rs
+expression: s.log
+---
+@0ms Start
+    -> Connect { conn: ConnId(1), server: Auth }
+@5ms Connected(ConnId(1))
+    -> Send { conn: ConnId(1), message: Hello(Hello { protocol: 3, build: "openm2 test" }) }
+@6ms Message(ConnId(1), Welcome(Welcome { protocol: 3, server: "openm2-server test" }))
+    -> Event(Welcomed { server: Auth, protocol: 3, name: "openm2-server test" })
+    -> Send { conn: ConnId(1), message: StartSignIn(StartSignIn) }
+@7ms Message(ConnId(1), SignInOptions(SignInOptions { providers: [Provider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }], nonce: "n0nce" }))
+    -> Event(SignInOptions([SignInProvider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }]))
+    -> SignIn { provider: SignInProvider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }, nonce: "n0nce" }
+@8ms SignInCode(SignInCode { redirect: "http://127.0.0.1:50000/callback", .. })
+    -> Send { conn: ConnId(1), message: ProviderLogin(ProviderLogin { provider: "example", code: <redacted>, verifier: <redacted>, redirect: "http://127.0.0.1:50000/callback" }) }
+@20ms Message(ConnId(1), SignedIn(SignedIn { account: "example:admin", ticket: <redacted> }))
+    -> Event(LoggedIn)
+    -> Disconnect { conn: ConnId(1) }
+    -> Connect { conn: ConnId(2), server: Game }
+@25ms Connected(ConnId(2))
+    -> Send { conn: ConnId(2), message: Hello(Hello { protocol: 3, build: "openm2 test" }) }
+@26ms Message(ConnId(2), Welcome(Welcome { protocol: 3, server: "openm2-server test" }))
+    -> Event(Welcomed { server: Game, protocol: 3, name: "openm2-server test" })
+    -> Send { conn: ConnId(2), message: TicketLogin(TicketLogin { username: "example:admin", ticket: <redacted> }) }
+@110ms Message(ConnId(2), Empire(Empire { empire: 2 }))
+@110ms Message(ConnId(2), Phase(Phase { phase: 1 }))
+    -> Event(Phase { server: Game, phase: Select })
+@110ms Message(ConnId(2), CharacterList(CharacterList { characters: [Character { slot: 0, id: 1, name: "Alice", class: 3, level: 10, playtime: 0, st: 0, ht: 0, dx: 0, iq: 0, body_part: 0, hair_part: 0, guild: "" }] }))
+    -> Event(CharacterList([CharacterSummary { slot: 0, id: 1, name: "Alice", class: 3, level: 10, playtime: 0, st: 0, ht: 0, dx: 0, iq: 0, body_part: 0, hair_part: 0, guild: "" }]))
+    -> Event(Selected { slot: 0, name: "Alice" })
+    -> Send { conn: ConnId(2), message: SelectCharacter(SelectCharacter { slot: 0 }) }
+@120ms Message(ConnId(2), Phase(Phase { phase: 2 }))
+    -> Event(Phase { server: Game, phase: Loading })
+@121ms Message(ConnId(2), MainCharacter(MainCharacter { vid: 4660, class: 3, name: "Alice", x: 958400, y: 272800, z: 0, empire: 2, skill_group: 0, run_speed: 450 }))
+    -> Send { conn: ConnId(2), message: EnterGame(EnterGame) }
+@130ms Message(ConnId(2), Phase(Phase { phase: 3 }))
+    -> Event(Phase { server: Game, phase: Game })
+    -> Event(EnteredGame(Some(Me { vid: 4660, name: "Alice", class: 3, empire: Chunjo, position: (958400, 272800, 0) })))
+@131ms Message(ConnId(2), GameTime(GameTime { time: 10000 }))
+@200ms Command(Whisper { name: "bob", text: "hi Bob" })
+    -> Send { conn: ConnId(2), message: SendWhisper(SendWhisper { name: "bob", text: "hi Bob" }) }
+@210ms Message(ConnId(2), Whisper(Whisper { name: "Bob", mine: true, text: "hi Bob" }))
+    -> Event(Whisper { name: "Bob", line: WhisperLine { at: Millis(210), kind: Sent, text: "hi Bob" } })
+@220ms Message(ConnId(2), Whisper(Whisper { name: "Bob", mine: false, text: "hello Alice" }))
+    -> Event(Whisper { name: "Bob", line: WhisperLine { at: Millis(220), kind: Received, text: "hello Alice" } })
+@230ms Command(Whisper { name: "Alice", text: "me" })
+    -> Event(Ignored { what: "Whisper", why: "that is our own character" })
+@230ms Command(Whisper { name: "B o b", text: "spaces" })
+    -> Event(Ignored { what: "Whisper", why: "no character has that name" })
+@230ms Command(Whisper { name: "Bob", text: "" })
+    -> Event(Ignored { what: "Whisper", why: "the line is empty" })
+@230ms Command(Whisper { name: "Bob", text: "two\nlines" })
+    -> Event(Ignored { what: "Whisper", why: "the line holds control characters" })
+@230ms Command(Whisper { name: "Bob", text: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" })
+    -> Event(Ignored { what: "Whisper", why: "the line is longer than 512 bytes" })
+@240ms Message(ConnId(2), WhisperRefused(WhisperRefused { name: "bob", reason: 1 }))
+    -> Event(WhisperRefused { name: "bob", reason: NotOnline })
+@240ms Message(ConnId(2), WhisperRefused(WhisperRefused { name: "Zed", reason: 2 }))
+    -> Event(WhisperRefused { name: "Zed", reason: TooMany })
+@300ms Message(ConnId(2), Whisper(Whisper { name: "Ann", mine: false, text: "hey" }))
+    -> Event(Whisper { name: "Ann", line: WhisperLine { at: Millis(300), kind: Received, text: "hey" } })
+@301ms Message(ConnId(2), Whisper(Whisper { name: "Cid", mine: false, text: "hey" }))
+    -> Event(Whisper { name: "Cid", line: WhisperLine { at: Millis(301), kind: Received, text: "hey" } })
+@302ms Message(ConnId(2), Whisper(Whisper { name: "Dee", mine: false, text: "hey" }))
+    -> Event(Whisper { name: "Dee", line: WhisperLine { at: Millis(302), kind: Received, text: "hey" } })
+@303ms Message(ConnId(2), Whisper(Whisper { name: "Eve", mine: false, text: "hey" }))
+    -> Event(Whisper { name: "Eve", line: WhisperLine { at: Millis(303), kind: Received, text: "hey" } })
+@304ms Message(ConnId(2), Whisper(Whisper { name: "Fay", mine: false, text: "hey" }))
+    -> Event(Whisper { name: "Fay", line: WhisperLine { at: Millis(304), kind: Received, text: "hey" } })
+@305ms Message(ConnId(2), Whisper(Whisper { name: "Gus", mine: false, text: "hey" }))
+    -> Event(Whisper { name: "Gus", line: WhisperLine { at: Millis(305), kind: Received, text: "hey" } })
+@306ms Message(ConnId(2), Whisper(Whisper { name: "Hal", mine: false, text: "hey" }))
+    -> Event(Whisper { name: "Hal", line: WhisperLine { at: Millis(306), kind: Received, text: "hey" } })
+@307ms Message(ConnId(2), Whisper(Whisper { name: "Ivy", mine: false, text: "hey" }))
+    -> Event(Whisper { name: "Ivy", line: WhisperLine { at: Millis(307), kind: Received, text: "hey" } })
+@400ms Command(ForgetWhispers { name: "ann" })
+@500ms Message(ConnId(2), Friends(Friends { friends: [Friend { name: "Bob", online: true }, Friend { name: "Carol", online: false }] }))
+    -> Event(Friends)
+@510ms Message(ConnId(2), FriendChanged(FriendChanged { name: "Carol", status: 2 }))
+    -> Event(FriendChanged { name: "Carol", change: Online })
+@520ms Message(ConnId(2), FriendChanged(FriendChanged { name: "Dave", status: 1 }))
+    -> Event(FriendChanged { name: "Dave", change: Added { online: false } })
+@530ms Message(ConnId(2), FriendChanged(FriendChanged { name: "Bob", status: 0 }))
+    -> Event(FriendChanged { name: "Bob", change: Removed })
+@540ms Message(ConnId(2), FriendChanged(FriendChanged { name: "Bob", status: 0 }))
+    -> Event(Ignored { what: "FriendChanged", why: "no such friend" })
+@600ms Message(ConnId(2), FriendAsked(FriendAsked { name: "Erin" }))
+    -> Event(FriendAsked { name: "Erin" })
+@600ms Message(ConnId(2), FriendAsked(FriendAsked { name: "Fay" }))
+    -> Event(FriendAsked { name: "Fay" })
+@610ms Message(ConnId(2), FriendNotice(FriendNotice { name: "Erin", notice: 9 }))
+    -> Event(FriendNotice { name: "Erin", notice: Ended })
+@620ms Command(AnswerFriend { name: "fay", accept: true })
+    -> Send { conn: ConnId(2), message: AnswerFriend(AnswerFriend { name: "fay", accept: true }) }
+@630ms Command(AskFriend { name: "Gus" })
+    -> Send { conn: ConnId(2), message: AskFriend(AskFriend { name: "Gus" }) }
+@630ms Command(RemoveFriend { name: "Dave" })
+    -> Send { conn: ConnId(2), message: RemoveFriend(RemoveFriend { name: "Dave" }) }
+@630ms Command(AskFriend { name: "alice" })
+    -> Event(Ignored { what: "AskFriend", why: "that is our own character" })
+@700ms Message(ConnId(2), Phase(Phase { phase: 1 }))
+    -> Event(Phase { server: Game, phase: Select })

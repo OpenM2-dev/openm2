@@ -1,0 +1,100 @@
+// The inventory and the quickslot bar of `openm2 play`. Skins are in
+// skin.ron; the format is in docs/specs/ui.md ("The inventory"). The ids are
+// what `play` fills in (crates/m2-cli/src/interface.rs, `ids`).
+(
+    windows: [
+        (
+            id: "taskbar",
+            anchor: Bottom,
+            pos: (0, 4),
+            // the base's globe stands above the board
+            size: (699, 48),
+            kind: Group,
+            children: [
+                (anchor: BottomLeft, size: (Fill(0), 40), kind: Panel(skin: "thin_board")),
+                // The globe, always glowing, and our health and mana over
+                // the base's troughs, and our mount's stamina in the thin
+                // one while we have a mount; the globe's and the fills'
+                // frames go round.
+                (pos: (2, 0), size: (158, 47), kind: Panel(skin: "taskbar_base"), children: [
+                    (id: "taskbar.globe", pos: (6, 4), size: (40, 40), kind: Panel(skin: "globe_1")),
+                    (id: "taskbar.health", pos: (59, 14), size: (95, 11), kind: Gauge(skin: "health_flow_1", value: 1.0)),
+                    (id: "taskbar.mana", pos: (59, 26), size: (95, 11), kind: Gauge(skin: "mana_flow_1", value: 1.0)),
+                    (id: "taskbar.stamina", pos: (59, 39), size: (95, 4), hidden: true, kind: Gauge(skin: "stamina", value: 0.0)),
+                ]),
+                // Our experience in the level: four orbs over the frame's,
+                // a quarter of the level each, filling from the bottom.
+                (id: "taskbar.experience", pos: (164, 10), size: (105, 37), kind: Panel(skin: "experience_frame"), children: [
+                    (id: "taskbar.experience0", pos: (4, 9), size: (19, 19), kind: Gauge(skin: "experience", from: Bottom)),
+                    (id: "taskbar.experience1", pos: (29, 9), size: (19, 19), kind: Gauge(skin: "experience", from: Bottom)),
+                    (id: "taskbar.experience2", pos: (54, 9), size: (19, 19), kind: Gauge(skin: "experience", from: Bottom)),
+                    (id: "taskbar.experience3", pos: (79, 9), size: (19, 19), kind: Gauge(skin: "experience", from: Bottom)),
+                ]),
+                // Quickslots 1 to 4, then F1 to F4, of the page shown.
+                (id: "taskbar.quick", pos: (275, 12), size: (256, 32), kind: Slots(skin: "slot", columns: 8)),
+                (pos: (277, 14), size: (5, 7), kind: Panel(skin: "key_1")),
+                (pos: (309, 14), size: (5, 7), kind: Panel(skin: "key_2")),
+                (pos: (341, 14), size: (5, 7), kind: Panel(skin: "key_3")),
+                (pos: (373, 14), size: (5, 7), kind: Panel(skin: "key_4")),
+                (pos: (405, 14), size: (8, 7), kind: Panel(skin: "key_f1")),
+                (pos: (437, 14), size: (8, 7), kind: Panel(skin: "key_f2")),
+                (pos: (469, 14), size: (8, 7), kind: Panel(skin: "key_f3")),
+                (pos: (501, 14), size: (8, 7), kind: Panel(skin: "key_f4")),
+                // The pages, as the original's taskbar: the page before, the
+                // page's number on its board, the page after.
+                (id: "taskbar.page_up", pos: (534, 18), size: (9, 5), kind: Button(skin: "quick_page_up", text: "")),
+                (pos: (534, 24), size: (9, 8), kind: Panel(skin: "quick_page_board")),
+                (id: "taskbar.page", pos: (536, 24), size: (5, 7), kind: Panel(skin: "key_1")),
+                (id: "taskbar.page_down", pos: (534, 33), size: (9, 5), kind: Button(skin: "quick_page_down", text: "")),
+                // The friends list.
+                (id: "taskbar.messenger", anchor: TopRight, pos: (116, 12), size: (32, 32),
+                 kind: Button(skin: "messenger_button", text: "")),
+                // The character window, as C and K open it.
+                (id: "taskbar.character", anchor: TopRight, pos: (80, 12), size: (32, 32),
+                 kind: Button(skin: "character_button", text: "")),
+                (id: "taskbar.inventory", anchor: TopRight, pos: (44, 12), size: (32, 32),
+                 kind: Button(skin: "inventory_button", text: "")),
+                // The game menu, as Escape opens it.
+                (id: "taskbar.system", anchor: TopRight, pos: (8, 12), size: (32, 32),
+                 kind: Button(skin: "system_button", text: "")),
+            ],
+        ),
+        (
+            id: "inventory",
+            anchor: Right,
+            pos: (8, 0),
+            size: (176, 576),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (pos: (8, 8), size: (Fill(8), 32), kind: Panel(skin: "title_bar"), children: [
+                    (size: (Fill(0), 21), kind: Text(text: "Inventory", align: Center)),
+                    // over the X drawn in the bar's right end
+                    (id: "inventory.close", anchor: TopRight, pos: (3, 2), size: (15, 15), kind: Button(skin: "close", text: "")),
+                ]),
+                // What the character wears, on the client's backdrop; each
+                // slot over the place drawn for it.
+                (anchor: Top, pos: (0, 42), size: (155, 187),
+                 kind: Panel(skin: "equipment"), children: [
+                    (id: "inventory.weapon", pos: (4, 4), size: (32, 96), kind: Slots()),
+                    (id: "inventory.head", pos: (41, 4), size: (32, 32), kind: Slots()),
+                    (id: "inventory.body", pos: (41, 36), size: (32, 64), kind: Slots()),
+                    (id: "inventory.shoes", pos: (41, 147), size: (32, 32), kind: Slots()),
+                    (id: "inventory.unique1", pos: (78, 4), size: (32, 32), kind: Slots()),
+                    (id: "inventory.shield", pos: (78, 36), size: (32, 32), kind: Slots()),
+                    (id: "inventory.bracelet", pos: (78, 68), size: (32, 32), kind: Slots()),
+                    (id: "inventory.arrow", pos: (116, 4), size: (32, 32), kind: Slots()),
+                    (id: "inventory.earrings", pos: (116, 36), size: (32, 32), kind: Slots()),
+                    (id: "inventory.necklace", pos: (116, 68), size: (32, 32), kind: Slots()),
+                    (id: "inventory.unique2", pos: (117, 146), size: (32, 32), kind: Slots()),
+                ]),
+                // The bag's two pages of 5 × 9.
+                (id: "inventory.page1", anchor: Top, pos: (-17, 233), size: (32, 19), kind: Button(skin: "tab", text: "I")),
+                (id: "inventory.page2", anchor: Top, pos: (17, 233), size: (32, 19), kind: Button(skin: "tab", text: "II")),
+                (id: "inventory.bag", anchor: Top, pos: (0, 256), size: (160, 288), kind: Slots(skin: "slot", columns: 5, rows: 9)),
+                (pos: (14, 550), size: (16, 16), kind: Panel(skin: "money")),
+                (id: "inventory.gold", pos: (34, 549), size: (Fill(14), 18), kind: Text(text: "0", align: Right)),
+            ],
+        ),
+    ],
+)

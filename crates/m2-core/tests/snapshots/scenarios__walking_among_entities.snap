@@ -1,0 +1,76 @@
+---
+source: crates/m2-core/tests/scenarios.rs
+expression: s.log
+---
+@0ms Start
+    -> Connect { conn: ConnId(1), server: Auth }
+@5ms Connected(ConnId(1))
+    -> Send { conn: ConnId(1), message: Hello(Hello { protocol: 3, build: "openm2 test" }) }
+@6ms Message(ConnId(1), Welcome(Welcome { protocol: 3, server: "openm2-server test" }))
+    -> Event(Welcomed { server: Auth, protocol: 3, name: "openm2-server test" })
+    -> Send { conn: ConnId(1), message: StartSignIn(StartSignIn) }
+@7ms Message(ConnId(1), SignInOptions(SignInOptions { providers: [Provider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }], nonce: "n0nce" }))
+    -> Event(SignInOptions([SignInProvider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }]))
+    -> SignIn { provider: SignInProvider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }, nonce: "n0nce" }
+@8ms SignInCode(SignInCode { redirect: "http://127.0.0.1:50000/callback", .. })
+    -> Send { conn: ConnId(1), message: ProviderLogin(ProviderLogin { provider: "example", code: <redacted>, verifier: <redacted>, redirect: "http://127.0.0.1:50000/callback" }) }
+@20ms Message(ConnId(1), SignedIn(SignedIn { account: "example:admin", ticket: <redacted> }))
+    -> Event(LoggedIn)
+    -> Disconnect { conn: ConnId(1) }
+    -> Connect { conn: ConnId(2), server: Game }
+@25ms Connected(ConnId(2))
+    -> Send { conn: ConnId(2), message: Hello(Hello { protocol: 3, build: "openm2 test" }) }
+@26ms Message(ConnId(2), Welcome(Welcome { protocol: 3, server: "openm2-server test" }))
+    -> Event(Welcomed { server: Game, protocol: 3, name: "openm2-server test" })
+    -> Send { conn: ConnId(2), message: TicketLogin(TicketLogin { username: "example:admin", ticket: <redacted> }) }
+@110ms Message(ConnId(2), Empire(Empire { empire: 2 }))
+@110ms Message(ConnId(2), Phase(Phase { phase: 1 }))
+    -> Event(Phase { server: Game, phase: Select })
+@110ms Message(ConnId(2), CharacterList(CharacterList { characters: [Character { slot: 0, id: 1, name: "Alice", class: 3, level: 10, playtime: 0, st: 0, ht: 0, dx: 0, iq: 0, body_part: 0, hair_part: 0, guild: "" }] }))
+    -> Event(CharacterList([CharacterSummary { slot: 0, id: 1, name: "Alice", class: 3, level: 10, playtime: 0, st: 0, ht: 0, dx: 0, iq: 0, body_part: 0, hair_part: 0, guild: "" }]))
+    -> Event(Selected { slot: 0, name: "Alice" })
+    -> Send { conn: ConnId(2), message: SelectCharacter(SelectCharacter { slot: 0 }) }
+@120ms Message(ConnId(2), Phase(Phase { phase: 2 }))
+    -> Event(Phase { server: Game, phase: Loading })
+@121ms Message(ConnId(2), MainCharacter(MainCharacter { vid: 4660, class: 3, name: "Alice", x: 958400, y: 272800, z: 0, empire: 2, skill_group: 0, run_speed: 450 }))
+    -> Send { conn: ConnId(2), message: EnterGame(EnterGame) }
+@130ms Message(ConnId(2), Phase(Phase { phase: 3 }))
+    -> Event(Phase { server: Game, phase: Game })
+    -> Event(EnteredGame(Some(Me { vid: 4660, name: "Alice", class: 3, empire: Chunjo, position: (958400, 272800, 0) })))
+@131ms Message(ConnId(2), GameTime(GameTime { time: 10000 }))
+@140ms Message(ConnId(2), EntitySpawn(EntitySpawn { vid: 4660, angle: 90, x: 958400, y: 272800, z: 0, kind: 6, race: 3, move_speed: 150, attack_speed: 100, state: 0, affects: 0 }))
+    -> Event(EntityAppeared { vid: 4660, kind: Player, race: 3, at: Point { x: 958400, y: 272800 } })
+@140ms Message(ConnId(2), EntityInfo(EntityInfo { vid: 4660, name: "Alice", parts: [11209, 0, 0, 2], empire: 2, guild: 0, level: 10 }))
+@150ms Message(ConnId(2), EntitySpawn(EntitySpawn { vid: 9001, angle: 90, x: 959000, y: 273000, z: 0, kind: 0, race: 102, move_speed: 100, attack_speed: 100, state: 0, affects: 0 }))
+    -> Event(EntityAppeared { vid: 9001, kind: Monster, race: 102, at: Point { x: 959000, y: 273000 } })
+@1000ms Message(ConnId(2), EntityMove(EntityMove { vid: 9001, kind: 0, argument: 0, angle: 90, x: 959500, y: 273000, duration: 1000 }))
+@2000ms Command(MoveTo { path: [Point { x: 958700, y: 272600 }] })
+    -> Send { conn: ConnId(2), message: CharacterMove(CharacterMove { kind: 1, argument: 0, angle: 124, x: 958700, y: 272600, time: 11869 }) }
+@2500ms Tick
+@2600ms Tick
+    -> Send { conn: ConnId(2), message: CharacterMove(CharacterMove { kind: 0, argument: 0, angle: 124, x: 958700, y: 272600, time: 12469 }) }
+    -> Event(Arrived(Point { x: 958700, y: 272600 }))
+@2700ms Tick
+@3000ms Command(MoveTo { path: [Point { x: 958700, y: 273600 }] })
+    -> Send { conn: ConnId(2), message: CharacterMove(CharacterMove { kind: 1, argument: 0, angle: 0, x: 958700, y: 273600, time: 12869 }) }
+@3500ms Command(Stop)
+    -> Send { conn: ConnId(2), message: CharacterMove(CharacterMove { kind: 0, argument: 0, angle: 0, x: 958700, y: 272941, time: 13369 }) }
+@5000ms Tick
+@6000ms Command(MoveTo { path: [Point { x: 958700, y: 273600 }] })
+    -> Send { conn: ConnId(2), message: CharacterMove(CharacterMove { kind: 1, argument: 0, angle: 0, x: 958700, y: 273600, time: 15869 }) }
+@6100ms Message(ConnId(2), EntitySpawn(EntitySpawn { vid: 4660, angle: 90, x: 960000, y: 280000, z: 0, kind: 6, race: 3, move_speed: 150, attack_speed: 100, state: 0, affects: 0 }))
+    -> Event(EntityAppeared { vid: 4660, kind: Player, race: 3, at: Point { x: 960000, y: 280000 } })
+@9000ms Tick
+@9100ms Message(ConnId(2), EntityMove(EntityMove { vid: 4660, kind: 0, argument: 0, angle: 90, x: 959500, y: 273000, duration: 1000 }))
+    -> Event(Ignored { what: "EntityMove", why: "we lead our own character's moves" })
+@9300ms Message(ConnId(2), EntityDied(EntityDied { vid: 9001 }))
+    -> Event(Died { vid: 9001 })
+@9400ms Message(ConnId(2), EntityRemove(EntityRemove { vid: 9001 }))
+    -> Event(EntityLeft { vid: 9001 })
+@9401ms Message(ConnId(2), EntityRemove(EntityRemove { vid: 9001 }))
+    -> Event(Ignored { what: "EntityRemove", why: "no such entity" })
+@9500ms Message(ConnId(2), ItemSet(ItemSet { window: 1, slot: 3, vnum: 27001, count: 5, flags: 0, anti_flags: 0, sockets: [0, 0, 0], bonuses: [ItemBonus { kind: 7, value: 15 }] }))
+@9500ms Message(ConnId(2), ItemSet(ItemSet { window: 1, slot: 4, vnum: 27002, count: 1, flags: 0, anti_flags: 0, sockets: [0, 0, 0], bonuses: [ItemBonus { kind: 7, value: 15 }] }))
+@9501ms Message(ConnId(2), ItemSet(ItemSet { window: 1, slot: 4, vnum: 0, count: 0, flags: 0, anti_flags: 0, sockets: [0, 0, 0], bonuses: [ItemBonus { kind: 7, value: 15 }] }))
+@9600ms Message(ConnId(2), Points(Points { points: [PointValue { point: 1, value: 10 }, PointValue { point: 5, value: 300 }, PointValue { point: 11, value: 5000 }] }))
+@9700ms Message(ConnId(2), PointsChanged(PointsChanged { points: [PointValue { point: 5, value: 0 }, PointValue { point: 11, value: 4000 }, PointValue { point: 28, value: 1 }] }))

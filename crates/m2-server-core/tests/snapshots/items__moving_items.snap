@@ -1,0 +1,40 @@
+---
+source: crates/m2-server-core/tests/items.rs
+expression: h.log
+---
+-- a stack onto the same item tops it up to 200
+@1000 conn#4 sends MoveItem 1:1 -> 1:0 count=0
+   -> send conn#4 ItemSet 1:1 3004x50
+   -> send conn#4 ItemSet 1:0 3004x200
+-- the blade one row down, over its own place
+@1000 conn#4 sends MoveItem 1:2 -> 1:7 count=0
+   -> send conn#4 ItemSet 1:2 empty
+   -> send conn#4 ItemSet 1:7 3001x1
+-- refused: onto the potions, onto the body where it does not suit, past the page's end
+@1000 conn#4 sends MoveItem 1:7 -> 1:1 count=0
+@1000 conn#4 sends MoveItem 1:7 -> 1:90 count=0
+@1000 conn#4 sends MoveItem 1:4 -> 1:40 count=0
+@1000 conn#4 sends MoveItem 1:4 -> 1:200 count=0
+-- onto the weapon's place: worn
+@1000 conn#4 sends MoveItem 1:7 -> 1:94 count=0
+   -> send conn#4 EntityUpdate vid=2 parts=[0, 3001, 0, 0] speed=150/110
+   -> send conn#4 PointsChanged 17=110
+   -> send conn#4 ItemSet 1:7 empty
+   -> send conn#4 ItemSet 1:94 3001x1
+-- refused: from one worn place to another
+@1000 conn#4 sends MoveItem 1:94 -> 1:90 count=0
+-- the coat to page 2, then on
+@1000 conn#4 sends MoveItem 1:4 -> 1:45 count=0
+   -> send conn#4 ItemSet 1:4 empty
+   -> send conn#4 ItemSet 1:45 3003x1
+@1000 conn#4 sends MoveItem 1:45 -> 1:90 count=0
+   -> send conn#4 EntityUpdate vid=2 parts=[3003, 3001, 0, 0] speed=165/110
+   -> send conn#4 PointsChanged 16=14 19=165 20=14
+   -> send conn#4 ItemSet 1:45 empty
+   -> send conn#4 ItemSet 1:90 3003x1
+-- the blade back into the bag: taken off
+@1000 conn#4 sends MoveItem 1:94 -> 1:9 count=0
+   -> send conn#4 EntityUpdate vid=2 parts=[3003, 0, 0, 0] speed=165/100
+   -> send conn#4 PointsChanged 17=100
+   -> send conn#4 ItemSet 1:94 empty
+   -> send conn#4 ItemSet 1:9 3001x1

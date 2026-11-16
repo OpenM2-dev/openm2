@@ -1,0 +1,33 @@
+---
+source: crates/m2-content/tests/parse.rs
+expression: text
+---
+format = 1
+
+[[smith]]
+npc = 1008
+
+[[scroll]]
+item = 2312
+on_fail = "down"
+
+[[scroll]]
+item = 2313
+on_fail = "kept"
+chance = 10
+
+[[scroll]]
+item = 2314
+sure = true
+up_to = 2
+
+[[set]]
+set = 1
+chance = 90
+gold = 300
+
+[[set]]
+set = 2
+chance = 50
+gold = 1200
+items = [{ item = 2311, count = 2 }]

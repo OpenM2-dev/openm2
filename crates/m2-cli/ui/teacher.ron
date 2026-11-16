@@ -1,0 +1,42 @@
+// A teacher NPC in `openm2 play`: the skill group it teaches, and Learn.
+// Skins are in skin.ron; the format is in docs/specs/ui.md ("Teachers"). The
+// ids are what `play` fills in (crates/m2-cli/src/interface.rs, `ids`).
+(
+    windows: [
+        (
+            // In the middle, clear of the character window on the left and
+            // the inventory on the right.
+            id: "teacher",
+            anchor: Center,
+            pos: (0, -40),
+            size: (240, 380),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (pos: (8, 8), size: (Fill(8), 32), kind: Panel(skin: "title_bar"), children: [
+                    // stops short of the X; long NPC names in a smaller size
+                    (id: "teacher.title", pos: (6, 0), size: (Fill(18), 21), kind: Text(text: "Teacher", align: Center, size: 11)),
+                    // over the X drawn in the bar's right end
+                    (id: "teacher.close", anchor: TopRight, pos: (3, 2), size: (15, 15), kind: Button(skin: "close", text: "")),
+                ]),
+                // What the teacher says: whether it can teach us.
+                (id: "teacher.text", anchor: Top, pos: (0, 46), size: (Fill(16), 18), kind: Text(text: "", align: Center)),
+                // The group's skills, one a row: icon and name.
+                (id: "teacher.icon0", pos: (16, 72), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                (id: "teacher.name0", pos: (56, 80), size: (Fill(16), 16), kind: Text(text: "")),
+                (id: "teacher.icon1", pos: (16, 114), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                (id: "teacher.name1", pos: (56, 122), size: (Fill(16), 16), kind: Text(text: "")),
+                (id: "teacher.icon2", pos: (16, 156), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                (id: "teacher.name2", pos: (56, 164), size: (Fill(16), 16), kind: Text(text: "")),
+                (id: "teacher.icon3", pos: (16, 198), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                (id: "teacher.name3", pos: (56, 206), size: (Fill(16), 16), kind: Text(text: "")),
+                (id: "teacher.icon4", pos: (16, 240), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                (id: "teacher.name4", pos: (56, 248), size: (Fill(16), 16), kind: Text(text: "")),
+                (id: "teacher.icon5", pos: (16, 282), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                (id: "teacher.name5", pos: (56, 290), size: (Fill(16), 16), kind: Text(text: "")),
+                // Only while the client thinks the server will teach us.
+                (id: "teacher.learn", anchor: Bottom, pos: (0, 16), size: (88, 21), hidden: true, kind: Button(skin: "large_button", text: "Learn")),
+            ],
+        ),
+    ],
+)

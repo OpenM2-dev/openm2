@@ -1,0 +1,43 @@
+---
+source: crates/m2-server-core/tests/mounts.rs
+expression: h.log
+---
+-- the call: the mount stands beside, following
+@1000 conn#4 sends UseItem 1:0
+   -> send conn#4 EntitySpawn vid=5 (474850, 966100) kind=8 race=1201 angle=0 speed=180/100
+   -> send conn#4 MountState level=1 grade=1 look=1201 stamina=30/30 ride_from=6 fights=false skills=false points=0 summoned=Some(5)
+-- getting on: the mount leaves the world, the rider rides at the level's speed and the look's run speed
+@1000 conn#4 sends RideMount ride=true
+   -> send conn#4 EntityRemove vid=5
+   -> send conn#4 EntityMount vid=4 look=1201
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=180/100 game-master
+   -> send conn#4 PointsChanged 19=180
+   -> send conn#4 RunSpeed 800
+   -> send conn#4 MountState level=1 grade=1 look=1201 stamina=30/30 ride_from=6 fights=false skills=false points=0 summoned=None
+-- ignored: getting off too soon
+@1000 conn#4 sends RideMount ride=false
+-- getting off: on foot again, the mount beside
+@2000 conn#4 sends RideMount ride=false
+   -> send conn#4 EntityMount vid=4 look=0
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100 game-master
+   -> send conn#4 PointsChanged 19=150
+   -> send conn#4 RunSpeed 450
+   -> send conn#4 EntitySpawn vid=6 (474850, 966100) kind=8 race=1201 angle=0 speed=180/100
+   -> send conn#4 MountState level=1 grade=1 look=1201 stamina=30/30 ride_from=6 fights=false skills=false points=0 summoned=Some(6)
+-- the call again sends it away; getting on calls it back first
+@3000 conn#4 sends UseItem 1:0
+   -> send conn#4 EntityRemove vid=6
+   -> send conn#4 MountState level=1 grade=1 look=1201 stamina=30/30 ride_from=6 fights=false skills=false points=0 summoned=None
+@3000 conn#4 sends RideMount ride=true
+   -> send conn#4 EntityMount vid=4 look=1201
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=180/100 game-master
+   -> send conn#4 PointsChanged 19=180
+   -> send conn#4 RunSpeed 800
+   -> send conn#4 MountState level=1 grade=1 look=1201 stamina=30/30 ride_from=6 fights=false skills=false points=0 summoned=None
+-- the call while riding: off, and the mount goes away
+@4000 conn#4 sends UseItem 1:0
+   -> send conn#4 EntityMount vid=4 look=0
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100 game-master
+   -> send conn#4 PointsChanged 19=150
+   -> send conn#4 RunSpeed 450
+   -> send conn#4 MountState level=1 grade=1 look=1201 stamina=30/30 ride_from=6 fights=false skills=false points=0 summoned=None

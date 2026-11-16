@@ -1,0 +1,5 @@
+---
+source: crates/m2-content/tests/parse.rs
+expression: errors(&sources)
+---
+monsters.toml:7:1: unknown field `colour`, expected one of `vnum`, `name`, `kind`, `to`, `rank`, `battle`, `level`, `hp`, `hp_regen`, `defence`, `experience`, `gold`, `damage`, `damage_multiplier`, `stats`, `attack_speed`, `move_speed`, `attack_range`, `aggressive`, `aggressive_sight`, `moves`, `run_speed`, `calls`

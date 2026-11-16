@@ -1,0 +1,88 @@
+---
+source: crates/m2-server-core/tests/skill_effects.rs
+expression: h.log
+---
+-- the dark blade goes on: no time on it in Affects; 100 mana every 5 s
+@1000 conn#4 sends UseSkill 61 target=None
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#4 PointsChanged 7=245 18=30
+   -> send conn#4 Affects 61:3=10 on, 61:10=50 on
+   -> send conn#4 EntitySkills vid=4 skills=[61]
+@6000 conn#4 sends Pong
+@6000 tick
+   -> send conn#4 Ping
+   -> send conn#4 PointsChanged 7=286
+   -> send conn#4 PointsChanged 7=186
+-- used again it goes off, at once and for nothing
+@6000 conn#4 sends UseSkill 61 target=None
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#4 PointsChanged 18=20
+   -> send conn#4 Affects
+   -> send conn#4 EntitySkills vid=4 skills=[]
+-- on again after its cooldown, until the mana doesn't pay
+@8000 conn#4 sends UseSkill 61 target=None
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#4 PointsChanged 7=181 18=30
+   -> send conn#4 Affects 61:3=10 on, 61:10=50 on
+   -> send conn#4 EntitySkills vid=4 skills=[61]
+@13000 conn#4 sends Pong
+@13000 tick
+   -> send conn#4 Ping
+   -> send conn#4 PointsChanged 7=222
+   -> send conn#4 PointsChanged 7=122
+   -> send conn#4 EntityMove kind=1 vid=1 (474999, 966303) angle=230 duration=205
+@18000 conn#4 sends Pong
+@18000 tick
+   -> send conn#4 Ping
+   -> send conn#4 PointsChanged 7=163
+   -> send conn#4 PointsChanged 7=63
+-- the fire ghosts hit the target every 2 s while they are on
+@18000 conn#4 sends SetTarget vid=1
+   -> send conn#4 TargetHealth vid=1 100%
+@18000 conn#4 sends UseSkill 62 target=Some(1)
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#4 PointsChanged 7=58
+   -> send conn#4 Affects 61:3=10 on, 61:10=50 on, 62:0=0 on
+   -> send conn#4 EntitySkills vid=4 skills=[61, 62]
+@19000 conn#4 sends Pong
+@19000 tick
+   -> send conn#4 EntityMove kind=1 vid=3 (475001, 966299) angle=10 duration=277
+@20000 conn#4 sends Pong
+@20000 tick
+   -> send conn#4 Damage vid=1 flags=1 amount=100
+   -> send conn#4 TargetHealth vid=1 99%
+   -> send conn#4 EntityMove kind=1 vid=1 (474999, 966220) angle=180 duration=184
+   -> send conn#4 Damage vid=4 flags=1 amount=30
+   -> send conn#4 PointsChanged 5=920 7=43
+   -> send conn#4 EntityMove kind=2 vid=2 (474966, 966177) angle=155 duration=0
+   -> send conn#4 Damage vid=4 flags=1 amount=29
+   -> send conn#4 PointsChanged 5=891 7=29
+   -> send conn#4 EntityMove kind=2 vid=3 (475001, 966299) angle=180 duration=0
+@21000 conn#4 sends Pong
+@21000 tick
+   -> send conn#4 PointsChanged 5=950 7=70
+   -> send conn#4 Damage vid=4 flags=1 amount=28
+   -> send conn#4 PointsChanged 5=922 7=56
+   -> send conn#4 EntityMove kind=2 vid=1 (474999, 966220) angle=180 duration=0
+@22000 conn#4 sends Pong
+@22000 tick
+   -> send conn#4 Damage vid=1 flags=1 amount=100
+   -> send conn#4 TargetHealth vid=1 98%
+   -> send conn#4 Damage vid=4 flags=1 amount=30
+   -> send conn#4 PointsChanged 5=892 7=41
+   -> send conn#4 EntityMove kind=2 vid=2 (474966, 966177) angle=155 duration=0
+   -> send conn#4 Damage vid=4 flags=1 amount=29
+   -> send conn#4 PointsChanged 5=863 7=27
+   -> send conn#4 EntityMove kind=2 vid=3 (475001, 966299) angle=180 duration=0
+@23000 conn#4 sends Pong
+@23000 tick
+   -> send conn#4 Ping
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#4 PointsChanged 18=20
+   -> send conn#4 Affects 62:0=0 on
+   -> send conn#4 EntitySkills vid=4 skills=[62]
+   -> send conn#4 Chat kind=1 vid=0 "Not enough mana: Dark Blade ends."
+   -> send conn#4 PointsChanged 7=26
+   -> send conn#4 Damage vid=4 flags=1 amount=60
+   -> send conn#4 PointsChanged 5=803
+   -> send conn#4 EntityMove kind=2 vid=1 (474999, 966220) angle=180 duration=0

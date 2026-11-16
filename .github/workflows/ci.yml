@@ -1,0 +1,103 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Read-only token; the workflow needs no secrets.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: just check (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    # GitHub's own limit is 6 hours; a hung test fails here instead. A run
+    # without the cache takes about 20 minutes.
+    timeout-minutes: 45
+    steps:
+      # Third-party actions are pinned by commit SHA; the comment gives the tag.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+
+      # cpal (kira's audio output) builds against ALSA on Linux.
+      # The runner has no GPU: the drawing tests use Mesa's lavapipe, a
+      # Vulkan driver on the CPU (as Windows has WARP), and fail without it.
+      - name: Install the ALSA headers and a software Vulkan driver
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends libasound2-dev pkg-config libvulkan1 mesa-vulkan-drivers
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: just,cargo-deny
+
+      - name: just check
+        run: just check
+
+  # openm2's own server against a real Postgres (the tests that need one are
+  # skipped elsewhere). Service containers only run on Linux runners.
+  server-postgres:
+    name: server tests on Postgres
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+        env:
+          # A throwaway for this job's own container, not a secret.
+          POSTGRES_PASSWORD: openm2-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      OPENM2_TEST_DATABASE_URL: postgres://postgres:openm2-ci@127.0.0.1:5432/postgres
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - name: The server's tests
+        run: cargo test --locked --package m2-server
+
+  # The server's Docker image builds and starts; nothing is pushed.
+  server-image:
+    name: server image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the image
+        run: docker build --tag openm2-server:ci .
+
+      - name: Run it
+        run: |
+          docker run --rm openm2-server:ci --version
+          docker run --rm openm2-server:ci tls key
+          docker image ls openm2-server:ci

@@ -1,0 +1,34 @@
+[package]
+name = "m2-launcher"
+description = "The `openm2-launcher` binary: keeps a game's client up to date from its channel's signed manifests, then starts it, in a window of its own."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "openm2-launcher"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+# Pasting into the window's fields and copying from them.
+arboard.workspace = true
+clap.workspace = true
+# The window: its interface drawn with the engine's own
+# toolkit and renderer, in flat colours with the system's fonts, no art.
+m2-render.workspace = true
+m2-ui.workspace = true
+m2-update.workspace = true
+# Downloads over HTTPS with the workspace's rustls (aws-lc-rs, the system's
+# authorities); blocking, like the rest of the client.
+reqwest = { workspace = true, features = ["blocking"] }
+serde.workspace = true
+toml.workspace = true
+url.workspace = true
+wgpu.workspace = true
+winit.workspace = true
+
+[lints]
+workspace = true

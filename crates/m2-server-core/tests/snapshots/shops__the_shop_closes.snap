@@ -1,0 +1,19 @@
+---
+source: crates/m2-server-core/tests/shops.rs
+expression: h.log
+---
+@1000 conn#2 sends Talk vid=2
+   -> send conn#2 ShopOpened vid=2 [0: 3001x1 for 400, 1: 3004x10 for 40, 2: 3009x1 for 900000]
+-- closed: buying does nothing
+@1000 conn#2 sends ShopClose
+@1000 conn#2 sends ShopBuy 1
+-- open again, then walking 30 m away: the shop is forgotten at the next purchase
+@1000 conn#2 sends Talk vid=2
+   -> send conn#2 ShopOpened vid=2 [0: 3001x1 for 400, 1: 3004x10 for 40, 2: 3009x1 for 900000]
+@1000 conn#2 sends CharacterMove kind=1 (475000, 969100)
+@11000 conn#2 sends CharacterMove kind=0 (475000, 969100)
+@11000 conn#2 sends ShopBuy 1
+-- back beside the keeper, buying still needs the shop open again
+@11000 conn#2 sends CharacterMove kind=1 (475000, 966100)
+@21000 conn#2 sends CharacterMove kind=0 (475000, 966100)
+@21000 conn#2 sends ShopBuy 1

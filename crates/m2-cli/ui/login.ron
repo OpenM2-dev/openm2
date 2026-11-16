@@ -1,0 +1,61 @@
+// The login screen of `openm2 play`: a button per provider the server joined
+// offers (players sign in only with providers; the server is
+// chosen on the Servers board first, servers.ron), over the intro
+// background (intro.ron). Skins are in skin.ron; the format is in
+// docs/specs/ui.md. The ids are what `play` fills in and reads
+// (crates/m2-cli/src/interface.rs, `ids`).
+(
+    windows: [
+        (
+            id: "login.logo",
+            anchor: Top,
+            pos: (0, 60),
+            size: (560, 170),
+            hidden: true,
+            click_through: true,
+            kind: Group,
+            children: [
+                (size: (429, 170), kind: Panel(skin: "logo_left")),
+                (anchor: TopRight, size: (142, 170), kind: Panel(skin: "logo_right")),
+            ],
+        ),
+        (
+            id: "login",
+            anchor: Center,
+            pos: (0, 40),
+            // Room for four buttons; `play` fits its height to the buttons
+            // shown (screens.rs).
+            size: (300, 239),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (pos: (8, 8), size: (Fill(8), 32), kind: Panel(skin: "title_bar"), children: [
+                    (size: (Fill(0), 21), kind: Text(text: "Sign in", align: Center)),
+                    // over the X drawn in the bar's right end
+                    (id: "login.close", anchor: TopRight, pos: (3, 2), size: (15, 15), kind: Button(skin: "close", text: "")),
+                ]),
+                (id: "login.status", pos: (12, 44), size: (Fill(12), 18),
+                 kind: Text(text: "", align: Center, colour: (255, 200, 120, 255))),
+                // A button per provider the server offers (up to four shown),
+                // filled in once the server says which.
+                (id: "login.provider.0", anchor: Top, pos: (0, 68), size: (180, 25), hidden: true, kind: Button(skin: "xlarge_button", text: "")),
+                (id: "login.provider.1", anchor: Top, pos: (0, 99), size: (180, 25), hidden: true, kind: Button(skin: "xlarge_button", text: "")),
+                (id: "login.provider.2", anchor: Top, pos: (0, 130), size: (180, 25), hidden: true, kind: Button(skin: "xlarge_button", text: "")),
+                (id: "login.provider.3", anchor: Top, pos: (0, 161), size: (180, 25), hidden: true, kind: Button(skin: "xlarge_button", text: "")),
+                // Back to the Servers board (servers.ron), and Quit (Cancel
+                // while a sign-in is under way).
+                (id: "login.back", anchor: Bottom, pos: (-50, 20), size: (88, 21), kind: Button(skin: "large_button", text: "Back")),
+                (id: "login.quit", anchor: Bottom, pos: (50, 20), size: (88, 21), kind: Button(skin: "large_button", text: "Quit")),
+            ],
+        ),
+        (
+            id: "login.server",
+            anchor: Bottom,
+            pos: (0, 12),
+            size: (600, 16),
+            hidden: true,
+            click_through: true,
+            kind: Text(text: "", align: Center, colour: (230, 210, 190, 255)),
+        ),
+    ],
+)

@@ -1,0 +1,21 @@
+# Build output
+/target/
+
+# Snapshot review leftovers (insta). `just check` fails if any exist.
+*.snap.new
+*.pending-snap
+
+# Session captures hold real traffic. Only curated ones in a fixtures/ folder are committed.
+*.m2cap
+!**/fixtures/**/*.m2cap
+
+# The user's own archive keys and client files never enter the repo.
+keys.toml
+!**/fixtures/**/keys.toml
+/client/
+/local/
+
+# Local environment
+.env
+.env.*
+.claude/settings.local.json

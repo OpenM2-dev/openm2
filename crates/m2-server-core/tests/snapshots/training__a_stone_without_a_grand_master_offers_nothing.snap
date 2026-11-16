@@ -1,0 +1,6 @@
+---
+source: crates/m2-server-core/tests/training.rs
+expression: h.log
+---
+@1000 conn#4 sends UseItem 1:0
+   -> send conn#4 Chat kind=1 vid=0 "Only a grand master's skill trains with a soul stone."

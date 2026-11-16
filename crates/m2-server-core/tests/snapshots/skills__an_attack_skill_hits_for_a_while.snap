@@ -1,0 +1,44 @@
+---
+source: crates/m2-server-core/tests/skills.rs
+expression: h.log
+---
+-- a skill's hit without using it is ignored
+@1000 conn#4 sends Hit vid=1 skill=1
+   -> event: conn#4: ignored Hit with a skill not in use
+-- the wide swing costs 12 mana; its hits do skill damage
+@1000 conn#4 sends UseSkill 1 target=Some(1)
+   -> send conn#4 PointsChanged 7=468
+@1000 conn#4 sends Hit vid=1 skill=1
+   -> send conn#4 Damage vid=1 flags=1 amount=58
+-- ignored: the same hopper at once, a normal skill number not in use
+@1000 conn#4 sends Hit vid=1 skill=1
+@1000 conn#4 sends Hit vid=1 skill=2
+   -> event: conn#4: ignored Hit with a skill not in use
+-- a second hopper; a third is past its two
+@1000 conn#4 sends Hit vid=2 skill=1
+   -> send conn#4 Damage vid=2 flags=1 amount=72
+@1000 conn#4 sends Hit vid=3 skill=1
+-- the first hopper five more times, 200 ms apart: the fifth hit is its last
+@1200 conn#4 sends Hit vid=1 skill=1
+   -> send conn#4 Damage vid=1 flags=1 amount=54
+@1400 conn#4 sends Hit vid=1 skill=1
+   -> send conn#4 Damage vid=1 flags=1 amount=72
+@1600 conn#4 sends Hit vid=1 skill=1
+   -> send conn#4 Damage vid=1 flags=1 amount=62
+@1800 conn#4 sends Hit vid=1 skill=1
+   -> send conn#4 Damage vid=1 flags=1 amount=58
+@2000 conn#4 sends Hit vid=1 skill=1
+-- its cooldown runs for 5 s, which a use too soon hears; its hits stop after 3 s
+@2000 conn#4 sends UseSkill 1 target=None
+   -> send conn#4 Chat kind=1 vid=0 "The skill is ready again in 4 s."
+@5000 conn#4 sends Pong
+@5000 conn#4 sends Hit vid=2 skill=1
+   -> event: conn#4: ignored Hit with a skill not in use
+-- 5 s after its use it can be used again
+@6200 conn#4 sends UseSkill 1 target=None
+   -> send conn#4 PointsChanged 7=456
+-- the long reach hits one monster
+@6200 conn#4 sends UseSkill 2 target=Some(3)
+   -> send conn#4 PointsChanged 7=451
+@6200 conn#4 sends Hit vid=3 skill=2
+   -> send conn#4 Damage vid=3 flags=1 amount=32

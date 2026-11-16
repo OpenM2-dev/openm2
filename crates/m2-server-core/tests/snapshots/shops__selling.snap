@@ -1,0 +1,29 @@
+---
+source: crates/m2-server-core/tests/shops.rs
+expression: h.log
+---
+-- selling before talking does nothing
+@1000 conn#4 sends ShopSell 1 count=1
+@1000 conn#4 sends Talk vid=2
+   -> send conn#4 ShopOpened vid=2 [0: 3001x1 for 400, 1: 3004x10 for 40, 2: 3009x1 for 900000]
+-- 5 of the 20 drops at 2 each: the stack shrinks, then the points
+@1000 conn#4 sends ShopSell 0 count=5
+   -> send conn#4 ItemSet 1:0 3004x15
+   -> send conn#4 PointsChanged 11=1010
+-- the blade at 40
+@1000 conn#4 sends ShopSell 1 count=1
+   -> send conn#4 ItemSet 1:1 empty
+   -> send conn#4 PointsChanged 11=1050
+-- ignored: the worn blade, an empty place, more than the stack, a count of 0
+@1000 conn#4 sends ShopSell 94 count=1
+@1000 conn#4 sends ShopSell 7 count=1
+@1000 conn#4 sends ShopSell 0 count=16
+@1000 conn#4 sends ShopSell 0 count=0
+-- the rest of the drops
+@1000 conn#4 sends ShopSell 0 count=15
+   -> send conn#4 ItemSet 1:0 empty
+   -> send conn#4 PointsChanged 11=1080
+-- blue drops sell for 9 but cost 3: they sell for 3 each, so no gold is made
+@1000 conn#4 sends ShopSell 2 count=10
+   -> send conn#4 ItemSet 1:2 empty
+   -> send conn#4 PointsChanged 11=1110

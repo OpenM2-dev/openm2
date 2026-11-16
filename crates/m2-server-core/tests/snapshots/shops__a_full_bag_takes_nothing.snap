@@ -1,0 +1,7 @@
+---
+source: crates/m2-server-core/tests/shops.rs
+expression: h.log
+---
+-- no room for the blade: ShopRefused, and the gold stays
+@1000 conn#4 sends ShopBuy 0
+   -> send conn#4 ShopRefused 2

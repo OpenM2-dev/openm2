@@ -1,0 +1,121 @@
+---
+source: crates/m2-server-core/tests/items.rs
+expression: h.log
+---
+-- alice kills the hopper: its gold and pebbles are hers for 30 s
+@4000 conn#2 sends Hit vid=1 skill=0
+   -> send conn#2 Damage vid=1 flags=1 amount=26
+   -> send conn#2 EntityDied vid=1
+   -> send conn#4 EntityDied vid=1
+   -> send conn#2 PointsChanged 3=10
+   -> send conn#2 Flight kind=0 from=1 to=2
+   -> send conn#4 Flight kind=0 from=1 to=2
+   -> send conn#2 GroundItemAdd vid=4 1 (475048, 966982)
+   -> send conn#2 ItemOwnership vid=4 Alice
+   -> send conn#4 GroundItemAdd vid=4 1 (475048, 966982)
+   -> send conn#4 ItemOwnership vid=4 Alice
+   -> send conn#2 GroundItemAdd vid=5 3005 (474976, 967000)
+   -> send conn#2 ItemOwnership vid=5 Alice
+   -> send conn#4 GroundItemAdd vid=5 3005 (474976, 967000)
+   -> send conn#4 ItemOwnership vid=5 Alice
+@4000 conn#4 sends PickUp vid=5
+   -> send conn#4 Chat kind=1 vid=0 "That is not yours yet."
+-- 30 s on, anyone may take them
+@24000 conn#2 sends Pong
+@24000 conn#4 sends Pong
+@24000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+   -> send conn#2 EntityRemove vid=1
+   -> send conn#4 EntityRemove vid=1
+@34000 conn#2 sends Pong
+@34000 conn#4 sends Pong
+@34000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+   -> send conn#2 ItemOwnership vid=4 anyone
+   -> send conn#4 ItemOwnership vid=4 anyone
+   -> send conn#2 ItemOwnership vid=5 anyone
+   -> send conn#4 ItemOwnership vid=5 anyone
+@34000 conn#4 sends PickUp vid=5
+   -> send conn#4 ItemSet 1:4 3005x3
+   -> send conn#4 Chat kind=1 vid=0 "You picked up Pebble (3)."
+   -> send conn#2 GroundItemRemove vid=5
+   -> send conn#4 GroundItemRemove vid=5
+-- 5 min after the drop the gold vanishes
+@54000 conn#2 sends Pong
+@54000 conn#4 sends Pong
+@54000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@74000 conn#2 sends Pong
+@74000 conn#4 sends Pong
+@74000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@94000 conn#2 sends Pong
+@94000 conn#4 sends Pong
+@94000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@114000 conn#2 sends Pong
+@114000 conn#4 sends Pong
+@114000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@134000 conn#2 sends Pong
+@134000 conn#4 sends Pong
+@134000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@154000 conn#2 sends Pong
+@154000 conn#4 sends Pong
+@154000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@174000 conn#2 sends Pong
+@174000 conn#4 sends Pong
+@174000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@194000 conn#2 sends Pong
+@194000 conn#4 sends Pong
+@194000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@214000 conn#2 sends Pong
+@214000 conn#4 sends Pong
+@214000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@234000 conn#2 sends Pong
+@234000 conn#4 sends Pong
+@234000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@254000 conn#2 sends Pong
+@254000 conn#4 sends Pong
+@254000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@274000 conn#2 sends Pong
+@274000 conn#4 sends Pong
+@274000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@294000 conn#2 sends Pong
+@294000 conn#4 sends Pong
+@294000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@304000 conn#2 sends Pong
+@304000 conn#4 sends Pong
+@304000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+   -> store #9: save #1 at (475000, 966700) played 303s gold=500 items=[0:3004x5 1:3006x1 2:3002x1 3:3008x1 90:3003x1 94:3001x1]
+   -> store #10: save #2 at (475200, 966700) played 303s gold=500 items=[0:3004x5 1:3006x1 2:3002x1 3:3008x1 4:3005x3 90:3003x1 94:3001x1]
+   -> send conn#2 GroundItemRemove vid=4
+   -> send conn#4 GroundItemRemove vid=4
+@304000 store answers #9: saved: Ok(())
+@304000 store answers #10: saved: Ok(())

@@ -1,0 +1,15 @@
+---
+source: crates/m2-content/tests/parse.rs
+expression: errors(&sources)
+---
+training.toml:3:1: chance 0: it must be from 1 to 100
+training.toml:3:1: wait 9999999: at most 2592000 seconds (30 days)
+training.toml:7:1: chance 101: it must be from 1 to 100
+training.toml:7:1: item 2002 is a potion: a training item has no other use
+training.toml:7:1: item 2005 trains again (first at training.toml:7)
+training.toml:7:1: no item 4040 in items.toml
+training.toml:11:1: item 2006 helps with nothing: give it skip_wait = true, a chance, or both
+training.toml:14:1: item 2005 trains again (first at training.toml:7)
+training.toml:18:1: chance 120: at most 100
+training.toml:18:1: item 2004 is a skill book: a training item has no other use
+training.toml:22:1: item 2008 is a book that forgets skills: a training item has no other use

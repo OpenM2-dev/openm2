@@ -1,0 +1,41 @@
+---
+source: crates/m2-server-core/tests/friends.rs
+expression: h.log
+---
+-- Bob, Carol and Dave ask Erin: two may wait for her, the third is too many
+@1000 conn#4 sends AskFriend Erin
+   -> send conn#10 FriendAsked Bob
+   -> send conn#4 FriendNotice Erin notice=1
+@1000 conn#6 sends AskFriend Erin
+   -> send conn#10 FriendAsked Carol
+   -> send conn#6 FriendNotice Erin notice=1
+@1000 conn#8 sends AskFriend Erin
+   -> send conn#8 FriendNotice Erin notice=6
+-- Erin takes Bob: her list of one is full, and so is his
+@1000 conn#10 sends AnswerFriend Bob accept=true
+   -> store #21: make #5 and #2 friends
+   -> send conn#10 FriendChanged Bob status=2
+   -> send conn#4 FriendChanged Erin status=2
+   -> event: characters 5 and 2 became friends
+@1000 store answers #21: friendship written: Ok(())
+-- Erin takes Carol too: hers is full
+@1000 conn#10 sends AnswerFriend Carol accept=true
+   -> send conn#10 FriendNotice Carol notice=4
+   -> send conn#6 FriendNotice Erin notice=5
+-- Alice asks Bob: his list is full; Dave takes her: hers is full;
+-- she asks Carol: her list is full, then too many requests
+@1000 conn#2 sends AskFriend Bob
+   -> send conn#2 FriendNotice Bob notice=5
+@1000 conn#2 sends AskFriend Dave
+   -> send conn#8 FriendAsked Alice
+   -> send conn#2 FriendNotice Dave notice=1
+@1000 conn#8 sends AnswerFriend Alice accept=true
+   -> store #22: make #4 and #1 friends
+   -> send conn#8 FriendChanged Alice status=2
+   -> send conn#2 FriendChanged Dave status=2
+   -> event: characters 4 and 1 became friends
+@1000 store answers #22: friendship written: Ok(())
+@1000 conn#2 sends AskFriend Carol
+   -> send conn#2 FriendNotice Carol notice=4
+@1000 conn#2 sends AskFriend Carol
+   -> send conn#2 FriendNotice Carol notice=6

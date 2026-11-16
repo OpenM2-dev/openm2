@@ -1,0 +1,72 @@
+---
+source: crates/m2-core/tests/scenarios.rs
+expression: s.log
+---
+@0ms Start
+    -> Connect { conn: ConnId(1), server: Auth }
+@5ms Connected(ConnId(1))
+    -> Send { conn: ConnId(1), message: Hello(Hello { protocol: 3, build: "openm2 test" }) }
+@6ms Message(ConnId(1), Welcome(Welcome { protocol: 3, server: "openm2-server test" }))
+    -> Event(Welcomed { server: Auth, protocol: 3, name: "openm2-server test" })
+    -> Send { conn: ConnId(1), message: StartSignIn(StartSignIn) }
+@7ms Message(ConnId(1), SignInOptions(SignInOptions { providers: [Provider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }], nonce: "n0nce" }))
+    -> Event(SignInOptions([SignInProvider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }]))
+    -> SignIn { provider: SignInProvider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }, nonce: "n0nce" }
+@8ms SignInCode(SignInCode { redirect: "http://127.0.0.1:50000/callback", .. })
+    -> Send { conn: ConnId(1), message: ProviderLogin(ProviderLogin { provider: "example", code: <redacted>, verifier: <redacted>, redirect: "http://127.0.0.1:50000/callback" }) }
+@20ms Message(ConnId(1), SignedIn(SignedIn { account: "example:admin", ticket: <redacted> }))
+    -> Event(LoggedIn)
+    -> Disconnect { conn: ConnId(1) }
+    -> Connect { conn: ConnId(2), server: Game }
+@25ms Connected(ConnId(2))
+    -> Send { conn: ConnId(2), message: Hello(Hello { protocol: 3, build: "openm2 test" }) }
+@26ms Message(ConnId(2), Welcome(Welcome { protocol: 3, server: "openm2-server test" }))
+    -> Event(Welcomed { server: Game, protocol: 3, name: "openm2-server test" })
+    -> Send { conn: ConnId(2), message: TicketLogin(TicketLogin { username: "example:admin", ticket: <redacted> }) }
+@110ms Message(ConnId(2), Empire(Empire { empire: 2 }))
+@110ms Message(ConnId(2), Phase(Phase { phase: 1 }))
+    -> Event(Phase { server: Game, phase: Select })
+@110ms Message(ConnId(2), CharacterList(CharacterList { characters: [Character { slot: 0, id: 1, name: "Alice", class: 3, level: 10, playtime: 0, st: 0, ht: 0, dx: 0, iq: 0, body_part: 0, hair_part: 0, guild: "" }] }))
+    -> Event(CharacterList([CharacterSummary { slot: 0, id: 1, name: "Alice", class: 3, level: 10, playtime: 0, st: 0, ht: 0, dx: 0, iq: 0, body_part: 0, hair_part: 0, guild: "" }]))
+    -> Event(Selected { slot: 0, name: "Alice" })
+    -> Send { conn: ConnId(2), message: SelectCharacter(SelectCharacter { slot: 0 }) }
+@120ms Message(ConnId(2), Phase(Phase { phase: 2 }))
+    -> Event(Phase { server: Game, phase: Loading })
+@121ms Message(ConnId(2), MainCharacter(MainCharacter { vid: 4660, class: 3, name: "Alice", x: 958400, y: 272800, z: 0, empire: 2, skill_group: 0, run_speed: 450 }))
+    -> Send { conn: ConnId(2), message: EnterGame(EnterGame) }
+@130ms Message(ConnId(2), Phase(Phase { phase: 3 }))
+    -> Event(Phase { server: Game, phase: Game })
+    -> Event(EnteredGame(Some(Me { vid: 4660, name: "Alice", class: 3, empire: Chunjo, position: (958400, 272800, 0) })))
+@131ms Message(ConnId(2), GameTime(GameTime { time: 10000 }))
+@141ms Message(ConnId(2), ItemSet(ItemSet { window: 1, slot: 4, vnum: 9301, count: 1, flags: 0, anti_flags: 0, sockets: [0, 0, 0], bonuses: [ItemBonus { kind: 7, value: 15 }] }))
+@142ms Message(ConnId(2), ItemSet(ItemSet { window: 1, slot: 7, vnum: 9312, count: 3, flags: 0, anti_flags: 0, sockets: [0, 0, 0], bonuses: [ItemBonus { kind: 7, value: 15 }] }))
+@150ms Command(GiveItem { vid: 3, slot: 94 })
+    -> Event(Ignored { what: "GiveItem", why: "not a slot of the bag" })
+@151ms Command(UseItemOnItem { slot: 7, onto: 7 })
+    -> Event(Ignored { what: "UseItemOnItem", why: "not two slots of the bag" })
+@160ms Command(GiveItem { vid: 3, slot: 4 })
+    -> Send { conn: ConnId(2), message: GiveItem(GiveItem { vid: 3, slot: 4 }) }
+@170ms Command(UseItemOnItem { slot: 7, onto: 4 })
+    -> Send { conn: ConnId(2), message: UseItemOnItem(UseItemOnItem { slot: 7, onto: 4 }) }
+@200ms Command(Upgrade)
+    -> Event(Ignored { what: "Upgrade", why: "no upgrade is offered" })
+@210ms Message(ConnId(2), UpgradeOffer(UpgradeOffer { smith: Some(3), scroll: None, slot: 4, vnum: 9301, next: 9302, gold: 1200, items: [UpgradeCost { vnum: 9311, count: 2 }, UpgradeCost { vnum: 0, count: 1 }], chance: 50, on_fail: 0 }))
+    -> Event(UpgradeOffered { slot: 4 })
+@300ms Command(Upgrade)
+    -> Send { conn: ConnId(2), message: Upgrade(Upgrade { smith: Some(3), scroll: None, slot: 4, vnum: 9301 }) }
+    -> Event(UpgradeClosed)
+@400ms Message(ConnId(2), UpgradeOffer(UpgradeOffer { smith: None, scroll: Some(7), slot: 4, vnum: 9301, next: 9302, gold: 1200, items: [UpgradeCost { vnum: 9311, count: 2 }, UpgradeCost { vnum: 0, count: 1 }], chance: 50, on_fail: 1 }))
+    -> Event(UpgradeOffered { slot: 4 })
+@410ms Message(ConnId(2), ItemSet(ItemSet { window: 1, slot: 5, vnum: 9312, count: 1, flags: 0, anti_flags: 0, sockets: [0, 0, 0], bonuses: [ItemBonus { kind: 7, value: 15 }] }))
+@420ms Message(ConnId(2), ItemSet(ItemSet { window: 1, slot: 7, vnum: 9312, count: 2, flags: 0, anti_flags: 0, sockets: [0, 0, 0], bonuses: [ItemBonus { kind: 7, value: 15 }] }))
+    -> Event(UpgradeClosed)
+@500ms Message(ConnId(2), UpgradeOffer(UpgradeOffer { smith: None, scroll: Some(7), slot: 4, vnum: 9301, next: 9302, gold: 1200, items: [UpgradeCost { vnum: 9311, count: 2 }, UpgradeCost { vnum: 0, count: 1 }], chance: 50, on_fail: 1 }))
+    -> Event(UpgradeOffered { slot: 4 })
+@510ms Command(CloseUpgrade)
+    -> Event(UpgradeClosed)
+@511ms Command(CloseUpgrade)
+    -> Event(Ignored { what: "CloseUpgrade", why: "no upgrade is offered" })
+@600ms Message(ConnId(2), UpgradeOffer(UpgradeOffer { smith: Some(3), scroll: Some(7), slot: 4, vnum: 9301, next: 9302, gold: 1200, items: [UpgradeCost { vnum: 9311, count: 2 }, UpgradeCost { vnum: 0, count: 1 }], chance: 50, on_fail: 0 }))
+    -> Event(Ignored { what: "UpgradeOffer", why: "not a bag slot, or not by one smith or scroll" })
+@600ms Message(ConnId(2), UpgradeOffer(UpgradeOffer { smith: Some(3), scroll: None, slot: 94, vnum: 9301, next: 9302, gold: 1200, items: [UpgradeCost { vnum: 9311, count: 2 }, UpgradeCost { vnum: 0, count: 1 }], chance: 50, on_fail: 0 }))
+    -> Event(Ignored { what: "UpgradeOffer", why: "not a bag slot, or not by one smith or scroll" })

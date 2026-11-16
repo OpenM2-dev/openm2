@@ -1,0 +1,126 @@
+---
+source: crates/m2-server-core/tests/game_masters.rs
+expression: h.log
+---
+-- bob enters: alice's spawn has her mark, his has none
+@1000 conn#7 accepted on auth from 10.0.0.1
+   -> event: conn#7: accepted on auth
+@1000 conn#7 sends Hello protocol=3 "openm2 test"
+   -> event: conn#7: openm2 test speaks protocol 3
+   -> send conn#7 Welcome protocol=3
+@1000 conn#7 sends StartSignIn
+   -> send conn#7 SignInOptions [example] nonce="b82dfde680c1964a263e95de9d92b637"
+@1000 conn#7 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #12: example http://127.0.0.1:50000/callback nonce=b82dfde680c1964a263e95de9d92b637
+@1000 sign-in #12 checked: https://id.example bob
+   -> store #13: identity login example https://id.example bob
+@1000 store answers #13: login ok, account 2 Some(1)
+   -> event: conn#7: account 2 signed in with example
+   -> send conn#7 SignedIn example:bob c82f… (32 bytes)
+@1000 conn#7 closed: the client left
+   -> event: conn#7: closed: the client left
+@1000 conn#8 accepted on game from 10.0.0.1
+   -> event: conn#8: accepted on game
+@1000 conn#8 sends Hello protocol=3 "openm2 test"
+   -> event: conn#8: openm2 test speaks protocol 3
+   -> send conn#8 Welcome protocol=3
+@1000 conn#8 sends TicketLogin example:bob c82f… (32 bytes)
+   -> event: conn#8: account 2 joined the game server
+   -> store #14: load characters of 2
+@1000 store answers #14: characters [0:Bob]
+   -> send conn#8 Empire 1
+   -> send conn#8 Phase 1
+   -> send conn#8 CharacterList [0: #2 Bob lv1]
+@1000 conn#8 sends SelectCharacter 0
+   -> send conn#8 Phase 2
+   -> send conn#8 MainCharacter vid=2 Bob class=0 (475000, 966100) empire=1 group=0 run=450
+   -> send conn#8 Points 1=1 4=300 5=796 6=796 7=304 8=304 12=6 13=4 14=3 15=3 16=4 17=100 18=14 19=150 20=4 27=1
+@1000 conn#8 sends EnterGame
+   -> send conn#8 Phase 3
+   -> send conn#8 GameTime 1000
+   -> send conn#8 Channel 1
+   -> send conn#8 EntitySpawn vid=2 (475000, 966100) race=0 speed=150/100
+   -> send conn#8 EntityInfo vid=2 Bob empire=1 level=1
+   -> send conn#8 Skills
+   -> event: conn#8: character 2 entered as vid 2
+   -> send conn#4 EntitySpawn vid=2 (475000, 966100) race=0 speed=150/100
+   -> send conn#4 EntityInfo vid=2 Bob empire=1 level=1
+   -> send conn#8 EntitySpawn vid=1 (475000, 966100) race=0 speed=150/100 game-master
+   -> send conn#8 EntityInfo vid=1 Alice empire=1 level=1
+-- alice hides it: she and bob get her EntityUpdate without it
+@1000 conn#4 sends SendChat kind=0 "/gm"
+   -> send conn#4 Chat kind=1 vid=0 "Your GM mark shows: /gm off hides it."
+@1000 conn#4 sends SendChat kind=0 "/gm off"
+   -> send conn#4 EntityUpdate vid=1 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#8 EntityUpdate vid=1 parts=[0, 0, 0, 0] speed=150/100
+   -> store #15: save #1 at (475000, 966100) played 0s
+   -> send conn#4 Chat kind=1 vid=0 "Your GM mark is hidden now."
+   -> event: conn#4: game master account 1 on character 1: /gm off
+@1000 store answers #15: saved: Ok(())
+@1000 conn#4 sends SendChat kind=0 "/gm off"
+   -> send conn#4 Chat kind=1 vid=0 "Your GM mark is hidden already."
+@1000 conn#4 sends SendChat kind=0 "/gm"
+   -> send conn#4 Chat kind=1 vid=0 "Your GM mark is hidden: /gm on shows it."
+-- bob has no such command
+@1000 conn#8 sends SendChat kind=0 "/gm off"
+   -> send conn#8 Chat kind=1 vid=0 "Unknown command gm"
+-- alice comes back: still hidden
+@1000 conn#4 closed: the client left
+   -> store #16: save #1 at (475000, 966100) played 0s
+   -> send conn#8 EntityRemove vid=1
+   -> event: conn#4: closed: the client left
+@1000 store answers #16: saved: Ok(())
+@1000 conn#9 accepted on auth from 10.0.0.1
+   -> event: conn#9: accepted on auth
+@1000 conn#9 sends Hello protocol=3 "openm2 test"
+   -> event: conn#9: openm2 test speaks protocol 3
+   -> send conn#9 Welcome protocol=3
+@1000 conn#9 sends StartSignIn
+   -> send conn#9 SignInOptions [example] nonce="77d8b6ab9c5ec06d295a3c0e72732aec"
+@1000 conn#9 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #17: example http://127.0.0.1:50000/callback nonce=77d8b6ab9c5ec06d295a3c0e72732aec
+@1000 sign-in #17 checked: https://id.example alice
+   -> store #18: identity login example https://id.example alice
+@1000 store answers #18: login ok, account 1 Some(1)
+   -> event: conn#9: account 1 signed in with example
+   -> send conn#9 SignedIn example:alice 502a… (32 bytes)
+@1000 conn#9 closed: the client left
+   -> event: conn#9: closed: the client left
+@1000 conn#10 accepted on game from 10.0.0.1
+   -> event: conn#10: accepted on game
+@1000 conn#10 sends Hello protocol=3 "openm2 test"
+   -> event: conn#10: openm2 test speaks protocol 3
+   -> send conn#10 Welcome protocol=3
+@1000 conn#10 sends TicketLogin example:alice 502a… (32 bytes)
+   -> event: conn#10: account 1 joined the game server
+   -> store #19: load characters of 1
+@1000 store answers #19: characters [0:Alice]
+   -> send conn#10 Empire 0
+   -> send conn#10 Phase 1
+   -> send conn#10 CharacterList [0: #1 Alice lv1]
+@1000 conn#10 sends SelectCharacter 0
+   -> send conn#10 Phase 2
+   -> send conn#10 MainCharacter vid=3 Alice class=0 (475000, 966100) empire=1 group=0 run=450
+   -> send conn#10 Points 1=1 4=300 5=796 6=796 7=304 8=304 12=6 13=4 14=3 15=3 16=4 17=100 18=14 19=150 20=4 27=1
+@1000 conn#10 sends EnterGame
+   -> send conn#10 Phase 3
+   -> send conn#10 GameTime 1000
+   -> send conn#10 Channel 1
+   -> send conn#10 EntitySpawn vid=3 (475000, 966100) race=0 speed=150/100
+   -> send conn#10 EntityInfo vid=3 Alice empire=1 level=1
+   -> send conn#10 Skills
+   -> event: conn#10: character 1 entered as vid 3
+   -> send conn#8 EntitySpawn vid=3 (475000, 966100) race=0 speed=150/100
+   -> send conn#8 EntityInfo vid=3 Alice empire=1 level=1
+   -> send conn#10 EntitySpawn vid=2 (475000, 966100) race=0 speed=150/100
+   -> send conn#10 EntityInfo vid=2 Bob empire=1 level=1
+-- she shows it again
+@1000 conn#10 sends SendChat kind=0 "/gm on"
+   -> send conn#10 EntityUpdate vid=3 parts=[0, 0, 0, 0] speed=150/100 game-master
+   -> send conn#8 EntityUpdate vid=3 parts=[0, 0, 0, 0] speed=150/100 game-master
+   -> store #20: save #1 at (475000, 966100) played 0s
+   -> send conn#10 Chat kind=1 vid=0 "Your GM mark shows now."
+   -> event: conn#10: game master account 1 on character 1: /gm on
+@1000 store answers #20: saved: Ok(())
+@1000 conn#10 sends SendChat kind=0 "/gm maybe"
+   -> send conn#10 Chat kind=1 vid=0 "Use: /gm on or /gm off"

@@ -1,0 +1,7 @@
+---
+source: crates/m2-server-core/tests/training.rs
+expression: trained(&h)
+---
+[
+    "conn#4: character 1 forgot its skills",
+]

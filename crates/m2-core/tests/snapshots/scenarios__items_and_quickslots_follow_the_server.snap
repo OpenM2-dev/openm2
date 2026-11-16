@@ -1,0 +1,65 @@
+---
+source: crates/m2-core/tests/scenarios.rs
+expression: s.log
+---
+@0ms Start
+    -> Connect { conn: ConnId(1), server: Auth }
+@5ms Connected(ConnId(1))
+    -> Send { conn: ConnId(1), message: Hello(Hello { protocol: 3, build: "openm2 test" }) }
+@6ms Message(ConnId(1), Welcome(Welcome { protocol: 3, server: "openm2-server test" }))
+    -> Event(Welcomed { server: Auth, protocol: 3, name: "openm2-server test" })
+    -> Send { conn: ConnId(1), message: StartSignIn(StartSignIn) }
+@7ms Message(ConnId(1), SignInOptions(SignInOptions { providers: [Provider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }], nonce: "n0nce" }))
+    -> Event(SignInOptions([SignInProvider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }]))
+    -> SignIn { provider: SignInProvider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }, nonce: "n0nce" }
+@8ms SignInCode(SignInCode { redirect: "http://127.0.0.1:50000/callback", .. })
+    -> Send { conn: ConnId(1), message: ProviderLogin(ProviderLogin { provider: "example", code: <redacted>, verifier: <redacted>, redirect: "http://127.0.0.1:50000/callback" }) }
+@20ms Message(ConnId(1), SignedIn(SignedIn { account: "example:admin", ticket: <redacted> }))
+    -> Event(LoggedIn)
+    -> Disconnect { conn: ConnId(1) }
+    -> Connect { conn: ConnId(2), server: Game }
+@25ms Connected(ConnId(2))
+    -> Send { conn: ConnId(2), message: Hello(Hello { protocol: 3, build: "openm2 test" }) }
+@26ms Message(ConnId(2), Welcome(Welcome { protocol: 3, server: "openm2-server test" }))
+    -> Event(Welcomed { server: Game, protocol: 3, name: "openm2-server test" })
+    -> Send { conn: ConnId(2), message: TicketLogin(TicketLogin { username: "example:admin", ticket: <redacted> }) }
+@110ms Message(ConnId(2), Empire(Empire { empire: 2 }))
+@110ms Message(ConnId(2), Phase(Phase { phase: 1 }))
+    -> Event(Phase { server: Game, phase: Select })
+@110ms Message(ConnId(2), CharacterList(CharacterList { characters: [Character { slot: 0, id: 1, name: "Alice", class: 3, level: 10, playtime: 0, st: 0, ht: 0, dx: 0, iq: 0, body_part: 0, hair_part: 0, guild: "" }] }))
+    -> Event(CharacterList([CharacterSummary { slot: 0, id: 1, name: "Alice", class: 3, level: 10, playtime: 0, st: 0, ht: 0, dx: 0, iq: 0, body_part: 0, hair_part: 0, guild: "" }]))
+    -> Event(Selected { slot: 0, name: "Alice" })
+    -> Send { conn: ConnId(2), message: SelectCharacter(SelectCharacter { slot: 0 }) }
+@115ms Command(UseItem { window: Inventory, slot: 3 })
+    -> Event(Ignored { what: "UseItem", why: "this needs to be in game" })
+@120ms Message(ConnId(2), Phase(Phase { phase: 2 }))
+    -> Event(Phase { server: Game, phase: Loading })
+@121ms Message(ConnId(2), QuickSlotSet(QuickSlotSet { index: 0, kind: 1, position: 3 }))
+@121ms Message(ConnId(2), QuickSlotSet(QuickSlotSet { index: 5, kind: 2, position: 1 }))
+@122ms Message(ConnId(2), QuickSlotSet(QuickSlotSet { index: 31, kind: 2, position: 4 }))
+@122ms Message(ConnId(2), QuickSlotSet(QuickSlotSet { index: 32, kind: 1, position: 4 }))
+    -> Event(Ignored { what: "QuickSlotSet", why: "there are 32 quickslots" })
+@130ms Message(ConnId(2), Phase(Phase { phase: 3 }))
+    -> Event(Phase { server: Game, phase: Game })
+    -> Event(EnteredGame(None))
+@131ms Message(ConnId(2), ItemSet(ItemSet { window: 1, slot: 3, vnum: 27001, count: 5, flags: 0, anti_flags: 0, sockets: [0, 0, 0], bonuses: [ItemBonus { kind: 7, value: 15 }] }))
+@131ms Message(ConnId(2), ItemSet(ItemSet { window: 1, slot: 94, vnum: 11209, count: 1, flags: 0, anti_flags: 0, sockets: [0, 0, 0], bonuses: [ItemBonus { kind: 7, value: 15 }] }))
+@200ms Command(UseItem { window: Inventory, slot: 3 })
+    -> Send { conn: ConnId(2), message: UseItem(UseItem { window: 1, slot: 3 }) }
+@210ms Command(MoveItem { from: (Inventory, 94), to: (Inventory, 10), count: 1 })
+    -> Send { conn: ConnId(2), message: MoveItem(MoveItem { from_window: 1, from_slot: 94, to_window: 1, to_slot: 10, count: 1 }) }
+@220ms Command(SetQuickSlot { index: 1, slot: QuickSlot { kind: Item, position: 10 } })
+    -> Send { conn: ConnId(2), message: SetQuickSlot(SetQuickSlot { index: 1, kind: 1, position: 10 }) }
+@230ms Command(SwapQuickSlots { first: 0, second: 7 })
+    -> Send { conn: ConnId(2), message: SwapQuickSlots(SwapQuickSlots { first: 0, second: 7 }) }
+@240ms Command(ClearQuickSlot { index: 5 })
+    -> Send { conn: ConnId(2), message: ClearQuickSlot(ClearQuickSlot { index: 5 }) }
+@241ms Command(ClearQuickSlot { index: 31 })
+    -> Send { conn: ConnId(2), message: ClearQuickSlot(ClearQuickSlot { index: 31 }) }
+@242ms Command(ClearQuickSlot { index: 32 })
+    -> Event(Ignored { what: "ClearQuickSlot", why: "there are 32 quickslots" })
+@300ms Message(ConnId(2), ItemSet(ItemSet { window: 1, slot: 94, vnum: 0, count: 0, flags: 0, anti_flags: 0, sockets: [0, 0, 0], bonuses: [ItemBonus { kind: 7, value: 15 }] }))
+@300ms Message(ConnId(2), ItemSet(ItemSet { window: 1, slot: 10, vnum: 11209, count: 1, flags: 0, anti_flags: 0, sockets: [0, 0, 0], bonuses: [ItemBonus { kind: 7, value: 15 }] }))
+@301ms Message(ConnId(2), QuickSlotSet(QuickSlotSet { index: 1, kind: 1, position: 10 }))
+@302ms Message(ConnId(2), QuickSlotsSwapped(QuickSlotsSwapped { first: 0, second: 7 }))
+@303ms Message(ConnId(2), QuickSlotCleared(QuickSlotCleared { index: 5 }))

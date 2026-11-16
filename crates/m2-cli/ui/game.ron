@@ -1,0 +1,150 @@
+// The in-game interface of `openm2 play`: the chat, the target, the minimap
+// and the atlas, what our skills raise, after dying the restart window, and
+// the question before an item is dropped (our health, mana and experience are on the taskbar,
+// inventory.ron). Skins are in skin.ron; the format is in docs/specs/ui.md.
+// The ids are what `play` fills in (crates/m2-cli/src/interface.rs, `ids`).
+(
+    windows: [
+        (
+            id: "chat",
+            anchor: BottomLeft,
+            // above the taskbar on narrow windows
+            pos: (8, 56),
+            size: (480, 196),
+            click_through: true,
+            kind: Group,
+            children: [
+                (id: "chat.back", size: (Fill(0), Fill(30)), kind: Panel(skin: "chat_back")),
+                (id: "chat.log", pos: (6, 4), size: (Fill(6), Fill(34)), kind: Log(max_lines: 200)),
+                (
+                    id: "chat.bar",
+                    anchor: BottomLeft,
+                    size: (Fill(0), 26),
+                    hidden: true,
+                    kind: Panel(skin: "field"),
+                    children: [
+                        (id: "chat.input", pos: (6, 4), size: (Fill(6), 18), kind: Edit(max_chars: 100)),
+                    ],
+                ),
+            ],
+        ),
+        (
+            // What skills raise on us for now (affects.rs): a skill's icon
+            // each, with the seconds left on it.
+            id: "affects",
+            anchor: TopLeft,
+            pos: (8, 8),
+            size: (384, 32),
+            click_through: true,
+            kind: Group,
+            children: [
+                (id: "affects.icons", size: (384, 32), kind: Slots(skin: "affect_slot", columns: 12, rows: 1)),
+            ],
+        ),
+        (
+            // The entity we chose: its name and health.
+            id: "target",
+            anchor: Top,
+            pos: (0, 8),
+            size: (240, 46),
+            hidden: true,
+            click_through: true,
+            kind: Panel(skin: "thin_board"),
+            children: [
+                (id: "target.name", pos: (10, 6), size: (Fill(10), 16), kind: Text(text: "", align: Center)),
+                (id: "target.health", pos: (16, 28), size: (Fill(16), 8), kind: Gauge(skin: "health", value: 1.0)),
+            ],
+        ),
+        (
+            // The map around our character, north up (minimap.rs): its
+            // picture under the client's round frame, whose hole it fills;
+            // the buttons over the ones drawn in the frame.
+            id: "minimap",
+            anchor: TopRight,
+            pos: (8, 8),
+            size: (136, 137),
+            kind: Group,
+            children: [
+                (id: "minimap.picture", pos: (4, 4), size: (128, 128), kind: Image(image: "@minimap")),
+                (size: (136, 137), kind: Panel(skin: "minimap_frame")),
+                (id: "minimap.atlas", pos: (12, 12), size: (15, 15), kind: Button(skin: "minimap_atlas")),
+                (id: "minimap.close", pos: (111, 6), size: (19, 20), kind: Button(skin: "minimap_close")),
+                (id: "minimap.zoom_out", pos: (115, 103), size: (15, 15), kind: Button(skin: "minimap_zoom_out")),
+                (id: "minimap.zoom_in", pos: (101, 116), size: (15, 15), kind: Button(skin: "minimap_zoom_in")),
+            ],
+        ),
+        (
+            // In the minimap's place once it is closed: opens it again.
+            id: "minimap.closed",
+            anchor: TopRight,
+            pos: (8, 8),
+            size: (32, 32),
+            hidden: true,
+            kind: Group,
+            children: [
+                (id: "minimap.open", size: (32, 32), kind: Button(skin: "minimap_open")),
+            ],
+        ),
+        (
+            // The whole map (minimap.rs): its picture with the atlas's
+            // points and our arrow, centred in the box.
+            id: "atlas",
+            anchor: Center,
+            pos: (0, -40),
+            size: (280, 308),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (pos: (8, 8), size: (Fill(8), 32), kind: Panel(skin: "title_bar"), children: [
+                    (id: "atlas.name", size: (Fill(0), 21), kind: Text(text: "", align: Center)),
+                    // over the X drawn in the bar's right end
+                    (id: "atlas.close", anchor: TopRight, pos: (3, 2), size: (15, 15), kind: Button(skin: "close")),
+                ]),
+                (id: "atlas.picture", pos: (12, 40), size: (256, 256), kind: Image(image: "@atlas")),
+            ],
+        ),
+        (
+            // While our character is dead.
+            id: "restart",
+            anchor: Center,
+            pos: (0, -140),
+            size: (220, 112),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (anchor: Top, pos: (0, 14), size: (Fill(12), 18), kind: Text(text: "You died.", align: Center)),
+                (id: "restart.here", anchor: Top, pos: (0, 42), size: (180, 25), kind: Button(skin: "xlarge_button", text: "Restart here")),
+                (id: "restart.town", anchor: Top, pos: (0, 74), size: (180, 25), kind: Button(skin: "xlarge_button", text: "Restart in town")),
+            ],
+        ),
+        (
+            // Before an item of the bag let go of over the world is dropped.
+            id: "drop",
+            anchor: Center,
+            pos: (0, -140),
+            size: (300, 88),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (id: "drop.text", anchor: Top, pos: (0, 16), size: (Fill(14), 18), kind: Text(text: "", align: Center)),
+                (id: "drop.yes", anchor: Bottom, pos: (-50, 16), size: (88, 21), kind: Button(skin: "large_button", text: "Drop")),
+                (id: "drop.no", anchor: Bottom, pos: (50, 16), size: (88, 21), kind: Button(skin: "large_button", text: "Cancel")),
+            ],
+        ),
+        (
+            // Before a book that makes the character forget its skills is
+            // used.
+            id: "forget",
+            anchor: Center,
+            pos: (0, -140),
+            size: (300, 88),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (id: "forget.text", anchor: Top, pos: (0, 16), size: (Fill(14), 18), kind: Text(text: "Forget every skill and choose again?", align: Center)),
+                (id: "forget.yes", anchor: Bottom, pos: (-50, 16), size: (88, 21), kind: Button(skin: "large_button", text: "Forget")),
+                (id: "forget.no", anchor: Bottom, pos: (50, 16), size: (88, 21), kind: Button(skin: "large_button", text: "Cancel")),
+            ],
+        ),
+    ],
+)

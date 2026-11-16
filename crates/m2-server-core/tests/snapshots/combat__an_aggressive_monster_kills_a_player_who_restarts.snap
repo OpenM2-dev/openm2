@@ -1,0 +1,45 @@
+---
+source: crates/m2-server-core/tests/combat.rs
+expression: h.log
+---
+-- Alice walks within 8 m of the rock jaw: it turns on her and kills her
+@1000 conn#2 sends CharacterMove kind=1 (475000, 971400)
+   -> send conn#4 EntityMove kind=1 vid=7 (475000, 971400) angle=90 duration=7772
+@6000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@8800 tick
+   -> send conn#2 EntityMove kind=1 vid=4 (475000, 971560) angle=180 duration=1100
+   -> send conn#4 EntityMove kind=1 vid=4 (475000, 971560) angle=180 duration=1100
+@9700 tick
+   -> send conn#2 Damage vid=7 flags=1 amount=878
+   -> send conn#2 PointsChanged 5=0
+   -> event: conn#2: character 1 died
+   -> send conn#2 EntityDied vid=7
+   -> send conn#4 EntityDied vid=7
+   -> send conn#2 EntityMove kind=2 vid=4 (475000, 971640) angle=180 duration=0
+   -> send conn#4 EntityMove kind=2 vid=4 (475000, 971640) angle=180 duration=0
+@10000 tick
+   -> send conn#2 EntityMove kind=1 vid=4 (475000, 972000) angle=0 duration=900
+   -> send conn#4 EntityMove kind=1 vid=4 (475000, 972000) angle=0 duration=900
+@11000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+-- the dead do not move or hit
+@11000 conn#2 sends CharacterMove kind=1 (475000, 966100)
+@11000 conn#2 sends Hit vid=4 skill=0
+-- it gives her up and walks home
+@16000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+-- Alice restarts in town
+@19000 conn#2 sends Restart town=true
+   -> send conn#2 EntityRemove vid=7
+   -> send conn#2 EntitySpawn vid=7 (475000, 966100) kind=6 race=0 angle=90 speed=150/100
+   -> send conn#2 EntityInfo vid=7 Hero empire=1 level=1
+   -> send conn#4 EntityRemove vid=7
+   -> send conn#4 EntitySpawn vid=7 (475000, 966100) kind=6 race=0 angle=90 speed=150/100
+   -> send conn#4 EntityInfo vid=7 Hero empire=1 level=1
+   -> send conn#2 PointsChanged 5=50 7=50
+-- a living player's restart does nothing
+@19000 conn#2 sends Restart town=false

@@ -1,0 +1,56 @@
+---
+source: crates/m2-server-core/tests/skill_effects.rs
+expression: h.log
+---
+-- the charge: 150 % faster for 3 s
+@1000 conn#4 sends UseSkill 3 target=Some(1)
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=255/100
+   -> send conn#4 PointsChanged 7=479 19=255
+   -> send conn#4 Affects 3:2=150 3s
+   -> send conn#4 EntitySkills vid=4 skills=[3]
+@2000 conn#4 sends Pong
+@3000 conn#4 sends Pong
+@4000 conn#4 sends Pong
+@4000 tick
+   -> send conn#4 PointsChanged 7=480
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#4 PointsChanged 19=150
+   -> send conn#4 Affects
+   -> send conn#4 EntitySkills vid=4 skills=[]
+-- quick hands halve the cooldowns that start from now on, not the one under way
+@4000 conn#4 sends UseSkill 6 target=None
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#4 PointsChanged 7=479
+   -> send conn#4 Affects 6:11=50 60s, 6:8=90 60s
+   -> send conn#4 EntitySkills vid=4 skills=[6]
+@4000 conn#4 sends UseSkill 3 target=Some(1)
+   -> send conn#4 Chat kind=1 vid=0 "The skill is ready again in 7 s."
+@5000 conn#4 sends Pong
+@6000 conn#4 sends Pong
+@6000 tick
+   -> send conn#4 Ping
+@7000 conn#4 sends Pong
+@7000 tick
+   -> send conn#4 PointsChanged 7=480
+@8000 conn#4 sends Pong
+@9000 conn#4 sends Pong
+@9000 tick
+   -> send conn#4 EntityMove kind=1 vid=1 (474999, 966303) angle=230 duration=205
+@10000 conn#4 sends Pong
+@11000 conn#4 sends Pong
+@11000 tick
+   -> send conn#4 Ping
+-- the charge again: its cooldown is 5 s now, not 10
+@11000 conn#4 sends UseSkill 3 target=Some(1)
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=255/100
+   -> send conn#4 PointsChanged 7=479 19=255
+   -> send conn#4 Affects 6:11=50 53s, 6:8=90 53s, 3:2=150 3s
+   -> send conn#4 EntitySkills vid=4 skills=[3, 6]
+@15000 conn#4 sends Pong
+@15000 conn#4 sends UseSkill 3 target=Some(1)
+   -> send conn#4 Chat kind=1 vid=0 "The skill is ready again in 1 s."
+@16000 conn#4 sends Pong
+@16000 conn#4 sends UseSkill 3 target=Some(1)
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=255/100
+   -> send conn#4 PointsChanged 7=478
+   -> send conn#4 Affects 6:11=50 48s, 6:8=90 48s, 3:2=150 3s

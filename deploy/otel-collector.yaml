@@ -1,0 +1,21 @@
+# A collector for trying the server's telemetry (compose.yaml, profile
+# `telemetry`): it takes OTLP over HTTP and prints what arrives. Point a real
+# backend's exporter here instead to keep the data.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  debug:
+    verbosity: basic
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [debug]
+    metrics:
+      receivers: [otlp]
+      exporters: [debug]

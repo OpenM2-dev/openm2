@@ -1,0 +1,36 @@
+// A stable NPC in `openm2 play`: our mount, the level it trains it to next
+// and what that takes, and Train. Skins are in skin.ron; the format is in
+// docs/specs/ui.md ("Stables"). The ids are what `play` fills in
+// (crates/m2-cli/src/interface.rs, `ids`).
+(
+    windows: [
+        (
+            // Where a teacher's window goes: in the middle, clear of the
+            // character window on the left and the inventory on the right.
+            id: "stable",
+            anchor: Center,
+            pos: (0, -40),
+            size: (240, 250),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (pos: (8, 8), size: (Fill(8), 32), kind: Panel(skin: "title_bar"), children: [
+                    (id: "stable.title", pos: (6, 0), size: (Fill(18), 21), kind: Text(text: "Stable", align: Center, size: 11)),
+                    (id: "stable.close", anchor: TopRight, pos: (3, 2), size: (15, 15), kind: Button(skin: "close", text: "")),
+                ]),
+                // Our mount now, then the next level: its speed and stamina,
+                // what it needs and costs.
+                (id: "stable.mount", anchor: Top, pos: (0, 46), size: (Fill(16), 18), kind: Text(text: "", align: Center)),
+                (id: "stable.next", anchor: Top, pos: (0, 72), size: (Fill(16), 18), kind: Text(text: "", align: Center)),
+                (id: "stable.needs", anchor: Top, pos: (0, 92), size: (Fill(16), 18), kind: Text(text: "", align: Center)),
+                (id: "stable.cost0", anchor: Top, pos: (0, 116), size: (Fill(16), 16), kind: Text(text: "", align: Center)),
+                (id: "stable.cost1", anchor: Top, pos: (0, 134), size: (Fill(16), 16), kind: Text(text: "", align: Center)),
+                (id: "stable.cost2", anchor: Top, pos: (0, 152), size: (Fill(16), 16), kind: Text(text: "", align: Center)),
+                (id: "stable.cost3", anchor: Top, pos: (0, 170), size: (Fill(16), 16), kind: Text(text: "", align: Center)),
+                // "Get a mount" for the first, "Train" after; not past the
+                // last level.
+                (id: "stable.train", anchor: Bottom, pos: (0, 16), size: (88, 21), hidden: true, kind: Button(skin: "large_button", text: "Train")),
+            ],
+        ),
+    ],
+)

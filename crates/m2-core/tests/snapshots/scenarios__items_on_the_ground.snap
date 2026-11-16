@@ -1,0 +1,84 @@
+---
+source: crates/m2-core/tests/scenarios.rs
+expression: s.log
+---
+@0ms Start
+    -> Connect { conn: ConnId(1), server: Auth }
+@5ms Connected(ConnId(1))
+    -> Send { conn: ConnId(1), message: Hello(Hello { protocol: 3, build: "openm2 test" }) }
+@6ms Message(ConnId(1), Welcome(Welcome { protocol: 3, server: "openm2-server test" }))
+    -> Event(Welcomed { server: Auth, protocol: 3, name: "openm2-server test" })
+    -> Send { conn: ConnId(1), message: StartSignIn(StartSignIn) }
+@7ms Message(ConnId(1), SignInOptions(SignInOptions { providers: [Provider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }], nonce: "n0nce" }))
+    -> Event(SignInOptions([SignInProvider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }]))
+    -> SignIn { provider: SignInProvider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }, nonce: "n0nce" }
+@8ms SignInCode(SignInCode { redirect: "http://127.0.0.1:50000/callback", .. })
+    -> Send { conn: ConnId(1), message: ProviderLogin(ProviderLogin { provider: "example", code: <redacted>, verifier: <redacted>, redirect: "http://127.0.0.1:50000/callback" }) }
+@20ms Message(ConnId(1), SignedIn(SignedIn { account: "example:admin", ticket: <redacted> }))
+    -> Event(LoggedIn)
+    -> Disconnect { conn: ConnId(1) }
+    -> Connect { conn: ConnId(2), server: Game }
+@25ms Connected(ConnId(2))
+    -> Send { conn: ConnId(2), message: Hello(Hello { protocol: 3, build: "openm2 test" }) }
+@26ms Message(ConnId(2), Welcome(Welcome { protocol: 3, server: "openm2-server test" }))
+    -> Event(Welcomed { server: Game, protocol: 3, name: "openm2-server test" })
+    -> Send { conn: ConnId(2), message: TicketLogin(TicketLogin { username: "example:admin", ticket: <redacted> }) }
+@110ms Message(ConnId(2), Empire(Empire { empire: 2 }))
+@110ms Message(ConnId(2), Phase(Phase { phase: 1 }))
+    -> Event(Phase { server: Game, phase: Select })
+@110ms Message(ConnId(2), CharacterList(CharacterList { characters: [Character { slot: 0, id: 1, name: "Alice", class: 3, level: 10, playtime: 0, st: 0, ht: 0, dx: 0, iq: 0, body_part: 0, hair_part: 0, guild: "" }] }))
+    -> Event(CharacterList([CharacterSummary { slot: 0, id: 1, name: "Alice", class: 3, level: 10, playtime: 0, st: 0, ht: 0, dx: 0, iq: 0, body_part: 0, hair_part: 0, guild: "" }]))
+    -> Event(Selected { slot: 0, name: "Alice" })
+    -> Send { conn: ConnId(2), message: SelectCharacter(SelectCharacter { slot: 0 }) }
+@120ms Message(ConnId(2), Phase(Phase { phase: 2 }))
+    -> Event(Phase { server: Game, phase: Loading })
+@121ms Message(ConnId(2), MainCharacter(MainCharacter { vid: 4660, class: 3, name: "Alice", x: 958400, y: 272800, z: 0, empire: 2, skill_group: 0, run_speed: 450 }))
+    -> Send { conn: ConnId(2), message: EnterGame(EnterGame) }
+@130ms Message(ConnId(2), Phase(Phase { phase: 3 }))
+    -> Event(Phase { server: Game, phase: Game })
+    -> Event(EnteredGame(Some(Me { vid: 4660, name: "Alice", class: 3, empire: Chunjo, position: (958400, 272800, 0) })))
+@131ms Message(ConnId(2), GameTime(GameTime { time: 10000 }))
+@131ms Message(ConnId(2), ItemSet(ItemSet { window: 1, slot: 3, vnum: 27001, count: 5, flags: 0, anti_flags: 0, sockets: [0, 0, 0], bonuses: [ItemBonus { kind: 7, value: 15 }] }))
+@131ms Message(ConnId(2), ItemSet(ItemSet { window: 1, slot: 94, vnum: 10, count: 1, flags: 0, anti_flags: 0, sockets: [0, 0, 0], bonuses: [ItemBonus { kind: 7, value: 15 }] }))
+@140ms Message(ConnId(2), EntitySpawn(EntitySpawn { vid: 4660, angle: 90, x: 958400, y: 272800, z: 0, kind: 6, race: 3, move_speed: 150, attack_speed: 100, state: 0, affects: 0 }))
+    -> Event(EntityAppeared { vid: 4660, kind: Player, race: 3, at: Point { x: 958400, y: 272800 } })
+@150ms Message(ConnId(2), GroundItemAdd(GroundItemAdd { vid: 20001, vnum: 10, x: 958400, y: 272800 }))
+    -> Event(GroundItemAppeared { vid: 20001, vnum: 10, at: Point { x: 958400, y: 272800 } })
+@150ms Message(ConnId(2), ItemOwnership(ItemOwnership { vid: 20001, owner: "" }))
+@160ms Message(ConnId(2), GroundItemAdd(GroundItemAdd { vid: 20002, vnum: 27002, x: 959000, y: 272800 }))
+    -> Event(GroundItemAppeared { vid: 20002, vnum: 27002, at: Point { x: 959000, y: 272800 } })
+@160ms Message(ConnId(2), ItemOwnership(ItemOwnership { vid: 20002, owner: "Alice" }))
+@161ms Message(ConnId(2), ItemOwnership(ItemOwnership { vid: 77, owner: "Alice" }))
+    -> Event(Ignored { what: "ItemOwnership", why: "no such item on the ground" })
+@200ms Command(PickUp { vid: 77 })
+    -> Event(Ignored { what: "PickUp", why: "no such item on the ground" })
+@210ms Command(PickUp { vid: 20002 })
+    -> Send { conn: ConnId(2), message: PickUp(PickUp { vid: 20002 }) }
+@220ms Message(ConnId(2), ItemSet(ItemSet { window: 1, slot: 4, vnum: 27002, count: 1, flags: 0, anti_flags: 0, sockets: [0, 0, 0], bonuses: [ItemBonus { kind: 7, value: 15 }] }))
+@220ms Message(ConnId(2), GroundItemRemove(GroundItemRemove { vid: 20002 }))
+    -> Event(GroundItemLeft { vid: 20002 })
+@221ms Message(ConnId(2), GroundItemRemove(GroundItemRemove { vid: 20002 }))
+    -> Event(Ignored { what: "GroundItemRemove", why: "no such item on the ground" })
+@300ms Command(Drop { slot: 3, count: 2 })
+    -> Send { conn: ConnId(2), message: DropItem(DropItem { window: 1, slot: 3, count: 2 }) }
+@301ms Command(Drop { slot: 3, count: 6 })
+    -> Event(Ignored { what: "Drop", why: "more than the stack, or none" })
+@301ms Command(Drop { slot: 3, count: 0 })
+    -> Event(Ignored { what: "Drop", why: "more than the stack, or none" })
+@301ms Command(Drop { slot: 94, count: 1 })
+    -> Event(Ignored { what: "Drop", why: "only items in the bag are dropped" })
+@301ms Command(Drop { slot: 7, count: 1 })
+    -> Event(Ignored { what: "Drop", why: "no item in that slot" })
+@310ms Command(DropGold { amount: 1000 })
+    -> Event(Ignored { what: "DropGold", why: "more than our gold, or none" })
+@320ms Message(ConnId(2), PointsChanged(PointsChanged { points: [PointValue { point: 11, value: 5000 }] }))
+@330ms Command(DropGold { amount: 1000 })
+    -> Send { conn: ConnId(2), message: DropGold(DropGold { amount: 1000 }) }
+@340ms Message(ConnId(2), GroundItemAdd(GroundItemAdd { vid: 20003, vnum: 1, x: 958400, y: 272800 }))
+    -> Event(GroundItemAppeared { vid: 20003, vnum: 1, at: Point { x: 958400, y: 272800 } })
+@400ms Message(ConnId(2), EntityDied(EntityDied { vid: 4660 }))
+    -> Event(Died { vid: 4660 })
+@410ms Command(PickUp { vid: 20001 })
+    -> Event(Ignored { what: "PickUp", why: "our character is dead" })
+@410ms Command(Drop { slot: 3, count: 1 })
+    -> Event(Ignored { what: "Drop", why: "our character is dead" })

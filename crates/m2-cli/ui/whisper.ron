@@ -1,0 +1,69 @@
+// Whispers in `openm2 play`: an envelope at the left edge for each
+// conversation, marked while it has lines we have not seen, and one window
+// that shows the conversation picked and takes our next line. Skins are in
+// skin.ron; the format is in docs/specs/ui.md ("Whispers"). The ids are
+// what `play` fills in (crates/m2-cli/src/interface.rs, `ids`).
+(
+    windows: [
+        (
+            // Between the minimap's height and the chat; only the
+            // envelopes take clicks.
+            id: "whispers",
+            anchor: Left,
+            pos: (8, -40),
+            size: (32, 284),
+            click_through: true,
+            kind: Group,
+            children: [
+                (id: "whisper.envelope0", pos: (0, 0), size: (32, 32), hidden: true, kind: Button(skin: "envelope", text: ""), children: [
+                    (id: "whisper.unread0", anchor: TopRight, size: (10, 10), hidden: true, kind: Panel(skin: "unread")),
+                ]),
+                (id: "whisper.envelope1", pos: (0, 36), size: (32, 32), hidden: true, kind: Button(skin: "envelope", text: ""), children: [
+                    (id: "whisper.unread1", anchor: TopRight, size: (10, 10), hidden: true, kind: Panel(skin: "unread")),
+                ]),
+                (id: "whisper.envelope2", pos: (0, 72), size: (32, 32), hidden: true, kind: Button(skin: "envelope", text: ""), children: [
+                    (id: "whisper.unread2", anchor: TopRight, size: (10, 10), hidden: true, kind: Panel(skin: "unread")),
+                ]),
+                (id: "whisper.envelope3", pos: (0, 108), size: (32, 32), hidden: true, kind: Button(skin: "envelope", text: ""), children: [
+                    (id: "whisper.unread3", anchor: TopRight, size: (10, 10), hidden: true, kind: Panel(skin: "unread")),
+                ]),
+                (id: "whisper.envelope4", pos: (0, 144), size: (32, 32), hidden: true, kind: Button(skin: "envelope", text: ""), children: [
+                    (id: "whisper.unread4", anchor: TopRight, size: (10, 10), hidden: true, kind: Panel(skin: "unread")),
+                ]),
+                (id: "whisper.envelope5", pos: (0, 180), size: (32, 32), hidden: true, kind: Button(skin: "envelope", text: ""), children: [
+                    (id: "whisper.unread5", anchor: TopRight, size: (10, 10), hidden: true, kind: Panel(skin: "unread")),
+                ]),
+                (id: "whisper.envelope6", pos: (0, 216), size: (32, 32), hidden: true, kind: Button(skin: "envelope", text: ""), children: [
+                    (id: "whisper.unread6", anchor: TopRight, size: (10, 10), hidden: true, kind: Panel(skin: "unread")),
+                ]),
+                (id: "whisper.envelope7", pos: (0, 252), size: (32, 32), hidden: true, kind: Button(skin: "envelope", text: ""), children: [
+                    (id: "whisper.unread7", anchor: TopRight, size: (10, 10), hidden: true, kind: Panel(skin: "unread")),
+                ]),
+            ],
+        ),
+        (
+            // Beside the envelopes, above the chat.
+            id: "whisper",
+            anchor: Left,
+            pos: (48, -40),
+            size: (320, 284),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (pos: (8, 8), size: (Fill(8), 32), kind: Panel(skin: "title_bar"), children: [
+                    (id: "whisper.title", pos: (6, 0), size: (Fill(18), 21), kind: Text(text: "", align: Center)),
+                    (id: "whisper.close", anchor: TopRight, pos: (3, 2), size: (15, 15), kind: Button(skin: "close", text: "")),
+                ]),
+                (pos: (12, 44), size: (Fill(12), 196), kind: Panel(skin: "chat_back"), children: [
+                    (id: "whisper.log", pos: (6, 4), size: (Fill(6), Fill(4)), kind: Log(max_lines: 100)),
+                ]),
+                // Our next line, and ending the conversation (its envelope
+                // goes; what was said is forgotten).
+                (anchor: BottomLeft, pos: (12, 14), size: (Fill(84), 22), kind: Panel(skin: "field"), children: [
+                    (id: "whisper.input", pos: (6, 2), size: (Fill(6), 18), kind: Edit(max_chars: 100)),
+                ]),
+                (id: "whisper.end", anchor: BottomRight, pos: (12, 14), size: (61, 21), kind: Button(skin: "button", text: "End")),
+            ],
+        ),
+    ],
+)

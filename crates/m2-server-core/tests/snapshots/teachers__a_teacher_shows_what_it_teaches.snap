@@ -1,0 +1,13 @@
+---
+source: crates/m2-server-core/tests/teachers.rs
+expression: h.log
+---
+-- the keeper's shop, then the teacher 2 m east: its job, group and the level
+@1000 conn#4 sends Talk vid=2
+   -> send conn#4 ShopOpened vid=2 [0: 3004x1 for 5]
+@1000 conn#4 sends Talk vid=3
+   -> send conn#4 TeacherOpened vid=3 job=0 group=1 level=5
+-- ignored: the teacher took the shop's place
+@1000 conn#4 sends ShopBuy 0
+-- ignored: the far teacher is 30 m away
+@1000 conn#4 sends Talk vid=5

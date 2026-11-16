@@ -1,0 +1,64 @@
+---
+source: crates/m2-server-core/tests/items.rs
+expression: h.log
+---
+-- gold to the ground: both see it, and alice is saved at once
+@1000 conn#2 sends DropGold 100
+   -> send conn#2 PointsChanged 11=400
+   -> send conn#2 GroundItemAdd vid=4 1 (475000, 966100)
+   -> send conn#2 ItemOwnership vid=4 anyone
+   -> send conn#4 GroundItemAdd vid=4 1 (475000, 966100)
+   -> send conn#4 ItemOwnership vid=4 anyone
+   -> store #9: save #1 at (475000, 966100) played 0s gold=400 items=[0:3004x5 1:3006x1 2:3002x1 3:3008x1 90:3003x1 94:3001x1]
+@1000 store answers #9: saved: Ok(())
+-- three of the five potions
+@1000 conn#2 sends DropItem 1:0 count=3
+   -> send conn#2 ItemSet 1:0 3004x2
+   -> send conn#2 GroundItemAdd vid=5 3004 (475000, 966100)
+   -> send conn#2 ItemOwnership vid=5 anyone
+   -> send conn#4 GroundItemAdd vid=5 3004 (475000, 966100)
+   -> send conn#4 ItemOwnership vid=5 anyone
+   -> store #10: save #1 at (475000, 966100) played 0s gold=400 items=[0:3004x2 1:3006x1 2:3002x1 3:3008x1 90:3003x1 94:3001x1]
+@1000 store answers #10: saved: Ok(())
+-- refused: a third drop within 10 s (two here)
+@1000 conn#2 sends DropGold 1
+-- refused: more gold than the purse, a worn item, no count, more than the stack, an empty place
+@11000 conn#2 sends DropGold 1000
+@11000 conn#2 sends DropItem 1:94 count=1
+@11000 conn#2 sends DropItem 1:0 count=0
+@11000 conn#2 sends DropItem 1:0 count=3
+@11000 conn#2 sends DropItem 1:40 count=1
+-- bob picks up the potions: onto his own stack
+@11000 conn#4 sends PickUp vid=5
+   -> send conn#4 ItemSet 1:0 3004x8
+   -> send conn#4 Chat kind=1 vid=0 "You picked up Red Drop (3)."
+   -> send conn#2 GroundItemRemove vid=5
+   -> send conn#4 GroundItemRemove vid=5
+-- bob walks 20 m away: the gold is out of his reach
+@11000 conn#4 sends CharacterMove kind=1 (477000, 966100)
+   -> send conn#2 EntityMove kind=1 vid=3 (477000, 966100) angle=90 duration=2666
+@21000 conn#4 sends PickUp vid=4
+-- 150 m away he no longer sees it; back, he sees it again and picks it up
+@21000 conn#4 sends CharacterMove kind=1 (460000, 966100)
+   -> send conn#2 EntityMove kind=1 vid=3 (460000, 966100) angle=90 duration=22666
+@81000 conn#4 sends CharacterMove kind=0 (460000, 966100)
+   -> send conn#2 EntityMove kind=0 vid=3 (460000, 966100) angle=90 duration=0
+   -> send conn#2 EntityRemove vid=3
+   -> send conn#4 EntityRemove vid=2
+   -> send conn#4 EntityRemove vid=1
+   -> send conn#4 GroundItemRemove vid=4
+@81000 conn#4 sends CharacterMove kind=1 (475000, 966100)
+@141000 conn#4 sends CharacterMove kind=0 (475000, 966100)
+   -> send conn#2 EntitySpawn vid=3 (475000, 966100) kind=6 race=0 angle=90 speed=165/110
+   -> send conn#2 EntityInfo vid=3 Bob empire=1 level=1 parts=[3003, 3001, 0, 0]
+   -> send conn#4 EntitySpawn vid=2 (475000, 966100) kind=6 race=0 angle=0 speed=165/110
+   -> send conn#4 EntityInfo vid=2 Alice empire=1 level=1 parts=[3003, 3001, 0, 0]
+   -> send conn#4 EntitySpawn vid=1 (475000, 967000) kind=0 race=1001 angle=75 speed=100/100
+   -> send conn#4 GroundItemAdd vid=4 1 (475000, 966100)
+   -> send conn#4 ItemOwnership vid=4 anyone
+@141000 conn#4 sends PickUp vid=4
+   -> send conn#4 PointsChanged 11=600
+   -> send conn#2 GroundItemRemove vid=4
+   -> send conn#4 GroundItemRemove vid=4
+-- gone: nothing to pick up
+@141000 conn#4 sends PickUp vid=4

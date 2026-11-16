@@ -1,0 +1,426 @@
+// openm2's interface skin: how boards, bars, buttons and gauges look, drawn
+// with the user's own client art (game paths below). Every skin has a fallback
+// colour for clients without that art. Format: docs/specs/ui.md.
+(
+    // The first family installed is used; openm2 ships no fonts.
+    font: (families: ["Tahoma", "Verdana", "Arial", "DejaVu Sans", "Liberation Sans", "Noto Sans"], size: 12),
+    text_colour: (232, 228, 214, 255),
+    // Behind item tooltips.
+    tooltip: "tooltip",
+    skins: {
+        // A window board: 32 × 32 corners, edges and middle repeated.
+        "board": Frame(
+            corners: (
+                "d:/ymir work/ui/pattern/board_corner_lefttop.tga",
+                "d:/ymir work/ui/pattern/board_corner_righttop.tga",
+                "d:/ymir work/ui/pattern/board_corner_leftbottom.tga",
+                "d:/ymir work/ui/pattern/board_corner_rightbottom.tga",
+            ),
+            edges: (
+                "d:/ymir work/ui/pattern/board_line_top.tga",
+                "d:/ymir work/ui/pattern/board_line_bottom.tga",
+                "d:/ymir work/ui/pattern/board_line_left.tga",
+                "d:/ymir work/ui/pattern/board_line_right.tga",
+            ),
+            fill: "d:/ymir work/ui/pattern/board_base.tga",
+            fallback: (40, 32, 24, 240),
+        ),
+        // A thin board: 16 × 16 pieces around a see-through dark middle.
+        "thin_board": Frame(
+            corners: (
+                "d:/ymir work/ui/pattern/thinboard_corner_lefttop.tga",
+                "d:/ymir work/ui/pattern/thinboard_corner_righttop.tga",
+                "d:/ymir work/ui/pattern/thinboard_corner_leftbottom.tga",
+                "d:/ymir work/ui/pattern/thinboard_corner_rightbottom.tga",
+            ),
+            edges: (
+                "d:/ymir work/ui/pattern/thinboard_line_top.tga",
+                "d:/ymir work/ui/pattern/thinboard_line_bottom.tga",
+                "d:/ymir work/ui/pattern/thinboard_line_left.tga",
+                "d:/ymir work/ui/pattern/thinboard_line_right.tga",
+            ),
+            // the edges' own see-through black, so the middle matches them
+            fallback: (0, 0, 0, 126),
+        ),
+        "title_bar": Bar(
+            left: "d:/ymir work/ui/pattern/titlebar_left.tga",
+            middle: "d:/ymir work/ui/pattern/titlebar_center.tga",
+            right: "d:/ymir work/ui/pattern/titlebar_right.tga",
+            fallback: (70, 50, 30, 255),
+        ),
+        // Behind the chat lines: the world shows through.
+        "chat_back": Colour((0, 0, 0, 96)),
+        // The chat input line.
+        "chat_bar": Bar(
+            left: "d:/ymir work/ui/pattern/chat_bar_left.tga",
+            middle: "d:/ymir work/ui/pattern/chat_bar_middle.tga",
+            right: "d:/ymir work/ui/pattern/chat_bar_right.tga",
+            fallback: (0, 0, 0, 200),
+        ),
+        "field": Colour((0, 0, 0, 170)),
+        "button": Button(
+            normal: "d:/ymir work/ui/public/middle_button_01.sub",
+            hover: "d:/ymir work/ui/public/middle_button_02.sub",
+            down: "d:/ymir work/ui/public/middle_button_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (96, 72, 48, 255),
+        ),
+        "large_button": Button(
+            normal: "d:/ymir work/ui/public/large_button_01.sub",
+            hover: "d:/ymir work/ui/public/large_button_02.sub",
+            down: "d:/ymir work/ui/public/large_button_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (96, 72, 48, 255),
+        ),
+        // A wide button (180 × 25): the restart window's.
+        "xlarge_button": Button(
+            normal: "d:/ymir work/ui/public/xlarge_button_01.sub",
+            hover: "d:/ymir work/ui/public/xlarge_button_02.sub",
+            down: "d:/ymir work/ui/public/xlarge_button_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (96, 72, 48, 255),
+        ),
+        // A row of the Servers board: flat, lighter under the pointer, darker
+        // while picked.
+        "server_row": Button(normal: "", hover: "", down: "", text_colour: (232, 228, 214, 255), fallback: (58, 48, 38, 210)),
+        // A window's close button, over the X drawn in the title bar (15 × 15).
+        "close": Button(
+            normal: "d:/ymir work/ui/public/close_button_01.sub",
+            hover: "d:/ymir work/ui/public/close_button_02.sub",
+            down: "d:/ymir work/ui/public/close_button_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (120, 40, 30, 255),
+        ),
+        // A small + (13 × 13): spending a skill point.
+        "plus": Button(
+            normal: "d:/ymir work/ui/game/windows/btn_plus_up.sub",
+            hover: "d:/ymir work/ui/game/windows/btn_plus_over.sub",
+            down: "d:/ymir work/ui/game/windows/btn_plus_down.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (150, 120, 60, 255),
+        ),
+        // The Skills tab's pieces, the original client's: a
+        // bar over each part (17 tall), the board the skills' icons sit on
+        // (227 × 152), the label of the skill points (75 × 14), the dark
+        // cover over a grade not reached (32 × 32), and the buttons of the
+        // groups to look at before one is chosen (43 × 16).
+        "horizontal_bar": Bar(
+            left: "d:/ymir work/ui/pattern/horizontalbar_left.tga",
+            middle: "d:/ymir work/ui/pattern/horizontalbar_center.tga",
+            right: "d:/ymir work/ui/pattern/horizontalbar_right.tga",
+            fallback: (60, 44, 30, 255),
+        ),
+        "skill_board": Image(image: "d:/ymir work/ui/game/windows/skill_board.sub", fallback: (24, 20, 16, 255)),
+        "skill_points": Image(image: "locale/en/ui/windows/label_uppt.sub", fallback: (0, 0, 0, 0)),
+        "skill_cover": Image(image: "d:/ymir work/ui/public/slot_cover_button_04.sub", fallback: (0, 0, 0, 150)),
+        "skill_group": Button(
+            normal: "d:/ymir work/ui/game/windows/skill_tab_button_01.sub",
+            hover: "d:/ymir work/ui/game/windows/skill_tab_button_02.sub",
+            down: "d:/ymir work/ui/game/windows/skill_tab_button_03.sub",
+            text_colour: (255, 227, 173, 255),
+            fallback: (80, 64, 48, 255),
+        ),
+        // Behind the login and character screens: a red pattern, repeated.
+        "intro_back": Tile(
+            image: "d:/ymir work/ui/intro/pattern/background_pattern.tga",
+            fallback: (110, 20, 20, 255),
+        ),
+        // Red arrows for choosing class, gender and empire (82 × 28).
+        "arrow_left": Button(
+            normal: "d:/ymir work/ui/intro/select/left_button_01.sub",
+            hover: "d:/ymir work/ui/intro/select/left_button_02.sub",
+            down: "d:/ymir work/ui/intro/select/left_button_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (150, 30, 30, 255),
+        ),
+        "arrow_right": Button(
+            normal: "d:/ymir work/ui/intro/select/right_button_01.sub",
+            hover: "d:/ymir work/ui/intro/select/right_button_02.sub",
+            down: "d:/ymir work/ui/intro/select/right_button_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (150, 30, 30, 255),
+        ),
+        // Dragon swords for going through the characters (160 × 36).
+        "dragon_left": Button(
+            normal: "d:/ymir work/ui/intro/select/dragon_left_button_01.sub",
+            hover: "d:/ymir work/ui/intro/select/dragon_left_button_02.sub",
+            down: "d:/ymir work/ui/intro/select/dragon_left_button_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (120, 100, 60, 255),
+        ),
+        "dragon_right": Button(
+            normal: "d:/ymir work/ui/intro/select/dragon_right_button_01.sub",
+            hover: "d:/ymir work/ui/intro/select/dragon_right_button_02.sub",
+            down: "d:/ymir work/ui/intro/select/dragon_right_button_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (120, 100, 60, 255),
+        ),
+        // The loading gauge (336 × 30): an empty tube filling up.
+        "loading_slot": Image(
+            image: "d:/ymir work/ui/intro/loading/gauge_empty.sub",
+            fallback: (30, 20, 20, 255),
+        ),
+        "loading": Gauge(
+            slot: "loading_slot",
+            fill: "d:/ymir work/ui/intro/loading/gauge_full.sub",
+            fallback: (160, 150, 200, 255),
+        ),
+        "gauge_slot": Bar(
+            left: "d:/ymir work/ui/pattern/gauge_slot_left.tga",
+            middle: "d:/ymir work/ui/pattern/gauge_slot_center.tga",
+            right: "d:/ymir work/ui/pattern/gauge_slot_right.tga",
+            fallback: (24, 24, 24, 255),
+        ),
+        "tooltip": Colour((0, 0, 0, 210)),
+        // Under the icons of what skills raise on us: nothing.
+        "affect_slot": Colour((0, 0, 0, 0)),
+        // An item slot (32 × 32), in the bag and on the quickslot bar.
+        "slot": Image(
+            image: "d:/ymir work/ui/public/slot_base.sub",
+            fallback: (20, 18, 16, 255),
+        ),
+        // The bag's page tabs (32 × 19); the open page's is held down.
+        "tab": Button(
+            normal: "d:/ymir work/ui/game/windows/tab_button_small_01.sub",
+            hover: "d:/ymir work/ui/game/windows/tab_button_small_02.sub",
+            down: "d:/ymir work/ui/game/windows/tab_button_small_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (80, 64, 48, 255),
+        ),
+        // The taskbar's button that opens the inventory (32 × 32).
+        // The character window's tabs (78 × 19), at its bottom; the open
+        // tab's is held down.
+        "tab_large": Button(
+            normal: "d:/ymir work/ui/game/windows/tab_button_large_01.sub",
+            hover: "d:/ymir work/ui/game/windows/tab_button_large_02.sub",
+            down: "d:/ymir work/ui/game/windows/tab_button_large_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (80, 64, 48, 255),
+        ),
+        // The taskbar's button for the character window (32 × 32).
+        "character_button": Button(
+            normal: "d:/ymir work/ui/game/taskbar/character_button_01.sub",
+            hover: "d:/ymir work/ui/game/taskbar/character_button_02.sub",
+            down: "d:/ymir work/ui/game/taskbar/character_button_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (110, 90, 60, 255),
+        ),
+        // Each job's face in the character window (43 × 43).
+        "face_warrior": Image(image: "d:/ymir work/ui/game/windows/face_warrior.sub", fallback: (90, 60, 40, 255)),
+        "face_ninja": Image(image: "d:/ymir work/ui/game/windows/face_assassin.sub", fallback: (90, 60, 40, 255)),
+        "face_sura": Image(image: "d:/ymir work/ui/game/windows/face_sura.sub", fallback: (90, 60, 40, 255)),
+        "face_shaman": Image(image: "d:/ymir work/ui/game/windows/face_shaman.sub", fallback: (90, 60, 40, 255)),
+        // Over a game master's name (246 × 127, drawn 64 wide): the picture
+        // the client's effect script floats over game masters (`gm.mse`).
+        // Never drawn in its fallback: without it, `GM` shows.
+        "game_master": Image(image: "locale/en/effect/ymirred.tga", fallback: (0, 0, 0, 0)),
+        "inventory_button": Button(
+            normal: "d:/ymir work/ui/game/taskbar/inventory_button_01.sub",
+            hover: "d:/ymir work/ui/game/taskbar/inventory_button_02.sub",
+            down: "d:/ymir work/ui/game/taskbar/inventory_button_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (110, 90, 60, 255),
+        ),
+        // The taskbar's button that opens the game menu (32 × 32): gears.
+        "system_button": Button(
+            normal: "d:/ymir work/ui/game/taskbar/system_button_01.sub",
+            hover: "d:/ymir work/ui/game/taskbar/system_button_02.sub",
+            down: "d:/ymir work/ui/game/taskbar/system_button_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (110, 90, 60, 255),
+        ),
+        // The taskbar's button that opens the friends list (32 × 32).
+        "messenger_button": Button(
+            normal: "d:/ymir work/ui/game/taskbar/community_button_01.sub",
+            hover: "d:/ymir work/ui/game/taskbar/community_button_02.sub",
+            down: "d:/ymir work/ui/game/taskbar/community_button_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (110, 90, 60, 255),
+        ),
+        // A whisper conversation's envelope at the screen's left edge
+        // (32 × 32; the client has one picture), and the mark on it while
+        // it has lines not seen.
+        "envelope": Button(
+            normal: "d:/ymir work/ui/game/windows/btn_mail_up.sub",
+            hover: "d:/ymir work/ui/game/windows/btn_mail_up.sub",
+            down: "d:/ymir work/ui/game/windows/btn_mail_up.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (200, 180, 120, 255),
+        ),
+        "unread": Colour((230, 60, 40, 255)),
+        // Whether a friend is in the game (15 × 16).
+        "friend_online": Image(image: "d:/ymir work/ui/game/windows/messenger_list_online.sub", fallback: (90, 200, 90, 255)),
+        "friend_offline": Image(image: "d:/ymir work/ui/game/windows/messenger_list_offline.sub", fallback: (110, 110, 110, 255)),
+        // The friends list's buttons (21 × 18): whisper, end a friendship,
+        // ask a player.
+        "messenger_whisper": Button(
+            normal: "d:/ymir work/ui/game/windows/messenger_whisper_01.sub",
+            hover: "d:/ymir work/ui/game/windows/messenger_whisper_02.sub",
+            down: "d:/ymir work/ui/game/windows/messenger_whisper_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (96, 72, 48, 255),
+        ),
+        "messenger_remove": Button(
+            normal: "d:/ymir work/ui/game/windows/messenger_delete_01.sub",
+            hover: "d:/ymir work/ui/game/windows/messenger_delete_02.sub",
+            down: "d:/ymir work/ui/game/windows/messenger_delete_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (120, 40, 30, 255),
+        ),
+        "messenger_add": Button(
+            normal: "d:/ymir work/ui/game/windows/messenger_add_friend_01.sub",
+            hover: "d:/ymir work/ui/game/windows/messenger_add_friend_02.sub",
+            down: "d:/ymir work/ui/game/windows/messenger_add_friend_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (60, 110, 60, 255),
+        ),
+        // A slider's bar (175 × 12, spear tips at its ends) and its knob
+        // (53 × 12), drawn at its own size: the Settings window's volumes.
+        "slider_bar": Image(image: "d:/ymir work/ui/game/windows/sliderbar.sub", fallback: (24, 24, 24, 255)),
+        "slider_knob": Image(image: "d:/ymir work/ui/game/windows/sliderbar_cursor.sub", fallback: (200, 180, 140, 255)),
+        // The minimap's buttons (minimap.dds): the atlas (15 × 15), close
+        // (19 × 20), zoom out and in (15 × 15); the button that opens it
+        // again has one look (32 × 32).
+        "minimap_atlas": Button(
+            normal: "d:/ymir work/ui/minimap/atlas_open_default.sub",
+            hover: "d:/ymir work/ui/minimap/atlas_open_over.sub",
+            down: "d:/ymir work/ui/minimap/atlas_open_down.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (110, 80, 40, 255),
+        ),
+        "minimap_close": Button(
+            normal: "d:/ymir work/ui/minimap/minimap_close_default.sub",
+            hover: "d:/ymir work/ui/minimap/minimap_close_over.sub",
+            down: "d:/ymir work/ui/minimap/minimap_close_down.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (110, 80, 40, 255),
+        ),
+        "minimap_zoom_out": Button(
+            normal: "d:/ymir work/ui/minimap/minimap_scaledown_default.sub",
+            hover: "d:/ymir work/ui/minimap/minimap_scaledown_over.sub",
+            down: "d:/ymir work/ui/minimap/minimap_scaledown_down.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (110, 80, 40, 255),
+        ),
+        "minimap_zoom_in": Button(
+            normal: "d:/ymir work/ui/minimap/minimap_scaleup_default.sub",
+            hover: "d:/ymir work/ui/minimap/minimap_scaleup_over.sub",
+            down: "d:/ymir work/ui/minimap/minimap_scaleup_down.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (110, 80, 40, 255),
+        ),
+        // The quickslot bar's page buttons (9 × 5): the page before and
+        // the page after.
+        "quick_page_up": Button(
+            normal: "d:/ymir work/ui/game/taskbar/quickslot_upbutton_01.sub",
+            hover: "d:/ymir work/ui/game/taskbar/quickslot_upbutton_02.sub",
+            down: "d:/ymir work/ui/game/taskbar/quickslot_upbutton_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (110, 80, 40, 255),
+        ),
+        "quick_page_down": Button(
+            normal: "d:/ymir work/ui/game/taskbar/quickslot_downbutton_01.sub",
+            hover: "d:/ymir work/ui/game/taskbar/quickslot_downbutton_02.sub",
+            down: "d:/ymir work/ui/game/taskbar/quickslot_downbutton_03.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (110, 80, 40, 255),
+        ),
+        "minimap_open": Button(
+            normal: "d:/ymir work/ui/minimap/minimap_open_default.sub",
+            hover: "d:/ymir work/ui/minimap/minimap_open_default.sub",
+            down: "d:/ymir work/ui/minimap/minimap_open_default.sub",
+            text_colour: (255, 255, 255, 255),
+            fallback: (110, 80, 40, 255),
+        ),
+        // Pictures the layouts show, see-through without the art.
+        // The minimap's round frame (136 × 137), with its buttons drawn in.
+        "minimap_frame": Image(image: "d:/ymir work/ui/minimap/minimap.sub", fallback: (0, 0, 0, 0)),
+        // The quickslot bar's page number's board (9 × 8), between its
+        // buttons.
+        "quick_page_board": Image(image: "d:/ymir work/ui/game/taskbar/quickslot_button_board.sub", fallback: (20, 18, 16, 200)),
+        // The quickslots' keys over their slots; 1 to 4 also number the
+        // bar's pages.
+        "key_1": Image(image: "d:/ymir work/ui/game/taskbar/1.sub", fallback: (0, 0, 0, 0)),
+        "key_2": Image(image: "d:/ymir work/ui/game/taskbar/2.sub", fallback: (0, 0, 0, 0)),
+        "key_3": Image(image: "d:/ymir work/ui/game/taskbar/3.sub", fallback: (0, 0, 0, 0)),
+        "key_4": Image(image: "d:/ymir work/ui/game/taskbar/4.sub", fallback: (0, 0, 0, 0)),
+        "key_f1": Image(image: "d:/ymir work/ui/game/taskbar/f1.sub", fallback: (0, 0, 0, 0)),
+        "key_f2": Image(image: "d:/ymir work/ui/game/taskbar/f2.sub", fallback: (0, 0, 0, 0)),
+        "key_f3": Image(image: "d:/ymir work/ui/game/taskbar/f3.sub", fallback: (0, 0, 0, 0)),
+        "key_f4": Image(image: "d:/ymir work/ui/game/taskbar/f4.sub", fallback: (0, 0, 0, 0)),
+        // The taskbar's experience: a frame with four empty orbs (105 × 37).
+        "experience_frame": Image(image: "d:/ymir work/ui/game/taskbar/exp_gauge.sub", fallback: (20, 18, 16, 200)),
+        // The taskbar's base (158 × 47): a glass globe and the troughs of
+        // health, mana and stamina.
+        "taskbar_base": Image(image: "d:/ymir work/ui/game/taskbar/gauge.sub", fallback: (20, 18, 16, 200)),
+        // Our mount's stamina in the base's thin trough (openm2's choice of
+        // the client's blue gauge).
+        "stamina": Gauge(fill: "d:/ymir work/ui/pattern/gauge_blue.tga", fallback: (220, 180, 60, 255)),
+        // The globe glowing red (40 × 40), 17 frames played in turn.
+        "globe_1": Image(image: "d:/ymir work/ui/game/taskbar/rampage_01/00.sub", fallback: (0, 0, 0, 0)),
+        "globe_2": Image(image: "d:/ymir work/ui/game/taskbar/rampage_01/01.sub", fallback: (0, 0, 0, 0)),
+        "globe_3": Image(image: "d:/ymir work/ui/game/taskbar/rampage_01/02.sub", fallback: (0, 0, 0, 0)),
+        "globe_4": Image(image: "d:/ymir work/ui/game/taskbar/rampage_01/03.sub", fallback: (0, 0, 0, 0)),
+        "globe_5": Image(image: "d:/ymir work/ui/game/taskbar/rampage_01/04.sub", fallback: (0, 0, 0, 0)),
+        "globe_6": Image(image: "d:/ymir work/ui/game/taskbar/rampage_01/05.sub", fallback: (0, 0, 0, 0)),
+        "globe_7": Image(image: "d:/ymir work/ui/game/taskbar/rampage_01/06.sub", fallback: (0, 0, 0, 0)),
+        "globe_8": Image(image: "d:/ymir work/ui/game/taskbar/rampage_01/07.sub", fallback: (0, 0, 0, 0)),
+        "globe_9": Image(image: "d:/ymir work/ui/game/taskbar/rampage_01/08.sub", fallback: (0, 0, 0, 0)),
+        "globe_10": Image(image: "d:/ymir work/ui/game/taskbar/rampage_01/09.sub", fallback: (0, 0, 0, 0)),
+        "globe_11": Image(image: "d:/ymir work/ui/game/taskbar/rampage_01/10.sub", fallback: (0, 0, 0, 0)),
+        "globe_12": Image(image: "d:/ymir work/ui/game/taskbar/rampage_01/11.sub", fallback: (0, 0, 0, 0)),
+        "globe_13": Image(image: "d:/ymir work/ui/game/taskbar/rampage_01/12.sub", fallback: (0, 0, 0, 0)),
+        "globe_14": Image(image: "d:/ymir work/ui/game/taskbar/rampage_01/13.sub", fallback: (0, 0, 0, 0)),
+        "globe_15": Image(image: "d:/ymir work/ui/game/taskbar/rampage_01/14.sub", fallback: (0, 0, 0, 0)),
+        "globe_16": Image(image: "d:/ymir work/ui/game/taskbar/rampage_01/15.sub", fallback: (0, 0, 0, 0)),
+        "globe_17": Image(image: "d:/ymir work/ui/game/taskbar/rampage_01/16.sub", fallback: (0, 0, 0, 0)),
+        // The inventory's equipment backdrop (155 × 187) and the gold coin.
+        "equipment": Image(image: "d:/ymir work/ui/equipment_bg_without_ring.tga", fallback: (0, 0, 0, 0)),
+        "money": Image(image: "d:/ymir work/ui/game/windows/money_icon.sub", fallback: (0, 0, 0, 0)),
+        // The login screen's logo, in two pieces.
+        "logo_left": Image(image: "d:/ymir work/ui/intro/login/metin2_logo_1.sub", fallback: (0, 0, 0, 0)),
+        "logo_right": Image(image: "d:/ymir work/ui/intro/login/metin2_logo_2.sub", fallback: (0, 0, 0, 0)),
+        // The empires' flags (128 × 79).
+        "flag_shinsoo": Image(image: "d:/ymir work/ui/intro/empire/empireflag_a.sub", fallback: (0, 0, 0, 0)),
+        "flag_chunjo": Image(image: "d:/ymir work/ui/intro/empire/empireflag_b.sub", fallback: (0, 0, 0, 0)),
+        "flag_jinno": Image(image: "d:/ymir work/ui/intro/empire/empireflag_c.sub", fallback: (0, 0, 0, 0)),
+        // What the minimap draws its picture with (`minimap.rs`): the
+        // camera's view, our arrow, the others' dot, our target blinking.
+        "minimap_camera": Image(image: "d:/ymir work/ui/minimap_camera.dds", fallback: (0, 0, 0, 0)),
+        "minimap_player": Image(image: "d:/ymir work/ui/minimap/playermark.sub", fallback: (0, 0, 0, 0)),
+        "minimap_dot": Image(image: "d:/ymir work/ui/minimap/whitemark.sub", fallback: (0, 0, 0, 0)),
+        "minimap_target_1": Image(image: "d:/ymir work/ui/minimap/targetmark01.sub", fallback: (0, 0, 0, 0)),
+        "minimap_target_2": Image(image: "d:/ymir work/ui/minimap/targetmark02.sub", fallback: (0, 0, 0, 0)),
+        "health": Gauge(
+            slot: "gauge_slot",
+            fill: "d:/ymir work/ui/pattern/gauge_red.tga",
+            fallback: (200, 30, 30, 255),
+        ),
+        "mana": Gauge(
+            slot: "gauge_slot",
+            fill: "d:/ymir work/ui/pattern/gauge_blue.tga",
+            fallback: (40, 80, 220, 255),
+        ),
+        // A golden orb (19 × 19) filling one of the experience frame's.
+        "experience": Gauge(
+            fill: "d:/ymir work/ui/game/taskbar/exp_gauge_point.sub",
+            fallback: (230, 180, 60, 255),
+        ),
+        // The taskbar's health and mana (95 × 11), 7 frames each played in
+        // turn: the fill flows.
+        "health_flow_1": Gauge(fill: "d:/ymir work/ui/pattern/hpgauge/01.tga", fallback: (200, 30, 30, 255)),
+        "health_flow_2": Gauge(fill: "d:/ymir work/ui/pattern/hpgauge/02.tga", fallback: (200, 30, 30, 255)),
+        "health_flow_3": Gauge(fill: "d:/ymir work/ui/pattern/hpgauge/03.tga", fallback: (200, 30, 30, 255)),
+        "health_flow_4": Gauge(fill: "d:/ymir work/ui/pattern/hpgauge/04.tga", fallback: (200, 30, 30, 255)),
+        "health_flow_5": Gauge(fill: "d:/ymir work/ui/pattern/hpgauge/05.tga", fallback: (200, 30, 30, 255)),
+        "health_flow_6": Gauge(fill: "d:/ymir work/ui/pattern/hpgauge/06.tga", fallback: (200, 30, 30, 255)),
+        "health_flow_7": Gauge(fill: "d:/ymir work/ui/pattern/hpgauge/07.tga", fallback: (200, 30, 30, 255)),
+        "mana_flow_1": Gauge(fill: "d:/ymir work/ui/pattern/spgauge/01.tga", fallback: (40, 80, 220, 255)),
+        "mana_flow_2": Gauge(fill: "d:/ymir work/ui/pattern/spgauge/02.tga", fallback: (40, 80, 220, 255)),
+        "mana_flow_3": Gauge(fill: "d:/ymir work/ui/pattern/spgauge/03.tga", fallback: (40, 80, 220, 255)),
+        "mana_flow_4": Gauge(fill: "d:/ymir work/ui/pattern/spgauge/04.tga", fallback: (40, 80, 220, 255)),
+        "mana_flow_5": Gauge(fill: "d:/ymir work/ui/pattern/spgauge/05.tga", fallback: (40, 80, 220, 255)),
+        "mana_flow_6": Gauge(fill: "d:/ymir work/ui/pattern/spgauge/06.tga", fallback: (40, 80, 220, 255)),
+        "mana_flow_7": Gauge(fill: "d:/ymir work/ui/pattern/spgauge/07.tga", fallback: (40, 80, 220, 255)),
+    },
+)

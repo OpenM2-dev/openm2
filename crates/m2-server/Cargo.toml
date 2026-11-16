@@ -1,0 +1,49 @@
+[package]
+name = "m2-server"
+description = "openm2's own server: networking, storage and OpenID Connect sign-ins around m2-server-core, and the openm2-server binary."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "openm2-server"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+aws-lc-rs.workspace = true
+clap = { workspace = true, features = ["env"] }
+getrandom.workspace = true
+jsonwebtoken.workspace = true
+m2-content.workspace = true
+m2-protocol.workspace = true
+m2-server-core.workspace = true
+opentelemetry.workspace = true
+opentelemetry-otlp.workspace = true
+opentelemetry_sdk.workspace = true
+rcgen.workspace = true
+reqwest.workspace = true
+rustls.workspace = true
+rustls-webpki.workspace = true
+secrecy.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-rustls.workspace = true
+toml.workspace = true
+tracing.workspace = true
+tracing-opentelemetry.workspace = true
+tracing-subscriber.workspace = true
+url.workspace = true
+
+[dev-dependencies]
+base64.workspace = true
+m2-core.workspace = true
+m2-net.workspace = true
+
+[lints]
+workspace = true

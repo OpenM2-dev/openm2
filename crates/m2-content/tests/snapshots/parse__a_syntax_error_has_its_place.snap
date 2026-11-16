@@ -1,0 +1,5 @@
+---
+source: crates/m2-content/tests/parse.rs
+expression: errors(&sources)
+---
+monsters.toml:4:8: extra `=`, expected nothing

@@ -1,0 +1,13 @@
+# m2-content writes files that must come out the same every time, so nothing
+# iterates in a random order.
+# (Clippy reads only the nearest clippy.toml, so the test allowances are repeated.)
+
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-indexing-slicing-in-tests = true
+allow-panic-in-tests = true
+
+disallowed-types = [
+  { path = "std::collections::HashMap", reason = "iteration order changes between runs; use BTreeMap" },
+  { path = "std::collections::HashSet", reason = "iteration order changes between runs; use BTreeSet" },
+]

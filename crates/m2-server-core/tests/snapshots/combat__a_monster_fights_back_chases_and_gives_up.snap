@@ -1,0 +1,64 @@
+---
+source: crates/m2-server-core/tests/combat.rs
+expression: h.log
+---
+-- Alice hits the hopper once: it bites back every 2 s
+@3000 conn#2 sends Hit vid=1 skill=0
+   -> send conn#2 Damage vid=1 flags=1 amount=24
+@3100 tick
+   -> send conn#2 Damage vid=7 flags=1 amount=6
+   -> send conn#2 PointsChanged 5=790
+   -> send conn#2 EntityMove kind=2 vid=1 (475000, 967000) angle=180 duration=0
+@4000 tick
+   -> send conn#2 PointsChanged 5=796
+@5100 tick
+   -> send conn#2 Damage vid=7 flags=1 amount=7
+   -> send conn#2 PointsChanged 5=789
+   -> send conn#2 EntityMove kind=2 vid=1 (475000, 967000) angle=180 duration=0
+@6000 tick
+   -> send conn#2 Ping
+@7000 tick
+   -> send conn#2 PointsChanged 5=796
+@7100 tick
+   -> send conn#2 Damage vid=7 flags=1 amount=7
+   -> send conn#2 PointsChanged 5=789
+   -> send conn#2 EntityMove kind=2 vid=1 (475000, 967000) angle=180 duration=0
+-- she walks 10 m away: it runs after her
+@7500 conn#2 sends CharacterMove kind=1 (476000, 966800)
+@7700 tick
+   -> send conn#2 EntityMove kind=1 vid=1 (475069, 966899) angle=145 duration=407
+@8000 tick
+   -> send conn#2 EntityMove kind=1 vid=1 (475231, 966848) angle=115 duration=653
+@8300 tick
+   -> send conn#2 EntityMove kind=1 vid=1 (475429, 966826) angle=100 duration=1006
+@8600 tick
+   -> send conn#2 EntityMove kind=1 vid=1 (475631, 966816) angle=100 duration=1375
+@8900 tick
+   -> send conn#2 EntityMove kind=1 vid=1 (475836, 966811) angle=95 duration=1757
+@9200 tick
+   -> send conn#2 EntityMove kind=1 vid=1 (475880, 966810) angle=95 duration=1602
+@10000 tick
+   -> send conn#2 PointsChanged 5=796
+@10700 tick
+   -> send conn#2 Damage vid=7 flags=1 amount=7
+   -> send conn#2 PointsChanged 5=789
+   -> send conn#2 EntityMove kind=2 vid=1 (475850, 966813) angle=95 duration=0
+@11000 tick
+   -> send conn#2 Ping
+-- she runs 45 m away: it gives up and walks home
+@11500 conn#2 sends CharacterMove kind=1 (480500, 966800)
+@11600 tick
+   -> send conn#2 EntityMove kind=1 vid=1 (475000, 967000) angle=280 duration=2901
+@13000 tick
+   -> send conn#2 PointsChanged 5=796
+@16000 tick
+   -> send conn#2 Ping
+@21000 tick
+   -> send conn#2 Ping
+@26000 tick
+   -> send conn#2 Ping
+-- home, its health comes back: 10 % every 2 s
+@31000 tick
+   -> send conn#2 Ping
+@36000 tick
+   -> send conn#2 Ping

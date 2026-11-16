@@ -1,0 +1,39 @@
+---
+source: crates/m2-server-core/tests/skill_effects.rs
+expression: h.log
+---
+-- the hopper fights alice; hidden, alice is given up and bob sees her hidden
+@1000 conn#4 sends Hit vid=1 skill=0
+   -> send conn#4 Damage vid=1 flags=1 amount=24
+@1200 conn#4 sends UseSkill 31 target=None
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100 hidden
+   -> send conn#8 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100 hidden
+   -> send conn#4 PointsChanged 7=479
+   -> send conn#4 Affects 31:12=0 20s
+   -> send conn#4 EntitySkills vid=4 skills=[31]
+   -> send conn#8 EntitySkills vid=4 skills=[31]
+@1700 conn#4 sends Pong
+@1700 conn#8 sends Pong
+@2200 conn#4 sends Pong
+@2200 conn#8 sends Pong
+-- a hit ends the hiding: the hoppers fight her again
+@2200 conn#4 sends Hit vid=2 skill=0
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#8 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#4 Affects
+   -> send conn#4 EntitySkills vid=4 skills=[]
+   -> send conn#8 EntitySkills vid=4 skills=[]
+   -> send conn#4 Damage vid=2 flags=1 amount=25
+@3200 conn#4 sends Pong
+@3200 conn#8 sends Pong
+@3200 tick
+   -> send conn#4 EntityMove kind=1 vid=1 (475031, 966216) angle=195 duration=335
+   -> send conn#8 EntityMove kind=1 vid=1 (475031, 966216) angle=195 duration=335
+   -> send conn#4 Damage vid=4 flags=1 amount=50
+   -> send conn#4 PointsChanged 5=900
+   -> send conn#4 EntityMove kind=2 vid=2 (474966, 966177) angle=155 duration=0
+   -> send conn#8 EntityMove kind=2 vid=2 (474966, 966177) angle=155 duration=0
+   -> send conn#4 Damage vid=4 flags=1 amount=55
+   -> send conn#4 PointsChanged 5=845
+   -> send conn#4 EntityMove kind=2 vid=3 (474980, 966176) angle=165 duration=0
+   -> send conn#8 EntityMove kind=2 vid=3 (474980, 966176) angle=165 duration=0

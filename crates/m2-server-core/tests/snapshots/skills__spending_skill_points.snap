@@ -1,0 +1,32 @@
+---
+source: crates/m2-server-core/tests/skills.rs
+expression: h.log
+---
+-- each point: the points, then Skills
+@1000 conn#4 sends RaiseSkill 1
+   -> event: conn#4: character 1 raised skill 1 to level 1
+   -> send conn#4 PointsChanged 28=2
+   -> send conn#4 Skills 1=1 grade 0
+@1000 conn#4 sends RaiseSkill 1
+   -> event: conn#4: character 1 raised skill 1 to level 2
+   -> send conn#4 PointsChanged 28=1
+   -> send conn#4 Skills 1=2 grade 0
+-- refused: group 2's skill, a skill the content does not have, level 6's skill
+@1000 conn#4 sends RaiseSkill 16
+   -> send conn#4 Chat kind=1 vid=0 "You cannot learn this skill."
+@1000 conn#4 sends RaiseSkill 6
+   -> send conn#4 Chat kind=1 vid=0 "You cannot learn this skill."
+@1000 conn#4 sends RaiseSkill 5
+   -> send conn#4 Chat kind=1 vid=0 "You need level 6 for this skill."
+-- the last point, then none left
+@1000 conn#4 sends RaiseSkill 3
+   -> event: conn#4: character 1 raised skill 3 to level 1
+   -> send conn#4 PointsChanged 28=0
+   -> send conn#4 Skills 1=2 grade 0, 3=1 grade 0
+@1000 conn#4 sends RaiseSkill 3
+   -> send conn#4 Chat kind=1 vid=0 "You have no skill points left."
+-- the skills are saved with the character
+@1000 conn#4 closed: the client left
+   -> store #8: save #1 at (475000, 966100) played 0s group=1 skills=[1=2 3=1]
+   -> event: conn#4: closed: the client left
+@1000 store answers #8: saved: Ok(())

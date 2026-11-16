@@ -1,0 +1,30 @@
+---
+source: crates/m2-server-core/tests/skill_effects.rs
+expression: h.log
+---
+@1000 conn#4 sends UseSkill 5 target=None
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#4 PointsChanged 7=479
+   -> send conn#4 Affects 5:7=100 60s, 5:9=100 60s
+   -> send conn#4 EntitySkills vid=4 skills=[5]
+-- the hopper's first bite kills her: an empty Affects
+@1000 conn#4 sends Hit vid=1 skill=0
+   -> send conn#4 Damage vid=1 flags=33 amount=54
+   -> send conn#4 PointsChanged 5=84
+@2000 conn#4 sends Pong
+@2000 tick
+   -> send conn#4 EntityMove kind=1 vid=1 (475031, 966216) angle=195 duration=335
+   -> send conn#4 Damage vid=4 flags=1 amount=51
+   -> send conn#4 PointsChanged 5=33
+   -> send conn#4 EntityMove kind=2 vid=2 (474966, 966177) angle=155 duration=0
+   -> send conn#4 Damage vid=4 flags=1 amount=56
+   -> send conn#4 PointsChanged 5=0
+   -> send conn#4 Affects
+   -> send conn#4 EntitySkills vid=4 skills=[]
+   -> event: conn#4: character 1 died
+   -> send conn#4 EntityDied vid=4
+   -> send conn#4 EntityMove kind=2 vid=3 (474980, 966176) angle=165 duration=0
+@3000 conn#4 sends Pong
+@3000 tick
+   -> send conn#4 EntityMove kind=1 vid=1 (475070, 966362) angle=15 duration=335
+@4000 conn#4 sends Pong

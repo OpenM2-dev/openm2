@@ -1,0 +1,42 @@
+---
+source: crates/m2-server-core/tests/walls.rs
+expression: h.log
+---
+-- through the wall: refused; Bob sees Alice stop at the start
+@1000 conn#2 sends CharacterMove kind=1 (477000, 966100)
+   -> send conn#4 EntityMove kind=0 vid=1 (475000, 966100) duration=0
+   -> send conn#2 MoveRefused (475000, 966100)
+   -> event: conn#2: move refused: through a wall
+-- around it, leg by leg as play walks: each sent 60 ms after its leg began, with that time
+@1000 conn#2 sends CharacterMove kind=1 (475500, 968500)
+   -> send conn#4 EntityMove kind=1 vid=1 (475500, 968500) duration=3595
+@4655 conn#2 sends CharacterMove kind=1 (477000, 968500)
+   -> send conn#4 EntityMove kind=1 vid=1 (477000, 968500) duration=2139
+@6854 conn#2 sends CharacterMove kind=1 (477000, 966100)
+   -> send conn#4 EntityMove kind=1 vid=1 (477000, 966100) duration=3459
+@10373 conn#2 sends CharacterMove kind=0 (477000, 966100)
+   -> send conn#4 EntityMove kind=0 vid=1 (477000, 966100) duration=0
+-- a stop 10 m ahead: out of reach
+@10373 conn#2 sends CharacterMove kind=0 (478000, 966100)
+   -> send conn#4 EntityMove kind=0 vid=1 (477000, 966100) duration=0
+   -> send conn#2 MoveRefused (477000, 966100)
+   -> event: conn#2: move refused: out of reach
+-- off the map: refused
+@10373 conn#2 sends CharacterMove kind=1 (490000, 966100)
+   -> send conn#4 EntityMove kind=0 vid=1 (477000, 966100) duration=0
+   -> send conn#2 MoveRefused (477000, 966100)
+   -> event: conn#2: move refused: off its map
+-- a walk sent 300 ms late is timed from when it began; one 2 s late, from 500 ms back
+@11373 conn#2 sends CharacterMove kind=1 (477000, 963100)
+   -> send conn#4 EntityMove kind=1 vid=1 (477000, 963100) duration=4099
+@15772 conn#2 sends CharacterMove kind=0 (477000, 963100)
+   -> send conn#4 EntityMove kind=0 vid=1 (477000, 963100) duration=0
+@16772 conn#2 sends CharacterMove kind=1 (477000, 966100)
+   -> send conn#4 EntityMove kind=1 vid=1 (477000, 966100) duration=3899
+-- a stop where the walk ends, 100 ms before the server's walk is over: the walk goes on
+@20571 conn#2 sends CharacterMove kind=0 (477000, 966100)
+-- a stop on the way, where the server has her: taken
+@20671 conn#2 sends CharacterMove kind=1 (477000, 969100)
+   -> send conn#4 EntityMove kind=1 vid=1 (477000, 969100) duration=4399
+@21171 conn#2 sends CharacterMove kind=0 (477000, 966440)
+   -> send conn#4 EntityMove kind=0 vid=1 (477000, 966440) duration=0

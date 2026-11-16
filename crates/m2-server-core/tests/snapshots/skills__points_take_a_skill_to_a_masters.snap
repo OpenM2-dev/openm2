@@ -1,0 +1,24 @@
+---
+source: crates/m2-server-core/tests/skills.rs
+expression: h.log
+---
+-- 19 to 20: a master (grade 1); points take it no further
+@1000 conn#4 sends RaiseSkill 1
+   -> event: conn#4: character 1 raised skill 1 to level 20
+   -> send conn#4 PointsChanged 28=9
+   -> send conn#4 Skills 1=20 grade 1, 2=17 grade 0
+@1000 conn#4 sends RaiseSkill 1
+   -> send conn#4 Chat kind=1 vid=0 "Points cannot raise this skill any further."
+-- from 17 a point may make a master at once
+@1000 conn#4 sends RaiseSkill 2
+   -> event: conn#4: character 1 raised skill 2 to level 18
+   -> send conn#4 PointsChanged 28=8
+   -> send conn#4 Skills 1=20 grade 1, 2=18 grade 0
+@1000 conn#4 sends RaiseSkill 2
+   -> event: conn#4: character 1 raised skill 2 to level 19
+   -> send conn#4 PointsChanged 28=7
+   -> send conn#4 Skills 1=20 grade 1, 2=19 grade 0
+@1000 conn#4 sends RaiseSkill 2
+   -> event: conn#4: character 1 raised skill 2 to level 20
+   -> send conn#4 PointsChanged 28=6
+   -> send conn#4 Skills 1=20 grade 1, 2=20 grade 1

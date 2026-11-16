@@ -1,0 +1,11 @@
+---
+source: crates/m2-server-core/tests/shops.rs
+expression: h.log
+---
+-- 40 gold would pass 2,000,000,000: refused with a line
+@1000 conn#4 sends ShopSell 0 count=20
+   -> send conn#4 Chat kind=1 vid=0 "You cannot carry more gold."
+-- 30 is just right
+@1000 conn#4 sends ShopSell 0 count=15
+   -> send conn#4 ItemSet 1:0 3004x5
+   -> send conn#4 PointsChanged 11=2000000000

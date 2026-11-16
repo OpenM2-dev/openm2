@@ -1,0 +1,29 @@
+---
+source: crates/m2-server-core/tests/training.rs
+expression: h.log
+---
+-- a book of Wide Swing at M1: it rises to M2, and waits an hour
+@1000 conn#4 sends UseItem 1:0
+   -> send conn#4 ItemSet 1:0 3001x2
+   -> event: conn#4: character 1 trained skill 1 with item 3001: learned, level 21
+   -> send conn#4 Chat kind=1 vid=0 "The book taught you: Wide Swing is M2 now."
+   -> send conn#4 Skills 1=21 grade 1 next at +3601s
+-- the next book too soon: nothing is used
+@1000 conn#4 sends UseItem 1:0
+   -> send conn#4 Chat kind=1 vid=0 "You can read about this skill again in 1 h."
+-- the scroll that ends the waits, then the book again
+@1000 conn#4 sends UseItem 1:1
+   -> send conn#4 ItemSet 1:1 empty
+   -> send conn#4 Chat kind=1 vid=0 "Your skills are ready to train again."
+   -> send conn#4 Skills 1=21 grade 1
+@1000 conn#4 sends UseItem 1:0
+   -> send conn#4 ItemSet 1:0 3001x1
+   -> event: conn#4: character 1 trained skill 1 with item 3001: learned, level 22
+   -> send conn#4 Chat kind=1 vid=0 "The book taught you: Wide Swing is M3 now."
+   -> send conn#4 Skills 1=22 grade 1 next at +3601s
+-- the scroll that helps the next training, twice: once is enough
+@1000 conn#4 sends UseItem 1:2
+   -> send conn#4 ItemSet 1:2 3301x1
+   -> send conn#4 Chat kind=1 vid=0 "Your next training is 25% more likely to work."
+@1000 conn#4 sends UseItem 1:2
+   -> send conn#4 Chat kind=1 vid=0 "You are concentrated already."

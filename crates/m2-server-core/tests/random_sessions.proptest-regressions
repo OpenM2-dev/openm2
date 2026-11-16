@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 0696c916273ffaa8155fc12108c181aeee71b2158fb3bc73f42104cd79b77e71 # shrinks to actions = [Connect(false), Play(1), Echo(0), Connect(false), DropGold(4, 1), Connect(false), Target(5, 8)]

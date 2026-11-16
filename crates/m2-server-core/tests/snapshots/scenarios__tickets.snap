@@ -1,0 +1,249 @@
+---
+source: crates/m2-server-core/tests/scenarios.rs
+expression: h.log
+---
+@1000 conn#1 accepted on auth from 10.0.0.1
+   -> event: conn#1: accepted on auth
+@1000 conn#1 sends Hello protocol=3 "openm2 test"
+   -> event: conn#1: openm2 test speaks protocol 3
+   -> send conn#1 Welcome protocol=3
+@1000 conn#1 sends StartSignIn
+   -> send conn#1 SignInOptions [example] nonce="f400927857aaf64114f561baacb37970"
+@1000 conn#1 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #1: example http://127.0.0.1:50000/callback nonce=f400927857aaf64114f561baacb37970
+@1000 sign-in #1 checked: https://id.example alice
+   -> store #2: identity login example https://id.example alice
+@1000 store answers #2: login ok, account 1 None
+   -> event: conn#1: account 1 signed in with example
+   -> send conn#1 SignedIn example:alice 8c79… (32 bytes)
+-- a ticket for another name is refused and the connection closed
+@1000 conn#2 accepted on game from 10.0.0.1
+   -> event: conn#2: accepted on game
+@1000 conn#2 sends Hello protocol=3 "openm2 test"
+   -> event: conn#2: openm2 test speaks protocol 3
+   -> send conn#2 Welcome protocol=3
+@1000 conn#2 sends TicketLogin example:bob 8c79… (32 bytes)
+   -> event: conn#2: login refused: a wrong ticket
+   -> send conn#2 LoginRefused 5
+   -> close conn#2
+   -> event: conn#2: closed: a wrong ticket
+-- a wrong ticket, and a ticket cut short, from elsewhere: likewise
+@1000 conn#3 accepted on game from 10.0.0.9
+   -> event: conn#3: accepted on game
+@1000 conn#3 sends Hello protocol=3 "openm2 test"
+   -> event: conn#3: openm2 test speaks protocol 3
+   -> send conn#3 Welcome protocol=3
+@1000 conn#3 sends TicketLogin example:alice 8c79… (32 bytes)
+   -> event: conn#3: login refused: a wrong ticket
+   -> send conn#3 LoginRefused 5
+   -> close conn#3
+   -> event: conn#3: closed: a wrong ticket
+@1000 conn#4 accepted on game from 10.0.0.9
+   -> event: conn#4: accepted on game
+@1000 conn#4 sends Hello protocol=3 "openm2 test"
+   -> event: conn#4: openm2 test speaks protocol 3
+   -> send conn#4 Welcome protocol=3
+@1000 conn#4 sends TicketLogin example:alice 8c79… (31 bytes)
+   -> event: conn#4: login refused: a wrong ticket
+   -> send conn#4 LoginRefused 5
+   -> close conn#4
+   -> event: conn#4: closed: a wrong ticket
+-- the right name, in another case, works once
+@1000 conn#5 accepted on game from 10.0.0.1
+   -> event: conn#5: accepted on game
+@1000 conn#5 sends Hello protocol=3 "openm2 test"
+   -> event: conn#5: openm2 test speaks protocol 3
+   -> send conn#5 Welcome protocol=3
+@1000 conn#5 sends TicketLogin EXAMPLE:ALICE 8c79… (32 bytes)
+   -> event: conn#5: account 1 joined the game server
+   -> store #3: load characters of 1
+@1000 store answers #3: characters []
+   -> send conn#5 Empire 0
+   -> send conn#5 Phase 1
+   -> send conn#5 CharacterList []
+@1000 conn#5 closed: the client left
+   -> event: conn#5: closed: the client left
+@1000 conn#6 accepted on game from 10.0.0.1
+   -> event: conn#6: accepted on game
+@1000 conn#6 sends Hello protocol=3 "openm2 test"
+   -> event: conn#6: openm2 test speaks protocol 3
+   -> send conn#6 Welcome protocol=3
+@1000 conn#6 sends TicketLogin example:alice 8c79… (32 bytes)
+   -> event: conn#6: login refused: a wrong ticket
+   -> send conn#6 LoginRefused 5
+   -> close conn#6
+   -> event: conn#6: closed: a wrong ticket
+-- a ticket expires after 30 s
+@1000 conn#7 accepted on auth from 10.0.0.1
+   -> event: conn#7: accepted on auth
+@1000 conn#7 sends Hello protocol=3 "openm2 test"
+   -> event: conn#7: openm2 test speaks protocol 3
+   -> send conn#7 Welcome protocol=3
+@1000 conn#7 sends StartSignIn
+   -> send conn#7 SignInOptions [example] nonce="03d78a3f20d154abd8ddfa6974eedf6b"
+@1000 conn#7 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #4: example http://127.0.0.1:50000/callback nonce=03d78a3f20d154abd8ddfa6974eedf6b
+@1000 sign-in #4 checked: https://id.example alice
+   -> store #5: identity login example https://id.example alice
+@1000 store answers #5: login ok, account 1 None
+   -> event: conn#7: account 1 signed in with example
+   -> send conn#7 SignedIn example:alice 3784… (32 bytes)
+@31001 tick
+   -> send conn#1 Ping
+   -> send conn#7 Ping
+@31001 conn#8 accepted on game from 10.0.0.1
+   -> event: conn#8: accepted on game
+@31001 conn#8 sends Hello protocol=3 "openm2 test"
+   -> event: conn#8: openm2 test speaks protocol 3
+   -> send conn#8 Welcome protocol=3
+@31001 conn#8 sends TicketLogin example:alice 3784… (32 bytes)
+   -> event: conn#8: login refused: a wrong ticket
+   -> send conn#8 LoginRefused 5
+   -> close conn#8
+   -> event: conn#8: closed: a wrong ticket
+-- a newer sign-in takes the older ticket's place
+@31001 conn#9 accepted on auth from 10.0.0.1
+   -> event: conn#9: accepted on auth
+@31001 conn#9 sends Hello protocol=3 "openm2 test"
+   -> event: conn#9: openm2 test speaks protocol 3
+   -> send conn#9 Welcome protocol=3
+@31001 conn#9 sends StartSignIn
+   -> send conn#9 SignInOptions [example] nonce="de0ea89a53f1ecf3f3d0a462fb77d2ba"
+@31001 conn#9 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #6: example http://127.0.0.1:50000/callback nonce=de0ea89a53f1ecf3f3d0a462fb77d2ba
+@31001 sign-in #6 checked: https://id.example alice
+   -> store #7: identity login example https://id.example alice
+@31001 store answers #7: login ok, account 1 None
+   -> event: conn#9: account 1 signed in with example
+   -> send conn#9 SignedIn example:alice f5e0… (32 bytes)
+@31001 conn#10 accepted on auth from 10.0.0.1
+   -> event: conn#10: accepted on auth
+@31001 conn#10 sends Hello protocol=3 "openm2 test"
+   -> event: conn#10: openm2 test speaks protocol 3
+   -> send conn#10 Welcome protocol=3
+@31001 conn#10 sends StartSignIn
+   -> send conn#10 SignInOptions [example] nonce="b82dfde680c1964a263e95de9d92b637"
+@31001 conn#10 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #8: example http://127.0.0.1:50000/callback nonce=b82dfde680c1964a263e95de9d92b637
+@31001 sign-in #8 checked: https://id.example alice
+   -> store #9: identity login example https://id.example alice
+@31001 store answers #9: login ok, account 1 None
+   -> event: conn#10: account 1 signed in with example
+   -> send conn#10 SignedIn example:alice c82f… (32 bytes)
+@31001 conn#11 accepted on game from 10.0.0.1
+   -> event: conn#11: accepted on game
+@31001 conn#11 sends Hello protocol=3 "openm2 test"
+   -> event: conn#11: openm2 test speaks protocol 3
+   -> send conn#11 Welcome protocol=3
+@31001 conn#11 sends TicketLogin example:alice f5e0… (32 bytes)
+   -> event: conn#11: login refused: a wrong ticket
+   -> send conn#11 LoginRefused 5
+   -> close conn#11
+   -> event: conn#11: closed: a wrong ticket
+@31001 conn#12 accepted on game from 10.0.0.1
+   -> event: conn#12: accepted on game
+@31001 conn#12 sends Hello protocol=3 "openm2 test"
+   -> event: conn#12: openm2 test speaks protocol 3
+   -> send conn#12 Welcome protocol=3
+@31001 conn#12 sends TicketLogin example:alice c82f… (32 bytes)
+   -> event: conn#12: account 1 joined the game server
+   -> store #10: load characters of 1
+@31001 store answers #10: characters []
+   -> send conn#12 Empire 0
+   -> send conn#12 Phase 1
+   -> send conn#12 CharacterList []
+-- a sign-in on the game server closes the connection
+@31001 conn#13 accepted on game from 10.0.0.1
+   -> event: conn#13: accepted on game
+@31001 conn#13 sends Hello protocol=3 "openm2 test"
+   -> event: conn#13: openm2 test speaks protocol 3
+   -> send conn#13 Welcome protocol=3
+@31001 conn#13 sends StartSignIn
+   -> close conn#13
+   -> event: conn#13: closed: a sign-in out of turn
+-- five wrong tickets from an address: the next is refused unchecked
+@91002 tick
+   -> close conn#1
+   -> event: conn#1: closed: the client went silent
+   -> close conn#7
+   -> event: conn#7: closed: the client went silent
+   -> close conn#9
+   -> event: conn#9: closed: the client went silent
+   -> close conn#10
+   -> event: conn#10: closed: the client went silent
+   -> close conn#12
+   -> event: conn#12: closed: the client went silent
+@91002 conn#14 accepted on auth from 10.0.0.1
+   -> event: conn#14: accepted on auth
+@91002 conn#14 sends Hello protocol=3 "openm2 test"
+   -> event: conn#14: openm2 test speaks protocol 3
+   -> send conn#14 Welcome protocol=3
+@91002 conn#14 sends StartSignIn
+   -> send conn#14 SignInOptions [example] nonce="77d8b6ab9c5ec06d295a3c0e72732aec"
+@91002 conn#14 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #11: example http://127.0.0.1:50000/callback nonce=77d8b6ab9c5ec06d295a3c0e72732aec
+@91002 sign-in #11 checked: https://id.example alice
+   -> store #12: identity login example https://id.example alice
+@91002 store answers #12: login ok, account 1 None
+   -> event: conn#14: account 1 signed in with example
+   -> send conn#14 SignedIn example:alice 502a… (32 bytes)
+@91002 conn#15 accepted on game from 10.0.0.1
+   -> event: conn#15: accepted on game
+@91002 conn#15 sends Hello protocol=3 "openm2 test"
+   -> event: conn#15: openm2 test speaks protocol 3
+   -> send conn#15 Welcome protocol=3
+@91002 conn#15 sends TicketLogin example:alice 0000… (32 bytes)
+   -> event: conn#15: login refused: a wrong ticket
+   -> send conn#15 LoginRefused 5
+   -> close conn#15
+   -> event: conn#15: closed: a wrong ticket
+@91002 conn#16 accepted on game from 10.0.0.1
+   -> event: conn#16: accepted on game
+@91002 conn#16 sends Hello protocol=3 "openm2 test"
+   -> event: conn#16: openm2 test speaks protocol 3
+   -> send conn#16 Welcome protocol=3
+@91002 conn#16 sends TicketLogin example:alice 0000… (32 bytes)
+   -> event: conn#16: login refused: a wrong ticket
+   -> send conn#16 LoginRefused 5
+   -> close conn#16
+   -> event: conn#16: closed: a wrong ticket
+@91002 conn#17 accepted on game from 10.0.0.1
+   -> event: conn#17: accepted on game
+@91002 conn#17 sends Hello protocol=3 "openm2 test"
+   -> event: conn#17: openm2 test speaks protocol 3
+   -> send conn#17 Welcome protocol=3
+@91002 conn#17 sends TicketLogin example:alice 0000… (32 bytes)
+   -> event: conn#17: login refused: a wrong ticket
+   -> send conn#17 LoginRefused 5
+   -> close conn#17
+   -> event: conn#17: closed: a wrong ticket
+@91002 conn#18 accepted on game from 10.0.0.1
+   -> event: conn#18: accepted on game
+@91002 conn#18 sends Hello protocol=3 "openm2 test"
+   -> event: conn#18: openm2 test speaks protocol 3
+   -> send conn#18 Welcome protocol=3
+@91002 conn#18 sends TicketLogin example:alice 0000… (32 bytes)
+   -> event: conn#18: login refused: a wrong ticket
+   -> send conn#18 LoginRefused 5
+   -> close conn#18
+   -> event: conn#18: closed: a wrong ticket
+@91002 conn#19 accepted on game from 10.0.0.1
+   -> event: conn#19: accepted on game
+@91002 conn#19 sends Hello protocol=3 "openm2 test"
+   -> event: conn#19: openm2 test speaks protocol 3
+   -> send conn#19 Welcome protocol=3
+@91002 conn#19 sends TicketLogin example:alice 0000… (32 bytes)
+   -> event: conn#19: login refused: a wrong ticket
+   -> send conn#19 LoginRefused 5
+   -> close conn#19
+   -> event: conn#19: closed: a wrong ticket
+@91002 conn#20 accepted on game from 10.0.0.1
+   -> event: conn#20: accepted on game
+@91002 conn#20 sends Hello protocol=3 "openm2 test"
+   -> event: conn#20: openm2 test speaks protocol 3
+   -> send conn#20 Welcome protocol=3
+@91002 conn#20 sends TicketLogin example:alice 502a… (32 bytes)
+   -> event: conn#20: login refused: too many wrong tickets
+   -> send conn#20 LoginRefused 4
+   -> close conn#20
+   -> event: conn#20: closed: too many wrong tickets

@@ -1,0 +1,14 @@
+# The OpenID Connect providers players sign in with (docs/server.md,
+# "Sign-in with a provider"): the only way to sign in, so the server refuses
+# to start without one. Copy this file to ./local/providers.toml (gitignored),
+# fill in your providers and point OPENM2_PROVIDERS_FILE at it, for
+# compose.yaml, or --providers at it, for `openm2-server serve`.
+#
+#   [[provider]]
+#   id = "google"                      # 1 to 16 of a-z, 0-9 and -
+#   name = "Sign in with Google"       # the button's text: words players know
+#   issuer = "https://accounts.google.com"
+#   client_id = "<your client id>.apps.googleusercontent.com"
+#
+# A confidential client's secret never goes in this file: put
+# OPENM2_PROVIDER_GOOGLE_SECRET=… in ./local/provider-secrets.env.

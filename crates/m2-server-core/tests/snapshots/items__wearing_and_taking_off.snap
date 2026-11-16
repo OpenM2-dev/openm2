@@ -1,0 +1,34 @@
+---
+source: crates/m2-server-core/tests/items.rs
+expression: h.log
+---
+-- bob sees alice's gear; alice takes the blade off: it goes to the first free place
+@1000 conn#2 sends UseItem 1:94
+   -> send conn#2 EntityUpdate vid=2 parts=[3003, 0, 0, 0] speed=165/100
+   -> send conn#4 EntityUpdate vid=2 parts=[3003, 0, 0, 0] speed=165/100
+   -> send conn#2 PointsChanged 17=100
+   -> send conn#2 ItemSet 1:94 empty
+   -> send conn#2 ItemSet 1:4 3001x1
+-- and puts it back on
+@1000 conn#2 sends UseItem 1:4
+   -> send conn#2 EntityUpdate vid=2 parts=[3003, 3001, 0, 0] speed=165/110
+   -> send conn#4 EntityUpdate vid=2 parts=[3003, 3001, 0, 0] speed=165/110
+   -> send conn#2 PointsChanged 17=110
+   -> send conn#2 ItemSet 1:4 empty
+   -> send conn#2 ItemSet 1:94 3001x1
+-- the wood blade goes on; the iron blade takes its place
+@1000 conn#2 sends UseItem 1:3
+   -> send conn#2 EntityUpdate vid=2 parts=[3003, 3008, 0, 0] speed=165/100
+   -> send conn#4 EntityUpdate vid=2 parts=[3003, 3008, 0, 0] speed=165/100
+   -> send conn#2 PointsChanged 17=100
+   -> send conn#2 ItemSet 1:3 empty
+   -> send conn#2 ItemSet 1:94 3008x1
+   -> send conn#2 ItemSet 1:3 3001x1
+-- refused with a line: the long blade's level, the hat's class; in silence: a potion at full health, an empty place, another window
+@1000 conn#2 sends UseItem 1:2
+   -> send conn#2 Chat kind=1 vid=0 "You need level 5 to wear this."
+@1000 conn#2 sends UseItem 1:1
+   -> send conn#2 Chat kind=1 vid=0 "Your character cannot wear this."
+@1000 conn#2 sends UseItem 1:0
+@1000 conn#2 sends UseItem 1:44
+@1000 conn#2 sends UseItem 2:2

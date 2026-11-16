@@ -1,0 +1,15 @@
+---
+source: crates/m2-server-core/tests/shops.rs
+expression: h.log
+---
+-- the keeper 2 m away opens its shop: the blade covers places 0 and 5
+@1000 conn#2 sends Talk vid=2
+   -> send conn#2 ShopOpened vid=2 [0: 3001x1 for 400, 1: 3004x10 for 40, 2: 3009x1 for 900000]
+-- ignored: the watcher is 30 m away, the hopper is no NPC, vid 99 is nobody
+@1000 conn#2 sends Talk vid=3
+@1000 conn#2 sends Talk vid=1
+@1000 conn#2 sends Talk vid=99
+-- walking up to the watcher, which has no shop: nothing happens
+@1000 conn#2 sends CharacterMove kind=1 (475000, 968900)
+@10334 conn#2 sends CharacterMove kind=0 (475000, 968900)
+@10334 conn#2 sends Talk vid=3

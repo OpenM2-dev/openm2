@@ -1,0 +1,73 @@
+// The friends list in `openm2 play` (the taskbar's messenger button), and
+// the question for a friend request or before ending a friendship. Skins
+// are in skin.ron; the format is in docs/specs/ui.md ("Friends"). The ids
+// are what `play` fills in (crates/m2-cli/src/interface.rs, `ids`).
+(
+    windows: [
+        (
+            // Left of the inventory, where the shop opens too.
+            id: "messenger",
+            anchor: Right,
+            pos: (192, 0),
+            size: (230, 410),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (pos: (8, 8), size: (Fill(8), 32), kind: Panel(skin: "title_bar"), children: [
+                    (size: (Fill(0), 21), kind: Text(text: "Friends", align: Center)),
+                    (id: "messenger.close", anchor: TopRight, pos: (3, 2), size: (15, 15), kind: Button(skin: "close", text: "")),
+                ]),
+                // A friend a row, a mark for whether it is in the game; the
+                // one picked stays pressed.
+                (id: "messenger.status0", pos: (14, 50), size: (15, 16), hidden: true, kind: Panel(skin: "friend_offline")),
+                (id: "messenger.row0", pos: (34, 46), size: (180, 25), hidden: true, kind: Button(skin: "xlarge_button", text: "")),
+                (id: "messenger.status1", pos: (14, 77), size: (15, 16), hidden: true, kind: Panel(skin: "friend_offline")),
+                (id: "messenger.row1", pos: (34, 73), size: (180, 25), hidden: true, kind: Button(skin: "xlarge_button", text: "")),
+                (id: "messenger.status2", pos: (14, 104), size: (15, 16), hidden: true, kind: Panel(skin: "friend_offline")),
+                (id: "messenger.row2", pos: (34, 100), size: (180, 25), hidden: true, kind: Button(skin: "xlarge_button", text: "")),
+                (id: "messenger.status3", pos: (14, 131), size: (15, 16), hidden: true, kind: Panel(skin: "friend_offline")),
+                (id: "messenger.row3", pos: (34, 127), size: (180, 25), hidden: true, kind: Button(skin: "xlarge_button", text: "")),
+                (id: "messenger.status4", pos: (14, 158), size: (15, 16), hidden: true, kind: Panel(skin: "friend_offline")),
+                (id: "messenger.row4", pos: (34, 154), size: (180, 25), hidden: true, kind: Button(skin: "xlarge_button", text: "")),
+                (id: "messenger.status5", pos: (14, 185), size: (15, 16), hidden: true, kind: Panel(skin: "friend_offline")),
+                (id: "messenger.row5", pos: (34, 181), size: (180, 25), hidden: true, kind: Button(skin: "xlarge_button", text: "")),
+                (id: "messenger.status6", pos: (14, 212), size: (15, 16), hidden: true, kind: Panel(skin: "friend_offline")),
+                (id: "messenger.row6", pos: (34, 208), size: (180, 25), hidden: true, kind: Button(skin: "xlarge_button", text: "")),
+                (id: "messenger.status7", pos: (14, 239), size: (15, 16), hidden: true, kind: Panel(skin: "friend_offline")),
+                (id: "messenger.row7", pos: (34, 235), size: (180, 25), hidden: true, kind: Button(skin: "xlarge_button", text: "")),
+                (id: "messenger.status8", pos: (14, 266), size: (15, 16), hidden: true, kind: Panel(skin: "friend_offline")),
+                (id: "messenger.row8", pos: (34, 262), size: (180, 25), hidden: true, kind: Button(skin: "xlarge_button", text: "")),
+                (id: "messenger.status9", pos: (14, 293), size: (15, 16), hidden: true, kind: Panel(skin: "friend_offline")),
+                (id: "messenger.row9", pos: (34, 289), size: (180, 25), hidden: true, kind: Button(skin: "xlarge_button", text: "")),
+                (id: "messenger.empty", anchor: Top, pos: (0, 60), size: (Fill(14), 18), kind: Text(text: "No friends yet.", align: Center)),
+                // Ten friends a page.
+                (id: "messenger.prev", anchor: BottomLeft, pos: (14, 74), size: (21, 21), hidden: true, kind: Button(skin: "arrow_left", text: "")),
+                (id: "messenger.page", anchor: Bottom, pos: (0, 76), size: (100, 18), kind: Text(text: "", align: Center)),
+                (id: "messenger.next", anchor: BottomRight, pos: (14, 74), size: (21, 21), hidden: true, kind: Button(skin: "arrow_right", text: "")),
+                // Whisper to the friend picked, end the friendship, or ask
+                // a player by name.
+                (id: "messenger.whisper", anchor: BottomLeft, pos: (14, 46), size: (21, 18), kind: Button(skin: "messenger_whisper", text: "")),
+                (id: "messenger.remove", anchor: BottomLeft, pos: (40, 46), size: (21, 18), kind: Button(skin: "messenger_remove", text: "")),
+                (id: "messenger.add", anchor: BottomRight, pos: (14, 46), size: (21, 18), kind: Button(skin: "messenger_add", text: "")),
+                (id: "messenger.name_bar", anchor: BottomLeft, pos: (14, 14), size: (Fill(14), 22), hidden: true, kind: Panel(skin: "field"), children: [
+                    (id: "messenger.name", pos: (6, 2), size: (Fill(6), 18), kind: Edit(max_chars: 24)),
+                ]),
+            ],
+        ),
+        (
+            // A player asks to be our friend, or we are about to end a
+            // friendship.
+            id: "friend_question",
+            anchor: Center,
+            pos: (0, -140),
+            size: (300, 88),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (id: "friend_question.text", anchor: Top, pos: (0, 16), size: (Fill(14), 18), kind: Text(text: "", align: Center)),
+                (id: "friend_question.yes", anchor: Bottom, pos: (-50, 16), size: (88, 21), kind: Button(skin: "large_button", text: "Yes")),
+                (id: "friend_question.no", anchor: Bottom, pos: (50, 16), size: (88, 21), kind: Button(skin: "large_button", text: "No")),
+            ],
+        ),
+    ],
+)

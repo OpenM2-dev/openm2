@@ -1,0 +1,34 @@
+---
+source: crates/m2-server-core/tests/whispers.rs
+expression: h.log
+---
+-- Alice whispers to Bob, in another empire, by name in any case:
+-- Bob gets it from Alice, Alice gets it back as hers to Bob; Carol nothing
+@1000 conn#2 sends SendWhisper to=bOB "hello Bob"
+   -> send conn#4 Whisper from Alice "hello Bob"
+   -> send conn#2 Whisper to Bob "hello Bob"
+-- Bob answers
+@1000 conn#4 sends SendWhisper to=alice "hi Alice"
+   -> send conn#2 Whisper from Bob "hi Alice"
+   -> send conn#4 Whisper to Alice "hi Alice"
+-- a name nobody in the game has (Carol left) and one no character has:
+-- the same answer, nobody of that name in the game
+@1000 conn#6 closed: the client left
+   -> store #13: save #3 at (963400, 278200) played 0s
+   -> send conn#2 EntityRemove vid=3
+   -> event: conn#6: closed: the client left
+@1000 store answers #13: saved: Ok(())
+@1000 conn#2 sends SendWhisper to=Carol "are you there"
+   -> send conn#2 WhisperRefused Carol reason=1
+@1000 conn#2 sends SendWhisper to=Nobody "anyone"
+   -> send conn#2 WhisperRefused Nobody reason=1
+-- empty lines and lines with control characters are dropped;
+-- our own name and a name that is no character's are ignored
+@1000 conn#2 sends SendWhisper to=Bob ""
+@1000 conn#2 sends SendWhisper to=Bob "two\nlines"
+@1000 conn#2 sends SendWhisper to=ALICE "me"
+   -> event: conn#2: ignored SendWhisper
+@1000 conn#2 sends SendWhisper to=B o b "spaces"
+   -> event: conn#2: ignored SendWhisper
+@1000 conn#2 sends SendWhisper to=aaaaaaaaaaaaaaaaaaaaaaaaa "too long a name"
+   -> event: conn#2: ignored SendWhisper

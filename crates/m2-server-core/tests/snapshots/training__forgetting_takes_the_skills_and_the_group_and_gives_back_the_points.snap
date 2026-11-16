@@ -1,0 +1,20 @@
+---
+source: crates/m2-server-core/tests/training.rs
+expression: h.log
+---
+-- level 30: 29 skill points; the skills' quickslots cleared, the book's kept
+@1000 conn#4 sends UseItem 1:0
+   -> send conn#4 ItemSet 1:0 3200x1
+   -> event: conn#4: character 1 forgot its skills
+   -> send conn#4 QuickSlotCleared 0
+   -> send conn#4 QuickSlotCleared 2
+   -> send conn#4 SkillGroup 0
+   -> send conn#4 PointsChanged 28=29
+   -> send conn#4 Skills
+   -> send conn#4 Chat kind=1 vid=0 "You have forgotten your skills. Choose again: /skillgroup 1 or 2"
+-- nothing left to forget
+@1000 conn#4 sends UseItem 1:0
+   -> send conn#4 Chat kind=1 vid=0 "You have nothing to forget."
+-- a book now: no group
+@1000 conn#4 sends UseItem 1:1
+   -> send conn#4 Chat kind=1 vid=0 "Choose a skill group first: /skillgroup 1 or 2"

@@ -1,0 +1,60 @@
+---
+source: crates/m2-server-core/tests/skill_effects.rs
+expression: h.log
+---
+-- the ward on bob: his Affects, his update to those who see him
+@1000 conn#4 sends UseSkill 91 target=Some(5)
+   -> send conn#4 PointsChanged 7=539
+   -> send conn#8 EntityUpdate vid=5 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#4 EntityUpdate vid=5 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#12 EntityUpdate vid=5 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#8 Affects 91:5=20 60s
+   -> send conn#8 EntitySkills vid=5 skills=[91]
+   -> send conn#4 EntitySkills vid=5 skills=[91]
+   -> send conn#12 EntitySkills vid=5 skills=[91]
+-- without a target, or with her own vid, on herself
+@1000 conn#4 sends UseSkill 93 target=None
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=180/100
+   -> send conn#8 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=180/100
+   -> send conn#12 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=180/100
+   -> send conn#4 PointsChanged 7=538 19=180
+   -> send conn#4 Affects 93:2=20 60s, 93:11=10 60s
+   -> send conn#4 EntitySkills vid=4 skills=[93]
+   -> send conn#8 EntitySkills vid=4 skills=[93]
+   -> send conn#12 EntitySkills vid=4 skills=[93]
+@2000 conn#4 sends UseSkill 91 target=Some(4)
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=180/100
+   -> send conn#8 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=180/100
+   -> send conn#12 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=180/100
+   -> send conn#4 PointsChanged 7=537
+   -> send conn#4 Affects 93:2=20 59s, 93:11=10 59s, 91:5=20 60s
+   -> send conn#4 EntitySkills vid=4 skills=[91, 93]
+   -> send conn#8 EntitySkills vid=4 skills=[91, 93]
+   -> send conn#12 EntitySkills vid=4 skills=[91, 93]
+-- refused, nothing spent: a monster, carol 15 m away
+@12000 conn#4 sends Pong
+@12000 conn#8 sends Pong
+@12000 conn#12 sends Pong
+@12000 conn#4 sends UseSkill 91 target=Some(1)
+   -> send conn#4 Chat kind=1 vid=0 "This skill is used on players."
+@12000 conn#4 sends UseSkill 91 target=Some(6)
+   -> send conn#4 Chat kind=1 vid=0 "Too far away."
+-- the mend heals bob 300, up to his maximum: Damage flag 64 to both
+@12000 conn#4 sends UseSkill 92 target=Some(5)
+   -> send conn#8 Damage vid=5 flags=64 amount=300
+   -> send conn#4 Damage vid=5 flags=64 amount=300
+   -> send conn#8 PointsChanged 5=400
+   -> send conn#4 PointsChanged 7=536
+-- haste on bob: faster, and his next skills cool down sooner
+@22000 conn#4 sends Pong
+@22000 conn#8 sends Pong
+@22000 conn#4 sends UseSkill 93 target=Some(5)
+   -> send conn#4 PointsChanged 7=535
+   -> send conn#8 EntityUpdate vid=5 parts=[0, 0, 0, 0] speed=180/100
+   -> send conn#4 EntityUpdate vid=5 parts=[0, 0, 0, 0] speed=180/100
+   -> send conn#12 EntityUpdate vid=5 parts=[0, 0, 0, 0] speed=180/100
+   -> send conn#8 PointsChanged 19=180
+   -> send conn#8 Affects 91:5=20 39s, 93:2=20 60s, 93:11=10 60s
+   -> send conn#8 EntitySkills vid=5 skills=[91, 93]
+   -> send conn#4 EntitySkills vid=5 skills=[91, 93]
+   -> send conn#12 EntitySkills vid=5 skills=[91, 93]

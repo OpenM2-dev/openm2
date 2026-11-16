@@ -1,0 +1,83 @@
+---
+source: crates/m2-content/tests/parse.rs
+expression: errors(&sources)
+---
+maps.toml:8:1: map "test_map" again (first at maps.toml:3)
+maps.toml:13:1: map name "bad map": ASCII letters, digits, _ - . and / only, at most 64 bytes
+maps.toml:13:1: the map's base is -1; it must be from 0 to 21474836.47
+maps.toml:13:1: the map's size is 0; it must be above 0 and at most 21474836.47
+monsters.toml:3:1: gold [5, 1]: least above most
+monsters.toml:3:1: run_speed is -1; it must be above 0 and at most 100
+monsters.toml:10:1: monster 1001 again (first at monsters.toml:3)
+monsters.toml:15:1: monster number 0: it must be from 1 to 65535
+monsters.toml:15:1: the monster's name is empty
+monsters.toml:15:1: attack_range is 2000; it must be from 0 to 1000
+monsters.toml:21:1: monster number 70000: it must be from 1 to 65535
+monsters.toml:21:1: hp_regen's every is 0; it must be above 0 and at most 3600
+monsters.toml:21:1: hp_regen's percent is above 100
+items.toml:3:1: item number 0 is not allowed
+items.toml:3:1: size 0: it must be from 1 to 9
+races.toml:3:1: race 9: races are 0 to 7
+races.toml:7:1: race 9: races are 0 to 7
+races.toml:7:1: run_speed is 0; it must be above 0 and at most 100
+races.toml:7:1: race 9 again (first at races.toml:3)
+levels.toml:3:1: level 1: its experience is 0
+levels.toml:7:1: level 3: levels go 1, 2, 3, … in order, and this one should be 2
+drops.toml:3:1: monster 1002 is an npc: it never dies
+drops.toml:8:1: no monster 4040 in monsters.toml
+drops.toml:8:1: no item 9999 in items.toml
+drops.toml:8:1: chance 0: a percent above 0 and at most 100
+drops.toml:14:1: count 2: it must be from 1 to 1 (item 2001 does not stack)
+drops.toml:14:1: chance 101: a percent above 0 and at most 100
+drops.toml:20:1: item 1 is gold on the ground: give gold with its own field
+drops.toml:25:1: monster 1002 is an npc: it never dies
+drops.toml:29:1: no monster 4040 in monsters.toml
+drops.toml:29:1: amount [5, 1]: least above most
+drops.toml:29:1: chance 0: a percent above 0 and at most 100
+drops.toml:34:1: amount [0, 0]: most from 1 to 2000000000
+drops.toml:34:1: chance 101: a percent above 0 and at most 100
+drops.toml:39:1: amount [1, 3000000000]: most from 1 to 2000000000
+drops.toml:39:1: gold for monster 1001 again (first at drops.toml:34)
+start.toml:2:9: level 9: it must be from 1 to 3
+start.toml:3:8: gold 3000000000: at most 2000000000
+start.toml:5:1: count 201: it must be from 1 to 200 (item 2002 stacks to that)
+start.toml:5:1: race 8: races are 0 to 7
+start.toml:10:1: item 2002 is not worn anywhere: wear = true needs wear flags
+skills.toml:3:1: skill number 0: it must be from 1 to 254
+skills.toml:3:1: a skill's name is empty
+skills.toml:3:1: "Attack": flags and points are lower-case ASCII letters, digits and _, at most 32 bytes
+skills.toml:3:1: "hp points": flags and points are lower-case ASCII letters, digits and _, at most 32 bytes
+skills.toml:3:1: target_range is 2000; it must be from 0 to 1000
+skills.toml:11:1: skill number 255: it must be from 1 to 254
+skills.toml:21:1: skill 7 again (first at skills.toml:16)
+shops.toml:4:5: monster 1001 is a monster: only an npc has a shop
+shops.toml:5:5: no item 9999 in items.toml
+shops.toml:6:5: count 201: it must be from 1 to 200 (item 2002 stacks to that)
+shops.toml:6:5: price 3000000000: at most 2000000000
+shops.toml:7:5: item 2004 is 9 places high: a shop is 8 high
+shops.toml:8:5: price 30 is below the 50 it sells back for: players could make gold buying and selling it
+shops.toml:14:5: no room left in npc 1002's shop for item 2003 (8 places high): a shop is 5 by 8
+packs.toml:3:1: pack 0: pack numbers start at 1
+packs.toml:3:1: its leader: monster 1002 is of kind npc; packs hold monsters
+packs.toml:3:1: a member: no monster 4040 in monsters.toml
+packs.toml:3:1: member 1001: count 0: it must be at least 1
+packs.toml:8:1: pack 5 holds 65 monsters: at most 64, its leader included
+packs.toml:13:1: pack 5 again (first at packs.toml:8)
+monsters.toml:32:1: calls: monster 1005 is of kind monster; only stones call packs
+monsters.toml:38:1: calls pack 99: no pack 99 in packs.toml
+spawns/a.toml:3:1: no map "nowhere" in maps.toml
+spawns/a.toml:8:1: a group has a monster or a pack, not both
+spawns/a.toml:14:1: a group needs a monster or a pack
+spawns/a.toml:18:1: no pack 99 in packs.toml
+spawns/a.toml:23:1: a group has a radius or a size, not both
+spawns/a.toml:30:1: its width is -1; it must be from 0 to 8192
+spawns/a.toml:30:1: its height is 9000; it must be from 0 to 8192
+spawns/a.toml:36:1: size [800, 800]: a group of one monster fits in a circle of 500 m (half its diagonal at most that); packs may live in larger areas
+spawns/a.toml:42:1: at [60, 50] with size [100, 20] m is not inside map "test_map" (100 × 100 m)
+spawns/a.toml:48:1: no monster 4040 in monsters.toml
+spawns/a.toml:53:1: monster 1002 is an npc: put it under [[npc]]
+spawns/a.toml:58:1: at [95, 50] with radius 10 m is not inside map "test_map" (100 × 100 m)
+spawns/a.toml:58:1: count 0: it must be from 1 to 1000
+spawns/a.toml:58:1: respawn is -5; it must be from 0 to 86400
+spawns/a.toml:66:1: monster 1001 is a monster, not an npc: put it under [[group]]
+spawns/a.toml:66:1: rotation 400: degrees from 0 to below 360

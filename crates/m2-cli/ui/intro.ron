@@ -1,0 +1,28 @@
+// What `openm2 play` shows before the game: the background behind the login
+// and character screens, and the loading screen. Skins are in skin.ron; the
+// format is in docs/specs/ui.md. The ids are what `play` fills in
+// (crates/m2-cli/src/interface.rs, `ids`).
+(
+    windows: [
+        (
+            id: "intro",
+            size: (Fill(0), Fill(0)),
+            hidden: true,
+            click_through: true,
+            kind: Panel(skin: "intro_back"),
+        ),
+        (
+            id: "loading",
+            anchor: Bottom,
+            pos: (0, 90),
+            size: (336, 56),
+            hidden: true,
+            click_through: true,
+            kind: Group,
+            children: [
+                (id: "loading.text", size: (Fill(0), 20), kind: Text(text: "Loading", align: Center)),
+                (id: "loading.gauge", anchor: Bottom, size: (336, 30), kind: Gauge(skin: "loading", value: 0.0)),
+            ],
+        ),
+    ],
+)

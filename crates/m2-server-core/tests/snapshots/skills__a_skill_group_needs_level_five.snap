@@ -1,0 +1,6 @@
+---
+source: crates/m2-server-core/tests/skills.rs
+expression: h.log
+---
+@1000 conn#4 sends SendChat kind=0 "/skillgroup 1"
+   -> send conn#4 Chat kind=1 vid=0 "You can choose a skill group from level 5."

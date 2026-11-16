@@ -1,0 +1,11 @@
+---
+source: crates/m2-server-core/tests/training.rs
+expression: h.log
+---
+@1000 conn#4 sends UseItem 1:0
+   -> send conn#4 ItemSet 1:0 3001x1
+   -> event: conn#4: character 1 trained skill 1 with item 3001: not learned, level 20
+   -> send conn#4 Chat kind=1 vid=0 "The book taught you nothing this time."
+   -> send conn#4 Skills 1=20 grade 1 next at +601s
+@1000 conn#4 sends UseItem 1:0
+   -> send conn#4 Chat kind=1 vid=0 "You can read about this skill again in 10 min."

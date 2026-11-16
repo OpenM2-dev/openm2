@@ -1,0 +1,72 @@
+# openm2
+
+An open-source game client and server, written from scratch in Rust and built to be maintained mostly by coding agents. The client plays from the files of a **Metin2** client you already have, converted on your machine into openm2's own formats; client and server speak a protocol of their own. It is growing into an engine with open formats of its own.
+
+> **Status: early.** What works today:
+> - **Playing:** `openm2 play` signs in with an OpenID Connect provider, shows your characters, and plays the map around you: walking, fighting with weapon combos and skills, items, shops, upgrades, mounts, fishing, warps, chat, whispers and friends.
+> - **Your own client's files:** archives, item and monster tables, models, textures, maps, effects and sounds are read, and `openm2 assets import` converts them into an asset folder of open formats (glTF, PNG, TOML) on your machine.
+> - **Viewers:** `openm2 view` draws characters, maps, trees, effects and interface windows, in a window or into a PNG.
+> - **The server:** `openm2-server` runs the world from a content folder in openm2's own format: monsters and NPCs, fights, levels, drops, shops, skills, mounts, upgrades, fishing and game masters, with Postgres and a Docker image.
+> - **The protocol:** openm2's own, versioned, under TLS 1.3. Players sign in only through providers the server lists; the server keeps no passwords.
+> - **Releases:** the Windows client ships with `openm2-launcher`, which keeps it up to date from signed manifests.
+>
+> What comes next, and what is still unknown: [docs/roadmap.md](docs/roadmap.md).
+
+## What it is
+- A new client written from scratch. It contains **no code, game files or data from the original game**. See [docs/source-policy.md](docs/source-policy.md).
+- It talks to its own server, `openm2-server`, in a protocol of its own ([docs/architecture.md](docs/architecture.md#design-choices)).
+- **Bring your own assets:** openm2 converts the models, maps, textures and sounds of a game client you already have (a TMP4 40250 client) into an asset folder of its own formats, on your machine, and plays from that. Nothing is downloaded or redistributed.
+- **Next, an engine:** open formats with a small original sample world, so openm2 runs without any Metin2 files ([docs/roadmap.md](docs/roadmap.md)).
+
+## What it is not
+- Not for official servers. Connecting a third-party client to them breaks their terms of service.
+- Not a source of game files, archive keys or leaked code.
+- Not a server for the original client, nor a client for other servers: openm2's client and server speak only to each other.
+
+## Building
+Prerequisites: [rustup](https://rustup.rs) (the toolchain is pinned in `rust-toolchain.toml` and installed on first build), [just](https://github.com/casey/just), and `cargo install --locked cargo-deny`.
+
+```sh
+just check             # everything CI checks
+just openm2 messages   # list the messages of openm2's protocol
+
+# Your own client's files, with your keys (docs/specs/formats/keys.md)
+just client-check "<client folder>"      # decode and check everything (keys: local/keys.toml)
+just openm2 pack ls "<client folder>/pack/<name>.eix" --keys local/keys.toml
+
+# Convert your client into an asset folder of openm2's own formats, on your machine (a minute or so);
+# openm2 plays and draws only asset folders (docs/specs/assets.md). Never commit it
+just openm2 assets import --client "<client folder>" --keys local/keys.toml --out local/assets
+
+# Look at a character, animated, in a window (or add --screenshot local/x.png)
+just openm2 view model --assets local/assets \
+  warrior_m.actor.toml --shape 4 --hair 2 --motion general/run
+
+# Fly over a map (drag, wheel, WASD), or add --screenshot local/map.png
+just openm2 view map metin2_map_a1 --assets local/assets
+
+# Look at the interface's windows with your client's art
+just openm2 view ui --assets local/assets
+
+# Run openm2's own server (docs/server.md), with the OpenID Connect providers players sign in with
+# (deploy/providers.example.toml shows the file; register openm2 at a provider first)
+just openm2 content import --client "<client folder>" --keys local/keys.toml --out local/content   # maps' walk masks too; then write local/content/spawns/*.toml
+just server serve --memory --providers local/providers.toml --content local/content
+# ... or with Postgres, in Docker
+OPENM2_DB_PASSWORD=<a database password> OPENM2_PROVIDERS_FILE=./local/providers.toml docker compose up --build -d
+docker compose run --rm server tls key        # the server's key: sha256:…
+
+# Play on it: sign in with a provider (your browser opens), pick a character, click or W, A, S, D to walk, right drag to turn, wheel to zoom, Enter to chat
+just openm2 play --host 127.0.0.1 --server-key sha256:… --assets local/assets
+# ... or put them in openm2.toml beside the program (docs/specs/client.md); `openm2 status` checks a server
+```
+
+For contributors and coding agents: start with [AGENTS.md](AGENTS.md).
+
+## Security note
+openm2's protocol runs under **TLS 1.3**. A server with a certificate for its name is checked like a website; a server with a self-signed certificate (what `openm2-server` makes for itself) is trusted by its key, which you pass with `--server-key` (or `OPENM2_SERVER_KEY`). Get that key from the server's operator, not from the server itself. You sign in at a provider's own page in your browser: openm2 never sees your password there, keeps no token and stores no password of its own, and the server knows you only by your id at that provider.
+
+## License
+Dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
+
+"Metin2" is a trademark of its owners. It is used here only to describe compatibility. This project is not affiliated with or endorsed by them, and uses none of their logos or art.

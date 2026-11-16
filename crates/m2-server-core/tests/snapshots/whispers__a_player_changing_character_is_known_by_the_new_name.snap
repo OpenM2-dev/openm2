@@ -1,0 +1,9 @@
+---
+source: crates/m2-server-core/tests/whispers.rs
+expression: h.log
+---
+@1000 conn#2 sends SendWhisper to=Bob "Bob?"
+   -> send conn#2 WhisperRefused Bob reason=1
+@1000 conn#2 sends SendWhisper to=Robert "Robert?"
+   -> send conn#4 Whisper from Alice "Robert?"
+   -> send conn#2 Whisper to Robert "Robert?"

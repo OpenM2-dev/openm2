@@ -1,0 +1,17 @@
+---
+source: crates/m2-server-core/tests/world.rs
+expression: h.log
+---
+@1000 conn#2 sends EnterGame
+   -> send conn#2 Phase 3
+   -> send conn#2 GameTime 1000
+   -> send conn#2 Channel 1
+   -> send conn#2 EntitySpawn vid=7 (475000, 966100) kind=6 race=0 angle=0 speed=150/100
+   -> send conn#2 EntityInfo vid=7 Hero empire=1 level=1
+   -> send conn#2 Skills
+   -> event: conn#2: character 1 entered as vid 7
+   -> send conn#2 EntitySpawn vid=1 (474162, 968342) kind=0 race=1001 angle=210 speed=100/100
+   -> send conn#2 EntitySpawn vid=2 (475356, 967775) kind=0 race=1001 angle=215 speed=100/100
+   -> send conn#2 EntitySpawn vid=3 (474394, 967539) kind=0 race=1001 angle=145 speed=100/100
+   -> send conn#2 EntitySpawn vid=6 (474000, 966100) kind=1 race=1002 angle=90 speed=100/100
+   -> send conn#2 EntityInfo vid=6 Keeper Ilsa empire=0 level=0

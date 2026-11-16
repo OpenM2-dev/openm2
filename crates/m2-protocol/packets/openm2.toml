@@ -1,0 +1,1167 @@
+# openm2's own protocol. Edit this file, then run `just gen`.
+#
+# The layout is openm2's own. Game numbers (empire, class, chat kind, entity
+# kind, move kind, window, quickslot kind, point numbers) keep the values the
+# client's game files and openm2's content already use.
+#
+# Message keys:
+#   name    PascalCase, unique in the file
+#   dir     "c2s" or "s2c"
+#   id      its number in its direction; Hello (c2s 1), Welcome (s2c 1) and
+#           Refused (s2c 2) never change, so any version can tell another
+#           it does not match. c2s 3 and s2c 5 are reserved: no message has
+#           them
+#   doc     one sentence: what the message is for
+#   fields  list of { name, type, doc, secret? }; leave out for a message with
+#           no fields
+#
+# Field keys: `secret = true` marks a ticket, a code or a verifier. Debug output shows
+# `<redacted>` and captures blank it (`redacted()`). Numbers, strings and
+# blobs only.
+#
+# Field types: u8 u16 u32 u64 i8 i16 i32 i64 f32 bool, [T; N] (T of a fixed
+# size), a [[struct]] name, string<N> (UTF-8, at most N bytes), blob<N> (at
+# most N bytes), list<T; N> (at most N items), opt<T>.
+
+[profile]
+name = "openm2"
+doc = "openm2's own protocol, between its client and its server."
+
+# ---------------------------------------------------------------------------
+# Structs
+
+[[struct]]
+name = "Character"
+doc = "A character of the account, as the character list shows it."
+fields = [
+  { name = "slot", type = "u8", doc = "Its slot, 0 to 3." },
+  { name = "id", type = "u32", doc = "Character id." },
+  { name = "name", type = "string<64>", doc = "Name." },
+  { name = "class", type = "u8", doc = "Class and gender, 0 to 7." },
+  { name = "level", type = "u8", doc = "Level." },
+  { name = "playtime", type = "u32", doc = "Time played, as the server counts it." },
+  { name = "st", type = "u8", doc = "Strength." },
+  { name = "ht", type = "u8", doc = "Vitality." },
+  { name = "dx", type = "u8", doc = "Dexterity." },
+  { name = "iq", type = "u8", doc = "Intelligence." },
+  { name = "body_part", type = "u16", doc = "Armour shown on the body (an item number); 0 for none." },
+  { name = "hair_part", type = "u16", doc = "Hair style shown." },
+  { name = "guild", type = "string<64>", doc = "Guild name; empty for none." },
+]
+
+[[struct]]
+name = "PointValue"
+doc = "One of our character's points and its value."
+fields = [
+  { name = "point", type = "u8", doc = "Point number: 1 level, 3 experience, 5 health, 6 most health, 7 mana, 8 most mana, 11 gold, 28 skill points, …" },
+  { name = "value", type = "u32", doc = "Its value." },
+]
+
+[[struct]]
+name = "ItemBonus"
+doc = "A bonus on an item."
+fields = [
+  { name = "kind", type = "u8", doc = "Bonus number, from 1." },
+  { name = "value", type = "u16", doc = "Its value." },
+]
+
+[[struct]]
+name = "ShopGood"
+doc = "Something an NPC's shop sells."
+fields = [
+  { name = "position", type = "u8", doc = "Its place: 5 wide and 8 high, numbered x + 5 y; a tall item covers the places below it." },
+  { name = "vnum", type = "u32", doc = "Item number." },
+  { name = "price", type = "u32", doc = "Gold for the whole stack." },
+  { name = "count", type = "u8", doc = "How many one purchase gives." },
+]
+
+[[struct]]
+name = "SkillState"
+doc = "One of our character's skills."
+fields = [
+  { name = "skill", type = "u8", doc = "The skill's number." },
+  { name = "level", type = "u8", doc = "1 to 19 normal, 20 to 29 master (M1 to M10), 30 to 39 grand master (G1 to G10), 40 perfect master." },
+  { name = "grade", type = "u8", doc = "0 normal, 1 master, 2 grand master, 3 perfect master." },
+  { name = "next_read", type = "u32", doc = "When the next skill book may be read, in seconds since 1970; 0 for any time." },
+]
+
+[[struct]]
+name = "Affect"
+doc = "A point a skill raises on our character for now."
+fields = [
+  { name = "skill", type = "u8", doc = "The skill that raised it." },
+  { name = "point", type = "u8", doc = "What it raises: 1 attack speed, 2 movement speed, 3 attack grade, 4 defence, 5 resistance, 6 reflection, 7 critical hits, 8 dodging, 9 health from hits, 10 mana shield, 11 casting speed, 12 hidden, 13 strength, 14 dexterity, 15 vitality, 16 intelligence." },
+  { name = "amount", type = "i32", doc = "By how much: percent for speeds and chances, points for grades and the rest." },
+  { name = "seconds", type = "u32", doc = "Seconds left, rounded up; 0 while a skill that stays on is on." },
+]
+
+[[struct]]
+name = "ItemBoost"
+doc = "A point an item used raises on our character for now."
+fields = [
+  { name = "item", type = "u32", doc = "The item that raised it." },
+  { name = "point", type = "u8", doc = "What it raises, as Affect's point." },
+  { name = "amount", type = "i32", doc = "By how much, as Affect's amount." },
+  { name = "seconds", type = "u32", doc = "Seconds left, rounded up." },
+]
+
+[[struct]]
+name = "Provider"
+doc = "An OpenID Connect provider players may sign in with."
+fields = [
+  { name = "id", type = "string<16>", doc = "Its id on this server: lowercase letters, digits and hyphens." },
+  { name = "name", type = "string<64>", doc = "Its name, for the button." },
+  { name = "authorize", type = "string<512>", doc = "Its authorization endpoint, an `https` URL." },
+  { name = "client_id", type = "string<256>", doc = "The server's client id at the provider." },
+]
+
+[[struct]]
+name = "Friend"
+doc = "One of our character's friends."
+fields = [
+  { name = "name", type = "string<24>", doc = "Its name, as it was created." },
+  { name = "online", type = "bool", doc = "Whether it is in the game now." },
+]
+
+[[struct]]
+name = "MountCost"
+doc = "Items training a mount uses up."
+fields = [
+  { name = "vnum", type = "u32", doc = "Item number." },
+  { name = "count", type = "u8", doc = "How many." },
+]
+
+[[struct]]
+name = "UpgradeCost"
+doc = "Items an upgrade uses up."
+fields = [
+  { name = "vnum", type = "u32", doc = "Item number." },
+  { name = "count", type = "u8", doc = "How many." },
+]
+
+[[struct]]
+name = "MountOffer"
+doc = "The mount level a stable trains ours to next, and what it takes."
+fields = [
+  { name = "level", type = "u8", doc = "The level it reaches; 1 is the first mount." },
+  { name = "grade", type = "u8", doc = "The mount's grade at that level." },
+  { name = "look", type = "u16", doc = "The monster the mount looks like at that level." },
+  { name = "move_speed", type = "u8", doc = "Its rider's movement speed at that level." },
+  { name = "stamina", type = "u16", doc = "The most stamina it has at that level." },
+  { name = "rider_level", type = "u8", doc = "The character level training needs." },
+  { name = "gold", type = "u32", doc = "The gold it costs." },
+  { name = "items", type = "list<MountCost; 8>", doc = "The items it uses up." },
+  { name = "skill_points", type = "u8", doc = "The horseback skill points reaching it gives." },
+]
+
+# ---------------------------------------------------------------------------
+# Client → server
+
+[[message]]
+name = "Hello"
+dir = "c2s"
+id = 1
+doc = "The client's first message: the protocol version it speaks and its build."
+fields = [
+  { name = "protocol", type = "u16", doc = "The minor version of the protocol (the major one is the TLS ALPN name)." },
+  { name = "build", type = "string<64>", doc = "The client's name and version, for logs; e.g. `openm2 0.1.0`." },
+]
+
+[[message]]
+name = "Pong"
+dir = "c2s"
+id = 2
+doc = "Answer to a Ping."
+
+[[message]]
+name = "TicketLogin"
+dir = "c2s"
+id = 4
+doc = "Logs in on the game server with the ticket the auth server gave."
+fields = [
+  { name = "username", type = "string<64>", doc = "Account name; must match the one the ticket was given for." },
+  { name = "ticket", type = "blob<32>", doc = "The ticket from SignedIn.", secret = true },
+]
+
+[[message]]
+name = "CreateCharacter"
+dir = "c2s"
+id = 5
+doc = "Creates a character in a free slot of the account."
+fields = [
+  { name = "slot", type = "u8", doc = "The slot, 0 to 3." },
+  { name = "name", type = "string<64>", doc = "Its name." },
+  { name = "class", type = "u8", doc = "Class and gender, 0 to 7." },
+  { name = "empire", type = "opt<u8>", doc = "The account's empire (1 to 3), chosen with its first character; none afterwards." },
+]
+
+[[message]]
+name = "SelectCharacter"
+dir = "c2s"
+id = 6
+doc = "Plays the character in a slot of the character list."
+fields = [
+  { name = "slot", type = "u8", doc = "The slot, 0 to 3." },
+]
+
+[[message]]
+name = "EnterGame"
+dir = "c2s"
+id = 7
+doc = "The client has loaded the map and is ready to play."
+
+[[message]]
+name = "SendChat"
+dir = "c2s"
+id = 8
+doc = "A chat line or chat command typed by the player."
+fields = [
+  { name = "kind", type = "u8", doc = "Chat kind: 0 talk, 6 shout." },
+  { name = "text", type = "string<512>", doc = "The line, or a command starting with `/`." },
+]
+
+[[message]]
+name = "CharacterMove"
+dir = "c2s"
+id = 9
+doc = "Our character starts walking to a point, stops, attacks or plays a skill's motion."
+fields = [
+  { name = "kind", type = "u8", doc = "0 wait (stopped here), 1 move (walking to the point), 2 attack, 3 combo; 128 + n skill motion n (1 to 6, 16 to 21)." },
+  { name = "argument", type = "u8", doc = "The combo's step, from 1; 0 otherwise." },
+  { name = "angle", type = "u16", doc = "Direction faced, in degrees: 0 south (+y), 90 east, 180 north, 270 west." },
+  { name = "x", type = "i32", doc = "Move: the point walked to. Other kinds: where we are. In centimetres." },
+  { name = "y", type = "i32", doc = "As x." },
+  { name = "time", type = "u32", doc = "Our estimate of the server's clock (GameTime), in milliseconds." },
+]
+
+[[message]]
+name = "UseItem"
+dir = "c2s"
+id = 10
+doc = "Uses the item in a slot: wears it, takes it off, or uses it up."
+fields = [
+  { name = "window", type = "u8", doc = "1 inventory: the bag, and from slot 90 what is worn." },
+  { name = "slot", type = "u16", doc = "Its slot." },
+]
+
+[[message]]
+name = "MoveItem"
+dir = "c2s"
+id = 11
+doc = "Moves an item to another slot."
+fields = [
+  { name = "from_window", type = "u8", doc = "Window it is in." },
+  { name = "from_slot", type = "u16", doc = "Slot it is in." },
+  { name = "to_window", type = "u8", doc = "Window it goes to." },
+  { name = "to_slot", type = "u16", doc = "Slot it goes to." },
+  { name = "count", type = "u8", doc = "How many." },
+]
+
+[[message]]
+name = "SetQuickSlot"
+dir = "c2s"
+id = 12
+doc = "Puts an item or a skill on a quickslot."
+fields = [
+  { name = "index", type = "u8", doc = "The quickslot, 0 to 31: four pages of eight." },
+  { name = "kind", type = "u8", doc = "1 an item, 2 a skill." },
+  { name = "position", type = "u8", doc = "The item's slot in the bag, or the skill's number." },
+]
+
+[[message]]
+name = "ClearQuickSlot"
+dir = "c2s"
+id = 13
+doc = "Empties a quickslot."
+fields = [
+  { name = "index", type = "u8", doc = "The quickslot, 0 to 31: four pages of eight." },
+]
+
+[[message]]
+name = "SwapQuickSlots"
+dir = "c2s"
+id = 14
+doc = "Swaps what two quickslots hold."
+fields = [
+  { name = "first", type = "u8", doc = "One quickslot, 0 to 31." },
+  { name = "second", type = "u8", doc = "The other." },
+]
+
+[[message]]
+name = "SetTarget"
+dir = "c2s"
+id = 15
+doc = "Chooses the entity we look at; the server answers with its health."
+fields = [
+  { name = "vid", type = "u32", doc = "The entity." },
+]
+
+[[message]]
+name = "Hit"
+dir = "c2s"
+id = 16
+doc = "One of our attacks or skills hit an entity; the server works out the damage."
+fields = [
+  { name = "vid", type = "u32", doc = "The entity hit." },
+  { name = "skill", type = "u8", doc = "The skill whose motion hit it; 0 for an attack." },
+]
+
+[[message]]
+name = "PickUp"
+dir = "c2s"
+id = 17
+doc = "Picks up an item from the ground."
+fields = [
+  { name = "vid", type = "u32", doc = "The ground item." },
+]
+
+[[message]]
+name = "DropItem"
+dir = "c2s"
+id = 18
+doc = "Drops some of the item in a slot of the bag where our character stands."
+fields = [
+  { name = "window", type = "u8", doc = "Its window: 1 inventory." },
+  { name = "slot", type = "u16", doc = "Its slot." },
+  { name = "count", type = "u8", doc = "How many, from 1 to the stack's count." },
+]
+
+[[message]]
+name = "DropGold"
+dir = "c2s"
+id = 19
+doc = "Drops some of our gold where our character stands."
+fields = [
+  { name = "amount", type = "u32", doc = "How much, from 1 to what we have." },
+]
+
+[[message]]
+name = "Talk"
+dir = "c2s"
+id = 20
+doc = "Talks to an NPC near us; its shop opens if it has one."
+fields = [
+  { name = "vid", type = "u32", doc = "The NPC." },
+]
+
+[[message]]
+name = "ShopBuy"
+dir = "c2s"
+id = 21
+doc = "Buys what lies in a place of the open shop."
+fields = [
+  { name = "position", type = "u8", doc = "The place, 0 to 39." },
+]
+
+[[message]]
+name = "ShopSell"
+dir = "c2s"
+id = 22
+doc = "Sells some of the item in a slot of the bag to the open shop."
+fields = [
+  { name = "slot", type = "u16", doc = "Its slot in the bag." },
+  { name = "count", type = "u8", doc = "How many, from 1 to the stack's count." },
+]
+
+[[message]]
+name = "ShopClose"
+dir = "c2s"
+id = 23
+doc = "Closes the open shop."
+
+[[message]]
+name = "UseSkill"
+dir = "c2s"
+id = 24
+doc = "Uses one of our skills, after the CharacterMove with its motion."
+fields = [
+  { name = "skill", type = "u8", doc = "The skill's number." },
+  { name = "target", type = "opt<u32>", doc = "The entity it is used on, if any." },
+]
+
+[[message]]
+name = "RaiseSkill"
+dir = "c2s"
+id = 25
+doc = "Spends a skill point on one of our skills."
+fields = [
+  { name = "skill", type = "u8", doc = "The skill's number." },
+]
+
+[[message]]
+name = "Restart"
+dir = "c2s"
+id = 26
+doc = "Comes back to life after dying, where we fell or in town."
+fields = [
+  { name = "town", type = "bool", doc = "True for town." },
+]
+
+[[message]]
+name = "StartSignIn"
+dir = "c2s"
+id = 27
+doc = "Asks the auth server for the providers it signs in with, and a nonce for this connection."
+
+[[message]]
+name = "ProviderLogin"
+dir = "c2s"
+id = 28
+doc = "Signs in with a provider, on the auth server: the code the provider gave, for the server to exchange."
+fields = [
+  { name = "provider", type = "string<16>", doc = "The provider's id, from SignInOptions." },
+  { name = "code", type = "string<4096>", doc = "The authorization code from the provider's redirect.", secret = true },
+  { name = "verifier", type = "string<128>", doc = "The PKCE code verifier whose S256 challenge the authorization request carried.", secret = true },
+  { name = "redirect", type = "string<64>", doc = "The redirect URI the authorization request carried: `http://127.0.0.1:<port>/callback`." },
+]
+
+[[message]]
+name = "LeaveGame"
+dir = "c2s"
+id = 29
+doc = "Leaves the game for the character list, on the same connection: the server saves our character and sends the list again."
+
+[[message]]
+name = "RaiseStatus"
+dir = "c2s"
+id = 30
+doc = "Spends a status point on one of our four stats."
+fields = [
+  { name = "point", type = "u8", doc = "The stat's point number: 12 strength, 13 vitality, 14 dexterity, 15 intelligence." },
+]
+
+[[message]]
+name = "LearnSkillGroup"
+dir = "c2s"
+id = 31
+doc = "Learns the skill group a teacher NPC teaches."
+fields = [
+  { name = "vid", type = "u32", doc = "The teacher." },
+]
+
+[[message]]
+name = "UseItemOnSkill"
+dir = "c2s"
+id = 32
+doc = "Uses an item of the bag on one of our skills: the skill a soul stone trains, chosen after ChooseSkill."
+fields = [
+  { name = "slot", type = "u16", doc = "The item's slot in the bag." },
+  { name = "skill", type = "u8", doc = "The skill's number." },
+]
+
+[[message]]
+name = "SendWhisper"
+dir = "c2s"
+id = 33
+doc = "Says something to one player only, by its character's name: it must be in the game."
+fields = [
+  { name = "name", type = "string<24>", doc = "The character's name, in any case." },
+  { name = "text", type = "string<512>", doc = "What we say." },
+]
+
+[[message]]
+name = "AskFriend"
+dir = "c2s"
+id = 34
+doc = "Asks a player in the game to be our friend; it answers with AnswerFriend."
+fields = [
+  { name = "name", type = "string<24>", doc = "Its character's name, in any case." },
+]
+
+[[message]]
+name = "AnswerFriend"
+dir = "c2s"
+id = 35
+doc = "Answers a player that asked to be our friend (FriendAsked)."
+fields = [
+  { name = "name", type = "string<24>", doc = "The player that asked, in any case." },
+  { name = "accept", type = "bool", doc = "True to become friends, false to decline." },
+]
+
+[[message]]
+name = "RemoveFriend"
+dir = "c2s"
+id = 36
+doc = "Ends a friendship, on both sides; the friend need not be in the game."
+fields = [
+  { name = "name", type = "string<24>", doc = "The friend's name, in any case." },
+]
+
+[[message]]
+name = "RideMount"
+dir = "c2s"
+id = 37
+doc = "Gets on our mount (calling it first when it is away and the bag holds its call), or off it."
+fields = [
+  { name = "ride", type = "bool", doc = "True to get on, false to get off." },
+]
+
+[[message]]
+name = "TrainMount"
+dir = "c2s"
+id = 38
+doc = "Trains our mount at a stable NPC to its next level, at that level's costs."
+fields = [
+  { name = "vid", type = "u32", doc = "The stable NPC, from StableOpened." },
+]
+
+[[message]]
+name = "GiveItem"
+dir = "c2s"
+id = 39
+doc = "An item of our bag dropped onto an NPC: a smith or a fisher offers to upgrade it, a fire grills it."
+fields = [
+  { name = "vid", type = "u32", doc = "The NPC." },
+  { name = "slot", type = "u16", doc = "The item's place in the bag." },
+]
+
+[[message]]
+name = "UseItemOnItem"
+dir = "c2s"
+id = 40
+doc = "One item of our bag put onto another, such as an upgrade scroll onto the item it upgrades."
+fields = [
+  { name = "slot", type = "u16", doc = "The place of the item put on the other." },
+  { name = "onto", type = "u16", doc = "The place of the item it was put on." },
+]
+
+[[message]]
+name = "Upgrade"
+dir = "c2s"
+id = 41
+doc = "Upgrades the item an UpgradeOffer showed, at a smith or with a scroll, at its costs."
+fields = [
+  { name = "smith", type = "opt<u32>", doc = "The smith NPC, from UpgradeOffer; none with a scroll." },
+  { name = "scroll", type = "opt<u16>", doc = "The scroll's place in the bag, from UpgradeOffer; none at a smith." },
+  { name = "slot", type = "u16", doc = "The item's place in the bag." },
+  { name = "vnum", type = "u32", doc = "The item the offer showed: nothing happens if another lies there now." },
+]
+
+[[message]]
+name = "Cast"
+dir = "c2s"
+id = 42
+doc = "Casts our fishing pole's line toward the water that way."
+fields = [
+  { name = "angle", type = "u16", doc = "The way, in degrees as in CharacterMove (0 south, 90 east); the float lands the content's reach out that way." },
+]
+
+[[message]]
+name = "ReelIn"
+dir = "c2s"
+id = 43
+doc = "Reels our line in: after a bite, to catch what bit; before one, to stop fishing."
+
+# ---------------------------------------------------------------------------
+# Server → client
+
+[[message]]
+name = "Welcome"
+dir = "s2c"
+id = 1
+doc = "The server speaks the client's protocol: the session goes on."
+fields = [
+  { name = "protocol", type = "u16", doc = "The minor version the server speaks." },
+  { name = "server", type = "string<64>", doc = "The server's name and version, for logs." },
+]
+
+[[message]]
+name = "Refused"
+dir = "s2c"
+id = 2
+doc = "The server will not talk to this client; it closes the connection after this."
+fields = [
+  { name = "reason", type = "u8", doc = "1 another protocol version, 2 the server is full, 3 too many connections from this address." },
+  { name = "oldest", type = "u16", doc = "The oldest minor version the server speaks." },
+  { name = "newest", type = "u16", doc = "The newest minor version the server speaks." },
+  { name = "text", type = "string<256>", doc = "A line for the player, from the operator." },
+]
+
+[[message]]
+name = "Ping"
+dir = "s2c"
+id = 3
+doc = "Heartbeat; answered with Pong."
+
+[[message]]
+name = "Phase"
+dir = "s2c"
+id = 4
+doc = "The game server moves the session on."
+fields = [
+  { name = "phase", type = "u8", doc = "1 the character list, 2 loading the map (our character follows), 3 in the game." },
+]
+
+[[message]]
+name = "LoginRefused"
+dir = "s2c"
+id = 6
+doc = "The auth server or the game server refused the login."
+fields = [
+  { name = "reason", type = "u8", doc = "2 the account is in the game, 3 the server is full, 4 too many failed tries, 5 the ticket is not valid, 6 the provider did not confirm the sign-in, 7 the server could not reach the provider; 1 is reserved and never sent." },
+]
+
+[[message]]
+name = "Empire"
+dir = "s2c"
+id = 7
+doc = "The account's empire, before the character list."
+fields = [
+  { name = "empire", type = "u8", doc = "1 Shinsoo, 2 Chunjo, 3 Jinno; 0 while a new character picks its own: before the account's first character, and on a game master's account." },
+]
+
+[[message]]
+name = "CharacterList"
+dir = "s2c"
+id = 8
+doc = "The account's characters."
+fields = [
+  { name = "characters", type = "list<Character; 4>", doc = "Its characters, by slot; free slots are left out." },
+]
+
+[[message]]
+name = "CharacterCreated"
+dir = "s2c"
+id = 9
+doc = "The character asked for with CreateCharacter exists."
+fields = [
+  { name = "character", type = "Character", doc = "The new character, as the character list shows it." },
+]
+
+[[message]]
+name = "CharacterCreateFailed"
+dir = "s2c"
+id = 10
+doc = "The server refused to create the character."
+fields = [
+  { name = "reason", type = "u8", doc = "0 the name is taken, 1 any other refusal." },
+]
+
+[[message]]
+name = "MainCharacter"
+dir = "s2c"
+id = 11
+doc = "Our character, as loading starts."
+fields = [
+  { name = "vid", type = "u32", doc = "Our entity id in the world." },
+  { name = "class", type = "u8", doc = "Class and gender, 0 to 7." },
+  { name = "name", type = "string<64>", doc = "Name." },
+  { name = "x", type = "i32", doc = "Where we are, in centimetres." },
+  { name = "y", type = "i32", doc = "As x." },
+  { name = "z", type = "i32", doc = "Height." },
+  { name = "empire", type = "u8", doc = "1 Shinsoo, 2 Chunjo, 3 Jinno." },
+  { name = "skill_group", type = "u8", doc = "Our skill group, 1 or 2; 0 before one is chosen." },
+  { name = "run_speed", type = "u32", doc = "Centimetres a second our walks cover at movement speed 100; the server times our walks with it." },
+]
+
+[[message]]
+name = "GameTime"
+dir = "s2c"
+id = 12
+doc = "The server's clock, as the game starts."
+fields = [
+  { name = "time", type = "u32", doc = "Milliseconds since the server started." },
+]
+
+[[message]]
+name = "Channel"
+dir = "s2c"
+id = 13
+doc = "The channel we play on."
+fields = [
+  { name = "channel", type = "u8", doc = "Channel number, from 1." },
+]
+
+[[message]]
+name = "Chat"
+dir = "s2c"
+id = 14
+doc = "A chat line."
+fields = [
+  { name = "kind", type = "u8", doc = "Chat kind: 0 talk, 1 info, 2 notice, 5 the answer to a command, 6 shout." },
+  { name = "vid", type = "u32", doc = "The entity that spoke; 0 for the server." },
+  { name = "empire", type = "u8", doc = "The speaker's empire; 0 for the server." },
+  { name = "text", type = "string<1024>", doc = "The line as shown, e.g. `Name: message` for talk." },
+]
+
+[[message]]
+name = "EntitySpawn"
+dir = "s2c"
+id = 15
+doc = "An entity (player, monster, NPC) appears near us, or we appear again after coming back to life."
+fields = [
+  { name = "vid", type = "u32", doc = "Its id in the world." },
+  { name = "angle", type = "u16", doc = "Direction faced, in degrees, as in CharacterMove." },
+  { name = "x", type = "i32", doc = "Where it is, in centimetres." },
+  { name = "y", type = "i32", doc = "As x." },
+  { name = "z", type = "i32", doc = "Height." },
+  { name = "kind", type = "u8", doc = "0 monster, 1 NPC, 2 metin stone, 6 player." },
+  { name = "race", type = "u16", doc = "Players: class and gender. Others: the monster number." },
+  { name = "move_speed", type = "u8", doc = "Movement speed; 100 is the run animation's own speed." },
+  { name = "attack_speed", type = "u8", doc = "Attack speed; 100 is normal." },
+  { name = "state", type = "u8", doc = "Flags: 1 dead, 2 a game master its mark shows over." },
+  { name = "affects", type = "u64", doc = "States shown on it, one bit each: 1 poisoned, 2 burning, 4 slowed, 8 stunned, 16 hidden." },
+]
+
+[[message]]
+name = "EntityRemove"
+dir = "s2c"
+id = 16
+doc = "An entity is gone from near us."
+fields = [
+  { name = "vid", type = "u32", doc = "Its id." },
+]
+
+[[message]]
+name = "EntityMove"
+dir = "s2c"
+id = 17
+doc = "Another entity walks to a point, stops, attacks or plays a skill's motion."
+fields = [
+  { name = "vid", type = "u32", doc = "The entity." },
+  { name = "kind", type = "u8", doc = "As in CharacterMove." },
+  { name = "argument", type = "u8", doc = "As in CharacterMove." },
+  { name = "angle", type = "u16", doc = "Direction faced, in degrees." },
+  { name = "x", type = "i32", doc = "The point it walks to, or where it is, in centimetres." },
+  { name = "y", type = "i32", doc = "As x." },
+  { name = "duration", type = "u32", doc = "Milliseconds the walk takes from now; 0 when it does not walk." },
+]
+
+[[message]]
+name = "EntityDied"
+dir = "s2c"
+id = 18
+doc = "An entity died; our own character too."
+fields = [
+  { name = "vid", type = "u32", doc = "The entity." },
+]
+
+[[message]]
+name = "EntityUpdate"
+dir = "s2c"
+id = 19
+doc = "What an entity wears, its speeds or its state changed."
+fields = [
+  { name = "vid", type = "u32", doc = "The entity." },
+  { name = "parts", type = "[u16; 4]", doc = "What it wears: body item, weapon item, head, hair." },
+  { name = "move_speed", type = "u8", doc = "Movement speed, as in EntitySpawn." },
+  { name = "attack_speed", type = "u8", doc = "Attack speed, as in EntitySpawn." },
+  { name = "state", type = "u8", doc = "Flags, as in EntitySpawn." },
+  { name = "affects", type = "u64", doc = "Effects shown, as in EntitySpawn." },
+  { name = "guild", type = "u32", doc = "Guild id; 0 for none." },
+]
+
+[[message]]
+name = "EntityInfo"
+dir = "s2c"
+id = 20
+doc = "Name, look, level, guild and empire of a player or NPC, after its EntitySpawn."
+fields = [
+  { name = "vid", type = "u32", doc = "The entity." },
+  { name = "name", type = "string<64>", doc = "Its name." },
+  { name = "parts", type = "[u16; 4]", doc = "What it wears, as in EntityUpdate." },
+  { name = "empire", type = "u8", doc = "0 none, 1 Shinsoo, 2 Chunjo, 3 Jinno." },
+  { name = "guild", type = "u32", doc = "Guild id; 0 for none." },
+  { name = "level", type = "u8", doc = "Level; 0 for NPCs." },
+]
+
+[[message]]
+name = "TargetHealth"
+dir = "s2c"
+id = 21
+doc = "Health of the entity we target: after we choose it, and after each hit it takes."
+fields = [
+  { name = "vid", type = "u32", doc = "The target." },
+  { name = "percent", type = "u8", doc = "Its health, 0 to 100." },
+]
+
+[[message]]
+name = "Damage"
+dir = "s2c"
+id = 22
+doc = "Damage an entity took, sent to the attacker and to the player hit."
+fields = [
+  { name = "vid", type = "u32", doc = "The entity hit." },
+  { name = "flags", type = "u8", doc = "1 normal, 2 poison, 4 dodged, 8 blocked, 16 piercing, 32 critical, 64 a heal, 128 burning; may be combined." },
+  { name = "amount", type = "i32", doc = "Health taken; health given for a heal." },
+]
+
+[[message]]
+name = "Points"
+dir = "s2c"
+id = 23
+doc = "All of our character's points, while loading: those left out are 0."
+fields = [
+  { name = "points", type = "list<PointValue; 255>", doc = "The points that are not 0." },
+]
+
+[[message]]
+name = "PointsChanged"
+dir = "s2c"
+id = 24
+doc = "Some of our character's points changed: those left out did not."
+fields = [
+  { name = "points", type = "list<PointValue; 255>", doc = "The points that changed, with their new values." },
+]
+
+[[message]]
+name = "ItemSet"
+dir = "s2c"
+id = 25
+doc = "An item is put in one of our slots, or the slot is cleared."
+fields = [
+  { name = "window", type = "u8", doc = "1 inventory: the bag, and from slot 90 what is worn." },
+  { name = "slot", type = "u16", doc = "Its slot." },
+  { name = "vnum", type = "u32", doc = "Item number; 0 clears the slot." },
+  { name = "count", type = "u8", doc = "How many; 0 clears the slot." },
+  { name = "flags", type = "u32", doc = "Item flags." },
+  { name = "anti_flags", type = "u32", doc = "Who may not use or trade it." },
+  { name = "sockets", type = "[u32; 3]", doc = "Socket values." },
+  { name = "bonuses", type = "list<ItemBonus; 7>", doc = "Its bonuses." },
+]
+
+[[message]]
+name = "GroundItemAdd"
+dir = "s2c"
+id = 26
+doc = "An item lies on the ground near us: dropped, or come into view."
+fields = [
+  { name = "vid", type = "u32", doc = "Its id in the world." },
+  { name = "vnum", type = "u32", doc = "Item number; 1 is gold." },
+  { name = "x", type = "i32", doc = "Where it lies, in centimetres." },
+  { name = "y", type = "i32", doc = "As x." },
+]
+
+[[message]]
+name = "GroundItemRemove"
+dir = "s2c"
+id = 27
+doc = "An item on the ground is gone: picked up, vanished, or out of view."
+fields = [
+  { name = "vid", type = "u32", doc = "The ground item." },
+]
+
+[[message]]
+name = "ItemOwnership"
+dir = "s2c"
+id = 28
+doc = "Who may pick up an item on the ground."
+fields = [
+  { name = "vid", type = "u32", doc = "The ground item." },
+  { name = "owner", type = "string<64>", doc = "Name of the character who may pick it up; empty for anyone." },
+]
+
+[[message]]
+name = "ShopOpened"
+dir = "s2c"
+id = 29
+doc = "An NPC's shop opens, with what it sells."
+fields = [
+  { name = "vid", type = "u32", doc = "The NPC." },
+  { name = "goods", type = "list<ShopGood; 40>", doc = "What it sells; empty places are left out." },
+]
+
+[[message]]
+name = "ShopRefused"
+dir = "s2c"
+id = 30
+doc = "The shop refused a purchase; nothing changed."
+fields = [
+  { name = "reason", type = "u8", doc = "1 not enough gold, 2 no room in the bag." },
+]
+
+[[message]]
+name = "QuickSlotSet"
+dir = "s2c"
+id = 31
+doc = "What one of our quickslots holds."
+fields = [
+  { name = "index", type = "u8", doc = "The quickslot, 0 to 31: four pages of eight." },
+  { name = "kind", type = "u8", doc = "As in SetQuickSlot." },
+  { name = "position", type = "u8", doc = "As in SetQuickSlot." },
+]
+
+[[message]]
+name = "QuickSlotCleared"
+dir = "s2c"
+id = 32
+doc = "One of our quickslots is empty."
+fields = [
+  { name = "index", type = "u8", doc = "The quickslot, 0 to 31: four pages of eight." },
+]
+
+[[message]]
+name = "QuickSlotsSwapped"
+dir = "s2c"
+id = 33
+doc = "Two of our quickslots swapped what they hold."
+fields = [
+  { name = "first", type = "u8", doc = "One quickslot." },
+  { name = "second", type = "u8", doc = "The other." },
+]
+
+[[message]]
+name = "Skills"
+dir = "s2c"
+id = 34
+doc = "All of our character's skills: after entering, and when one changes."
+fields = [
+  { name = "skills", type = "list<SkillState; 255>", doc = "The skills learned; those left out are not." },
+]
+
+[[message]]
+name = "SkillGroup"
+dir = "s2c"
+id = 35
+doc = "Our character's skill group."
+fields = [
+  { name = "group", type = "u8", doc = "1 or 2; 0 for none." },
+]
+
+[[message]]
+name = "SignInOptions"
+dir = "s2c"
+id = 36
+doc = "The answer to StartSignIn: the providers players may sign in with, and the nonce the ID token must carry."
+fields = [
+  { name = "providers", type = "list<Provider; 8>", doc = "The providers; empty when the server has none." },
+  { name = "nonce", type = "string<64>", doc = "Single use, for this connection only; empty when the server has no providers." },
+]
+
+[[message]]
+name = "SignedIn"
+dir = "s2c"
+id = 37
+doc = "The auth server accepted a provider's sign-in: the account and a ticket for the game server."
+fields = [
+  { name = "account", type = "string<64>", doc = "The account's name, for TicketLogin." },
+  { name = "ticket", type = "blob<32>", doc = "Single use, valid for 30 seconds.", secret = true },
+]
+
+[[message]]
+name = "MoveRefused"
+dir = "s2c"
+id = 38
+doc = "The server refused our last move (through a wall, off the map, out of reach): our character stands at this point instead."
+fields = [
+  { name = "x", type = "i32", doc = "Where the server has our character, in centimetres." },
+  { name = "y", type = "i32", doc = "As x." },
+]
+
+[[message]]
+name = "Projectile"
+dir = "s2c"
+id = 39
+doc = "A monster shot at a target: its attack motion's flying effect flies there."
+fields = [
+  { name = "shooter", type = "u32", doc = "The monster that shot." },
+  { name = "target", type = "u32", doc = "What it shot at." },
+  { name = "x", type = "i32", doc = "Where the target was, in centimetres." },
+  { name = "y", type = "i32", doc = "As x." },
+]
+
+[[message]]
+name = "TeacherOpened"
+dir = "s2c"
+id = 40
+doc = "A teacher NPC we talked to shows what it teaches."
+fields = [
+  { name = "vid", type = "u32", doc = "The NPC." },
+  { name = "job", type = "u8", doc = "The job whose skills it teaches: 0 warrior, 1 ninja, 2 sura, 3 shaman (a class modulo 4)." },
+  { name = "group", type = "u8", doc = "Its skill group: 1 or 2." },
+  { name = "level", type = "u8", doc = "The level from which a character chooses its group." },
+]
+
+[[message]]
+name = "ChooseSkill"
+dir = "s2c"
+id = 41
+doc = "The item we used trains a skill we choose (a soul stone): the skills it may train now. The choice comes back as UseItemOnSkill."
+fields = [
+  { name = "slot", type = "u16", doc = "The item's slot in the bag." },
+  { name = "skills", type = "list<u8; 12>", doc = "The skills it may train now, by number." },
+]
+
+[[message]]
+name = "Whisper"
+dir = "s2c"
+id = 42
+doc = "A whisper: a player said something to us only, or the server tells us our own whisper went out."
+fields = [
+  { name = "name", type = "string<24>", doc = "The other player's name, as it was created: who said it, or whom we said it to." },
+  { name = "mine", type = "bool", doc = "True for our own whisper going out, false for one to us." },
+  { name = "text", type = "string<512>", doc = "What was said." },
+]
+
+[[message]]
+name = "WhisperRefused"
+dir = "s2c"
+id = 43
+doc = "Our whisper did not go out."
+fields = [
+  { name = "name", type = "string<24>", doc = "The name we whispered to, as we wrote it." },
+  { name = "reason", type = "u8", doc = "1 nobody of that name is in the game, 2 too many whispers in a short time." },
+]
+
+[[message]]
+name = "Friends"
+dir = "s2c"
+id = 44
+doc = "Our character's friends, after entering the game; not sent when it has none."
+fields = [
+  { name = "friends", type = "list<Friend; 64>", doc = "The friends, by name." },
+]
+
+[[message]]
+name = "FriendChanged"
+dir = "s2c"
+id = 45
+doc = "A friend became one, stopped being one, came into the game or left it."
+fields = [
+  { name = "name", type = "string<24>", doc = "The friend's name, as it was created." },
+  { name = "status", type = "u8", doc = "0 no longer a friend, 1 a friend out of the game, 2 a friend in the game." },
+]
+
+[[message]]
+name = "FriendAsked"
+dir = "s2c"
+id = 46
+doc = "A player asks to be our friend: we answer with AnswerFriend."
+fields = [
+  { name = "name", type = "string<24>", doc = "The player's name, as it was created." },
+]
+
+[[message]]
+name = "FriendNotice"
+dir = "s2c"
+id = 47
+doc = "What became of a friend request, ours or one to us."
+fields = [
+  { name = "name", type = "string<24>", doc = "The other player's name: as it was created, or as we wrote it when nobody has it." },
+  { name = "notice", type = "u8", doc = "1 our request went out, 2 nobody of that name is in the game, 3 already friends, 4 our list is full, 5 theirs is full, 6 too many requests, 7 they declined, 8 our request ended unanswered, 9 their request to us ended." },
+]
+
+[[message]]
+name = "EntityMount"
+dir = "s2c"
+id = 48
+doc = "A player gets on or off a mount; sent after its EntitySpawn while it rides."
+fields = [
+  { name = "vid", type = "u32", doc = "The player." },
+  { name = "look", type = "u16", doc = "The monster its mount looks like; 0 on foot." },
+]
+
+[[message]]
+name = "MountState"
+dir = "s2c"
+id = 49
+doc = "Our character's mount: after entering the game when it has one, and at each change."
+fields = [
+  { name = "level", type = "u8", doc = "Its level; 0 for no mount." },
+  { name = "grade", type = "u8", doc = "Its grade; 0 for no mount." },
+  { name = "look", type = "u16", doc = "The monster it looks like; 0 for no mount." },
+  { name = "stamina", type = "u16", doc = "Its stamina." },
+  { name = "most", type = "u16", doc = "The most stamina it has." },
+  { name = "ride_from", type = "u16", doc = "The stamina it needs to be ridden again after tiring out." },
+  { name = "fights", type = "bool", doc = "Whether its rider may fight from it." },
+  { name = "skills", type = "bool", doc = "Whether its rider may use horseback skills." },
+  { name = "skill_points", type = "u8", doc = "Horseback skill points not spent yet." },
+  { name = "summoned", type = "opt<u32>", doc = "The mount standing in the world or following us, while it does." },
+]
+
+[[message]]
+name = "RunSpeed"
+dir = "s2c"
+id = 50
+doc = "How far our character's run motion goes in a second at movement speed 100, when it changes (getting on or off a mount)."
+fields = [
+  { name = "run_speed", type = "u32", doc = "Centimetres a second." },
+]
+
+[[message]]
+name = "StableOpened"
+dir = "s2c"
+id = 51
+doc = "A stable NPC we talked to, or trained our mount at, shows what it trains."
+fields = [
+  { name = "vid", type = "u32", doc = "The NPC." },
+  { name = "next", type = "opt<MountOffer>", doc = "The next level and what it takes; none when our mount is at the last." },
+]
+
+[[message]]
+name = "Affects"
+dir = "s2c"
+id = 52
+doc = "What skills raise on our character for now: the whole list whenever it changes, empty when the last ends."
+fields = [
+  { name = "affects", type = "list<Affect; 64>", doc = "The points raised, by skill." },
+]
+
+[[message]]
+name = "UpgradeOffer"
+dir = "s2c"
+id = 53
+doc = "What upgrading an item of our bag takes, at a smith or with a scroll, and what a failure does."
+fields = [
+  { name = "smith", type = "opt<u32>", doc = "The smith NPC it is offered at; none with a scroll." },
+  { name = "scroll", type = "opt<u16>", doc = "The bag place of the scroll it is offered with; none at a smith." },
+  { name = "slot", type = "u16", doc = "The item's place in the bag." },
+  { name = "vnum", type = "u32", doc = "The item now." },
+  { name = "next", type = "u32", doc = "The item it becomes." },
+  { name = "gold", type = "u32", doc = "The gold it costs, whether it works or not." },
+  { name = "items", type = "list<UpgradeCost; 4>", doc = "The items it uses up, whether it works or not." },
+  { name = "chance", type = "u8", doc = "The percent chance it works." },
+  { name = "on_fail", type = "u8", doc = "What a failure does: 0 the item is gone, 1 it goes down a level, 2 it stays." },
+]
+
+[[message]]
+name = "Flight"
+dir = "s2c"
+id = 54
+doc = "Something flies from one entity to another, as the client's assets show that kind."
+fields = [
+  { name = "kind", type = "u8", doc = "What flies: 0 the experience a kill gave `to`, from the monster killed." },
+  { name = "from", type = "u32", doc = "The entity it leaves." },
+  { name = "to", type = "u32", doc = "The entity it flies to." },
+]
+
+[[message]]
+name = "EntityEffect"
+dir = "s2c"
+id = 55
+doc = "An entity shows something that happened to it, as the client's assets show that kind."
+fields = [
+  { name = "kind", type = "u8", doc = "What happened: 0 a potion gave it health back, 1 a potion gave it mana back, 2 it gained a level." },
+  { name = "vid", type = "u32", doc = "The entity." },
+]
+
+[[message]]
+name = "EntitySkills"
+dir = "s2c"
+id = 56
+doc = "The skills on a player now, whose looks show on it as the client's assets show them: the whole list whenever it changes, empty when the last ends."
+fields = [
+  { name = "vid", type = "u32", doc = "The player." },
+  { name = "skills", type = "list<u8; 16>", doc = "The skills on it, by number." },
+]
+
+[[message]]
+name = "Fishing"
+dir = "s2c"
+id = 57
+doc = "A step of a player's fishing, to everyone who sees it."
+fields = [
+  { name = "vid", type = "u32", doc = "The fisher." },
+  { name = "step", type = "u8", doc = "0 it cast (or was already fishing when it came into view), 1 it reeled in before a bite or stopped, 2 a fish bit, 3 it caught something, 4 what bit got away." },
+  { name = "x", type = "i32", doc = "Where the float is: centimetres east, as positions are." },
+  { name = "y", type = "i32", doc = "Centimetres south." },
+]
+
+[[message]]
+name = "ItemBoosts"
+dir = "s2c"
+id = 58
+doc = "What items used raise on our character for now: the whole list whenever it changes, empty when the last ends."
+fields = [
+  { name = "boosts", type = "list<ItemBoost; 16>", doc = "The points raised, by item." },
+]

@@ -1,0 +1,164 @@
+name: release
+
+# A tag vX.Y.Z publishes a release: the server's image to
+# GHCR, ghcr.io/<owner>/openm2-server:X.Y.Z, and the Windows client with its
+# launcher to a GitHub Release with its SHA-256. The tag must
+# be the workspace's version.
+on:
+  push:
+    tags: ["v*"]
+
+# Read-only by default; each job that writes says so.
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: the tag is the version
+    runs-on: ubuntu-latest
+    # Each job has a time limit under GitHub's 6 hours, so a hung one fails.
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      # Third-party actions are pinned by commit SHA; the comment gives the tag.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::the tag $TAG is not v$version, the version in Cargo.toml"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  server-image:
+    name: server image
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.push.outputs.image }}
+      digest: ${{ steps.push.outputs.digest }}
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      OWNER: ${{ github.repository_owner }}
+      SOURCE: ${{ github.server_url }}/${{ github.repository }}
+      REVISION: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The source label links the package to this repository.
+      - name: Build the image
+        run: |
+          image="ghcr.io/${OWNER,,}/openm2-server"
+          docker build \
+            --label "org.opencontainers.image.source=$SOURCE" \
+            --label "org.opencontainers.image.version=$VERSION" \
+            --label "org.opencontainers.image.revision=$REVISION" \
+            --tag "$image:$VERSION" .
+          test "$(docker run --rm "$image:$VERSION" --version)" = "openm2-server $VERSION"
+
+      - id: push
+        name: Push it
+        env:
+          TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          image="ghcr.io/${OWNER,,}/openm2-server"
+          echo "$TOKEN" | docker login ghcr.io --username "$ACTOR" --password-stdin
+          docker push "$image:$VERSION"
+          docker logout ghcr.io
+          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$image:$VERSION")
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "digest=${digest#*@}" >> "$GITHUB_OUTPUT"
+
+  # Built without a cache, from the tag's sources alone.
+  client-windows:
+    name: Windows client
+    needs: version
+    runs-on: windows-latest
+    # Fat LTO in one codegen unit, with no cache, is the slowest build.
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install the toolchain from rust-toolchain.toml
+        run: rustup toolchain install
+
+      - name: Build the client and its launcher
+        run: cargo build --locked --profile dist --package m2-cli --bin openm2 --package m2-launcher --bin openm2-launcher
+
+      - name: Zip it
+        shell: pwsh
+        run: |
+          $name = "openm2-$env:VERSION-windows-x64"
+          New-Item -ItemType Directory $name | Out-Null
+          Copy-Item target/dist/openm2.exe, target/dist/openm2-launcher.exe, LICENSE-MIT, LICENSE-APACHE, README.md $name
+          # The licences of every package the programs are built from.
+          cargo xtask notices --out "$name/THIRD-PARTY-NOTICES.txt"
+          if ($LASTEXITCODE -ne 0) { throw "cargo xtask notices failed" }
+          foreach ($program in "openm2", "openm2-launcher") {
+            # Piped: the launcher is a Windows-subsystem program, whose
+            # output PowerShell reads, and waits for, only then.
+            $printed = (& "$name/$program.exe" --version | Out-String).Trim()
+            if ($printed -ne "$program $env:VERSION") { throw "$program --version printed: $printed" }
+          }
+          Compress-Archive -Path "$name/*" -DestinationPath "$name.zip"
+          $hash = (Get-FileHash -Algorithm SHA256 "$name.zip").Hash.ToLowerInvariant()
+          "$hash  $name.zip" | Out-File -Encoding ascii -NoNewline "$name.zip.sha256"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: client-windows
+          path: openm2-*-windows-x64.zip*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: GitHub Release
+    needs: [version, server-image, client-windows]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: client-windows
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.version.outputs.version }}
+          IMAGE: ${{ needs.server-image.outputs.image }}
+          DIGEST: ${{ needs.server-image.outputs.digest }}
+        run: |
+          cat > notes.md <<EOF
+          The server's image: \`$IMAGE:$VERSION\`, digest \`$DIGEST\`
+          (\`docker pull $IMAGE@$DIGEST\`).
+
+          The Windows client and its launcher: \`openm2-$VERSION-windows-x64.zip\`, with its SHA-256 beside it.
+          EOF
+          gh release create "$TAG" --repo "$REPO" --verify-tag --title "openm2 $VERSION" \
+            --notes-file notes.md openm2-*-windows-x64.zip openm2-*-windows-x64.zip.sha256

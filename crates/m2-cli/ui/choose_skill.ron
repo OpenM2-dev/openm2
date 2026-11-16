@@ -1,0 +1,52 @@
+// An item that trains a skill we choose in `openm2 play` (a soul stone): the
+// skills it may train now, and Train beside each. Skins are in skin.ron; the
+// format is in docs/specs/ui.md ("Training"). The ids are what `play` fills
+// in (crates/m2-cli/src/interface.rs, `ids`).
+(
+    windows: [
+        (
+            // Where the teacher stands: in the middle, clear of the
+            // character window on the left and the inventory on the right.
+            id: "choose_skill",
+            anchor: Center,
+            pos: (0, -40),
+            size: (280, 330),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (pos: (8, 8), size: (Fill(8), 32), kind: Panel(skin: "title_bar"), children: [
+                    // the item's name; stops short of the X
+                    (id: "choose_skill.title", pos: (6, 0), size: (Fill(18), 21), kind: Text(text: "Train a skill", align: Center, size: 11)),
+                    // over the X drawn in the bar's right end
+                    (id: "choose_skill.close", anchor: TopRight, pos: (3, 2), size: (15, 15), kind: Button(skin: "close", text: "")),
+                ]),
+                (id: "choose_skill.text", anchor: Top, pos: (0, 46), size: (Fill(16), 18), kind: Text(text: "Which skill do you train?", align: Center)),
+                // One skill a row: icon, name, level, and Train.
+                (id: "choose_skill.icon0", pos: (16, 72), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                (id: "choose_skill.name0", pos: (56, 72), size: (Fill(112), 16), kind: Text(text: "")),
+                (id: "choose_skill.level0", pos: (56, 88), size: (Fill(112), 16), kind: Text(text: "", size: 11)),
+                (id: "choose_skill.train0", anchor: TopRight, pos: (16, 77), size: (88, 21), kind: Button(skin: "large_button", text: "Train")),
+                (id: "choose_skill.icon1", pos: (16, 114), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                (id: "choose_skill.name1", pos: (56, 114), size: (Fill(112), 16), kind: Text(text: "")),
+                (id: "choose_skill.level1", pos: (56, 130), size: (Fill(112), 16), kind: Text(text: "", size: 11)),
+                (id: "choose_skill.train1", anchor: TopRight, pos: (16, 119), size: (88, 21), kind: Button(skin: "large_button", text: "Train")),
+                (id: "choose_skill.icon2", pos: (16, 156), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                (id: "choose_skill.name2", pos: (56, 156), size: (Fill(112), 16), kind: Text(text: "")),
+                (id: "choose_skill.level2", pos: (56, 172), size: (Fill(112), 16), kind: Text(text: "", size: 11)),
+                (id: "choose_skill.train2", anchor: TopRight, pos: (16, 161), size: (88, 21), kind: Button(skin: "large_button", text: "Train")),
+                (id: "choose_skill.icon3", pos: (16, 198), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                (id: "choose_skill.name3", pos: (56, 198), size: (Fill(112), 16), kind: Text(text: "")),
+                (id: "choose_skill.level3", pos: (56, 214), size: (Fill(112), 16), kind: Text(text: "", size: 11)),
+                (id: "choose_skill.train3", anchor: TopRight, pos: (16, 203), size: (88, 21), kind: Button(skin: "large_button", text: "Train")),
+                (id: "choose_skill.icon4", pos: (16, 240), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                (id: "choose_skill.name4", pos: (56, 240), size: (Fill(112), 16), kind: Text(text: "")),
+                (id: "choose_skill.level4", pos: (56, 256), size: (Fill(112), 16), kind: Text(text: "", size: 11)),
+                (id: "choose_skill.train4", anchor: TopRight, pos: (16, 245), size: (88, 21), kind: Button(skin: "large_button", text: "Train")),
+                (id: "choose_skill.icon5", pos: (16, 282), size: (32, 32), kind: Slots(skin: "slot", columns: 1, rows: 1)),
+                (id: "choose_skill.name5", pos: (56, 282), size: (Fill(112), 16), kind: Text(text: "")),
+                (id: "choose_skill.level5", pos: (56, 298), size: (Fill(112), 16), kind: Text(text: "", size: 11)),
+                (id: "choose_skill.train5", anchor: TopRight, pos: (16, 287), size: (88, 21), kind: Button(skin: "large_button", text: "Train")),
+            ],
+        ),
+    ],
+)

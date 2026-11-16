@@ -1,0 +1,6 @@
+---
+source: crates/m2-content/tests/parse.rs
+expression: errors(&sources)
+---
+maps.toml:1:10: format 2 is not known (this server reads format 1)
+races.toml: no format line: every file starts with format = 1

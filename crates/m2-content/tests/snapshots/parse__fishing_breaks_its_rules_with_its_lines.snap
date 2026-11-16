@@ -1,0 +1,32 @@
+---
+source: crates/m2-content/tests/parse.rs
+expression: errors(&sources)
+---
+fishing.toml:3:1: bite [30, 10]: whole seconds from 1, the first not past the second, at most 3600
+fishing.toml:3:1: react 0: more than 0 and at most 60 seconds
+fishing.toml:3:1: reach 40: from 1 to 30 metres
+fishing.toml:8:1: monster 1001 is a monster: only an npc betters fishing poles
+fishing.toml:14:1: npc 1009 is a fisher again (first at fishing.toml:11)
+fishing.toml:17:1: timing "Bad Name": lower-case ASCII letters, digits and _, at most 32 bytes
+fishing.toml:17:1: 0 points: from 1 to 64
+fishing.toml:21:1: point at 1 s: times are from 0, never going back
+fishing.toml:21:1: point of 120 %: from 0 to 100
+fishing.toml:25:1: difficulty 0: it is from 1
+fishing.toml:25:1: no [[timing]] called "nowhere"
+fishing.toml:35:1: item 2421 is a fish again (first at fishing.toml:25)
+fishing.toml:40:1: no map "no_map" in maps.toml
+fishing.toml:40:1: item 2425 is no [[fish]]
+fishing.toml:40:1: item 2421 again: give its weight once
+fishing.toml:44:1: no maps: a water names the maps it covers
+fishing.toml:44:1: nothing can bite: give nothing or a catch a weight
+fishing.toml:30:1: item 2424 is caught on no [[water]]
+fishing.toml:47:1: item 2411 is bait: an item that opens has no other use
+fishing.toml:47:1: no item 9999 in items.toml
+fishing.toml:47:1: item 9999's chance 0: more than 0
+fishing.toml:47:1: the chances add up to 110 %: at most 100
+fishing.toml:51:1: item 2411 has a use here already (at fishing.toml:47)
+fishing.toml:54:1: item 2411 has a use here already (at fishing.toml:47)
+fishing.toml:54:1: monster 1001 is a monster: a fire is an npc
+fishing.toml:54:1: seconds 0: from 1 to 3600
+fishing.toml:59:1: no item 9998 in items.toml
+fishing.toml:63:1: item 2421 is grilled again (first at fishing.toml:59)

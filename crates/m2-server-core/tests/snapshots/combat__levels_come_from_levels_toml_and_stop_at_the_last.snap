@@ -1,0 +1,79 @@
+---
+source: crates/m2-server-core/tests/combat.rs
+expression: h.log
+---
+-- a hopper's 100 experience: level 1 needs 150
+@3000 conn#2 sends Hit vid=1 skill=0
+   -> send conn#2 Damage vid=1 flags=1 amount=24
+@3200 conn#2 sends Hit vid=1 skill=0
+   -> send conn#2 Damage vid=1 flags=1 amount=20
+@3400 conn#2 sends Hit vid=1 skill=0
+   -> send conn#2 Damage vid=1 flags=1 amount=17
+   -> send conn#2 EntityDied vid=1
+   -> send conn#4 EntityDied vid=1
+   -> send conn#2 PointsChanged 3=100
+   -> send conn#2 Flight kind=0 from=1 to=7
+   -> send conn#4 Flight kind=0 from=1 to=7
+@6000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@8400 tick
+   -> send conn#2 EntityRemove vid=1
+   -> send conn#4 EntityRemove vid=1
+@11000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@16000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@18400 tick
+   -> send conn#2 EntitySpawn vid=1 (475000, 967000) kind=0 race=1001 angle=40 speed=100/100
+   -> send conn#4 EntitySpawn vid=1 (475000, 967000) kind=0 race=1001 angle=40 speed=100/100
+-- a second one: level 2, the last, full health, 3 status points, 1 skill point
+@19600 conn#2 sends Hit vid=1 skill=0
+   -> send conn#2 Damage vid=1 flags=1 amount=19
+@19800 conn#2 sends Hit vid=1 skill=0
+   -> send conn#2 Damage vid=1 flags=1 amount=16
+@20000 conn#2 sends Hit vid=1 skill=0
+   -> send conn#2 Damage vid=1 flags=1 amount=17
+@20200 conn#2 sends Hit vid=1 skill=0
+   -> send conn#2 Damage vid=1 flags=1 amount=16
+   -> send conn#2 EntityDied vid=1
+   -> send conn#4 EntityDied vid=1
+   -> send conn#2 PointsChanged 1=2 3=0 4=0 5=832 6=832 7=348 8=348 16=5 18=16 20=5 26=3 28=1
+   -> event: conn#2: character 1 reached level 2
+   -> send conn#2 EntityEffect kind=2 vid=7
+   -> send conn#4 EntityEffect kind=2 vid=7
+   -> send conn#2 EntityInfo vid=7 Hero empire=1 level=2
+   -> send conn#4 EntityInfo vid=7 Hero empire=1 level=2
+   -> send conn#2 Flight kind=0 from=1 to=7
+   -> send conn#4 Flight kind=0 from=1 to=7
+-- at the last level no experience is gathered, but it flies, as in the original
+@21000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@25200 tick
+   -> send conn#2 EntityRemove vid=1
+   -> send conn#4 EntityRemove vid=1
+@26000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@31000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@35200 tick
+   -> send conn#2 EntitySpawn vid=1 (475000, 967000) kind=0 race=1001 angle=240 speed=100/100
+   -> send conn#4 EntitySpawn vid=1 (475000, 967000) kind=0 race=1001 angle=240 speed=100/100
+@36000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+@36400 conn#2 sends Hit vid=1 skill=0
+   -> send conn#2 Damage vid=1 flags=1 amount=25
+@36600 conn#2 sends Hit vid=1 skill=0
+   -> send conn#2 Damage vid=1 flags=1 amount=22
+@36800 conn#2 sends Hit vid=1 skill=0
+   -> send conn#2 Damage vid=1 flags=1 amount=23
+   -> send conn#2 EntityDied vid=1
+   -> send conn#4 EntityDied vid=1
+   -> send conn#2 Flight kind=0 from=1 to=7
+   -> send conn#4 Flight kind=0 from=1 to=7

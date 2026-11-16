@@ -1,0 +1,113 @@
+---
+source: crates/m2-server-core/tests/skill_effects.rs
+expression: h.log
+---
+-- the thick hide: half of each bite, and all of what is left goes back
+@1000 conn#4 sends UseSkill 4 target=None
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#4 PointsChanged 7=479
+   -> send conn#4 Affects 4:5=50 60s, 4:6=100 60s
+   -> send conn#4 EntitySkills vid=4 skills=[4]
+@1000 conn#4 sends Hit vid=1 skill=0
+   -> send conn#4 Damage vid=1 flags=1 amount=27
+@2000 conn#4 sends Pong
+@2000 tick
+   -> send conn#4 EntityMove kind=1 vid=1 (475031, 966216) angle=195 duration=335
+   -> send conn#4 Damage vid=4 flags=1 amount=27
+   -> send conn#4 PointsChanged 5=913
+   -> send conn#4 EntityMove kind=2 vid=2 (474966, 966177) angle=155 duration=0
+   -> send conn#4 Damage vid=2 flags=1 amount=27
+   -> send conn#4 Damage vid=4 flags=1 amount=25
+   -> send conn#4 PointsChanged 5=888
+   -> send conn#4 EntityMove kind=2 vid=3 (474980, 966176) angle=165 duration=0
+   -> send conn#4 Damage vid=3 flags=1 amount=25
+@3000 conn#4 sends Pong
+@3000 tick
+   -> send conn#4 Damage vid=4 flags=1 amount=28
+   -> send conn#4 PointsChanged 5=860
+   -> send conn#4 EntityMove kind=2 vid=1 (475031, 966216) angle=195 duration=0
+   -> send conn#4 Damage vid=1 flags=1 amount=28
+@4000 conn#4 sends Pong
+@4000 tick
+   -> send conn#4 PointsChanged 5=922 7=480
+   -> send conn#4 Damage vid=4 flags=1 amount=27
+   -> send conn#4 PointsChanged 5=895
+   -> send conn#4 EntityMove kind=2 vid=2 (474966, 966177) angle=155 duration=0
+   -> send conn#4 Damage vid=2 flags=1 amount=27
+   -> send conn#4 Damage vid=4 flags=1 amount=25
+   -> send conn#4 PointsChanged 5=870
+   -> send conn#4 EntityMove kind=2 vid=3 (474980, 966176) angle=165 duration=0
+   -> send conn#4 Damage vid=3 flags=1 amount=25
+@5000 conn#4 sends Pong
+@5000 tick
+   -> send conn#4 Damage vid=4 flags=1 amount=27
+   -> send conn#4 PointsChanged 5=843
+   -> send conn#4 EntityMove kind=2 vid=1 (475031, 966216) angle=195 duration=0
+   -> send conn#4 Damage vid=1 flags=1 amount=27
+-- the keen eye: every hit doubles (flag 32), and its damage comes back as health
+@5000 conn#4 sends UseSkill 5 target=None
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#4 PointsChanged 7=479
+   -> send conn#4 Affects 4:5=50 56s, 4:6=100 56s, 5:7=100 60s, 5:9=100 60s
+   -> send conn#4 EntitySkills vid=4 skills=[4, 5]
+@5200 conn#4 sends Hit vid=1 skill=0
+   -> send conn#4 Damage vid=1 flags=33 amount=64
+   -> send conn#4 PointsChanged 5=907
+-- quick hands: the hoppers bite, they don't shoot, so dodging doesn't help
+@5200 conn#4 sends UseSkill 6 target=None
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#4 PointsChanged 7=478
+   -> send conn#4 Affects 4:5=50 56s, 4:6=100 56s, 5:7=100 60s, 5:9=100 60s, 6:11=50 60s, 6:8=90 60s
+   -> send conn#4 EntitySkills vid=4 skills=[4, 5, 6]
+@6200 conn#4 sends Pong
+@6200 tick
+   -> send conn#4 Ping
+   -> send conn#4 Damage vid=4 flags=1 amount=30
+   -> send conn#4 PointsChanged 5=877
+   -> send conn#4 EntityMove kind=2 vid=2 (474966, 966177) angle=155 duration=0
+   -> send conn#4 Damage vid=2 flags=1 amount=30
+   -> send conn#4 Damage vid=4 flags=1 amount=29
+   -> send conn#4 PointsChanged 5=848
+   -> send conn#4 EntityMove kind=2 vid=3 (474980, 966176) angle=165 duration=0
+   -> send conn#4 Damage vid=3 flags=1 amount=29
+@7200 conn#4 sends Pong
+@7200 tick
+   -> send conn#4 PointsChanged 5=910 7=480
+   -> send conn#4 Damage vid=4 flags=1 amount=28
+   -> send conn#4 PointsChanged 5=882
+   -> send conn#4 EntityMove kind=2 vid=1 (475031, 966216) angle=195 duration=0
+   -> send conn#4 Damage vid=1 flags=1 amount=28
+@8200 conn#4 sends Pong
+@8200 tick
+   -> send conn#4 Damage vid=4 flags=1 amount=28
+   -> send conn#4 PointsChanged 5=854
+   -> send conn#4 EntityMove kind=2 vid=2 (474966, 966177) angle=155 duration=0
+   -> send conn#4 Damage vid=2 flags=1 amount=28
+   -> send conn#4 Damage vid=4 flags=1 amount=29
+   -> send conn#4 PointsChanged 5=825
+   -> send conn#4 EntityMove kind=2 vid=3 (474980, 966176) angle=165 duration=0
+   -> send conn#4 Damage vid=3 flags=1 amount=29
+@9200 conn#4 sends Pong
+@9200 tick
+   -> send conn#4 Damage vid=4 flags=1 amount=28
+   -> send conn#4 PointsChanged 5=797
+   -> send conn#4 EntityMove kind=2 vid=1 (475031, 966216) angle=195 duration=0
+   -> send conn#4 Damage vid=1 flags=1 amount=28
+@10200 conn#4 sends Pong
+@10200 tick
+   -> send conn#4 PointsChanged 5=859
+   -> send conn#4 Damage vid=4 flags=1 amount=27
+   -> send conn#4 PointsChanged 5=832
+   -> send conn#4 EntityMove kind=2 vid=2 (474966, 966177) angle=155 duration=0
+   -> send conn#4 Damage vid=2 flags=1 amount=27
+   -> send conn#4 Damage vid=4 flags=1 amount=28
+   -> send conn#4 PointsChanged 5=804
+   -> send conn#4 EntityMove kind=2 vid=3 (474980, 966176) angle=165 duration=0
+   -> send conn#4 Damage vid=3 flags=1 amount=28
+@11200 conn#4 sends Pong
+@11200 tick
+   -> send conn#4 Ping
+   -> send conn#4 Damage vid=4 flags=1 amount=29
+   -> send conn#4 PointsChanged 5=775
+   -> send conn#4 EntityMove kind=2 vid=1 (475031, 966216) angle=195 duration=0
+   -> send conn#4 Damage vid=1 flags=1 amount=29

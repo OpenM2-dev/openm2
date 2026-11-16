@@ -1,0 +1,20 @@
+[package]
+name = "m2-formats"
+description = "Parsers and writers for the client's game files and openm2's glTF: EterPack archives, MCOZ containers, proto tables, models. No I/O."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+lzokay-native.workspace = true
+proptest.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,53 @@
+---
+source: crates/m2-content/tests/parse.rs
+expression: text
+---
+format = 1
+
+[rules]
+bite = [5, 20]
+react = 4.5
+reach = 5.0
+
+[[fisher]]
+npc = 1009
+
+[[timing]]
+name = "middle"
+points = [[0.0, 0.0], [1.0, 0.0], [3.0, 80.0], [5.0, 0.0]]
+
+[[fish]]
+item = 2421
+difficulty = 30
+timing = "middle"
+
+[[fish]]
+item = 2424
+difficulty = 100
+timing = "middle"
+
+[[water]]
+maps = ["test_map"]
+nothing = 300
+catch = [{ item = 2421, weight = 600 }, { item = 2424, weight = 100 }]
+
+[[open]]
+item = 2421
+gives = [{ item = 2422, count = 1, chance = 60.0 }, { item = 2424, count = 1, chance = 10.0 }]
+
+[[open]]
+item = 2424
+gives = [{ item = 2425, count = 2, chance = 5.0 }]
+
+[fire]
+item = 2426
+npc = 1010
+seconds = 40
+
+[[grill]]
+item = 2421
+into = 2423
+
+[[grill]]
+item = 2422
+into = 2423

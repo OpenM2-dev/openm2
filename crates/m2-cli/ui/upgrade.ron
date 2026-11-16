@@ -1,0 +1,43 @@
+// An upgrade offered in `openm2 play`, at a smith or with a scroll: the item
+// now and what it becomes, the chance, what it costs and what a failure
+// does, with Upgrade and Cancel. Skins are in skin.ron; the format is in
+// docs/specs/ui.md ("Upgrades"). The ids are what `play` fills in
+// (crates/m2-cli/src/interface.rs, `ids`).
+(
+    windows: [
+        (
+            // In the middle, clear of the character window on the left and
+            // the inventory on the right, as a stable's window is.
+            id: "upgrade",
+            anchor: Center,
+            pos: (0, -40),
+            size: (260, 300),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (pos: (8, 8), size: (Fill(8), 32), kind: Panel(skin: "title_bar"), children: [
+                    // the smith's or the scroll's name; stops short of the X
+                    (id: "upgrade.title", pos: (6, 0), size: (Fill(18), 21), kind: Text(text: "Upgrade", align: Center, size: 11)),
+                    // over the X drawn in the bar's right end
+                    (id: "upgrade.close", anchor: TopRight, pos: (3, 2), size: (15, 15), kind: Button(skin: "close", text: "")),
+                ]),
+                // What it becomes, as tall as the item is; then the item
+                // now, the next and the chance beside it.
+                (id: "upgrade.icon", pos: (16, 48), size: (32, 96), kind: Slots(skin: "slot", columns: 1, rows: 3)),
+                (id: "upgrade.now", pos: (58, 52), size: (Fill(66), 18), kind: Text(text: "")),
+                (id: "upgrade.next", pos: (58, 72), size: (Fill(66), 18), kind: Text(text: "")),
+                (id: "upgrade.chance", pos: (58, 100), size: (Fill(66), 18), kind: Text(text: "")),
+                // What it costs, whether it works or not.
+                (id: "upgrade.gold", anchor: Top, pos: (0, 152), size: (Fill(16), 16), kind: Text(text: "", align: Center)),
+                (id: "upgrade.cost0", anchor: Top, pos: (0, 170), size: (Fill(16), 16), kind: Text(text: "", align: Center)),
+                (id: "upgrade.cost1", anchor: Top, pos: (0, 188), size: (Fill(16), 16), kind: Text(text: "", align: Center)),
+                (id: "upgrade.cost2", anchor: Top, pos: (0, 206), size: (Fill(16), 16), kind: Text(text: "", align: Center)),
+                (id: "upgrade.cost3", anchor: Top, pos: (0, 224), size: (Fill(16), 16), kind: Text(text: "", align: Center)),
+                // What a failure does.
+                (id: "upgrade.fail", anchor: Top, pos: (0, 246), size: (Fill(16), 16), kind: Text(text: "", align: Center)),
+                (id: "upgrade.ok", anchor: BottomLeft, pos: (30, 14), size: (88, 21), kind: Button(skin: "large_button", text: "Upgrade")),
+                (id: "upgrade.cancel", anchor: BottomRight, pos: (30, 14), size: (88, 21), kind: Button(skin: "large_button", text: "Cancel")),
+            ],
+        ),
+    ],
+)

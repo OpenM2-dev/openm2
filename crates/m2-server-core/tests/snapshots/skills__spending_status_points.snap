@@ -1,0 +1,27 @@
+---
+source: crates/m2-server-core/tests/skills.rs
+expression: h.log
+---
+-- strength: its points, the attack grade with them
+@1000 conn#4 sends RaiseStatus 12
+   -> event: conn#4: character 1 raised point 12 to 7
+   -> send conn#4 PointsChanged 12=7 18=24 26=2
+-- vitality to 90, the highest: more health and defence, not healed
+@1000 conn#4 sends RaiseStatus 13
+   -> event: conn#4: character 1 raised point 13 to 90
+   -> send conn#4 PointsChanged 6=4380 13=90 16=77 20=77 26=1
+@1000 conn#4 sends RaiseStatus 13
+   -> send conn#4 Chat kind=1 vid=0 "Vitality cannot go any higher."
+-- intelligence: the last point, more mana; then none left
+@1000 conn#4 sends RaiseStatus 15
+   -> event: conn#4: character 1 raised point 15 to 4
+   -> send conn#4 PointsChanged 8=500 15=4 26=0
+@1000 conn#4 sends RaiseStatus 14
+   -> send conn#4 Chat kind=1 vid=0 "You have no status points left."
+-- another point number is ignored
+@1000 conn#4 sends RaiseStatus 28
+-- the stats are saved with the character
+@1000 conn#4 closed: the client left
+   -> store #8: save #1 at (475000, 966100) played 0s
+   -> event: conn#4: closed: the client left
+@1000 store answers #8: saved: Ok(())

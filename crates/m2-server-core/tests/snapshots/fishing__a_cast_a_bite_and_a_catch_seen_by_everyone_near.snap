@@ -1,0 +1,23 @@
+---
+source: crates/m2-server-core/tests/fishing.rs
+expression: h.log
+---
+-- alice casts north: the float lands 6 m out, on the pond; bob sees it
+@1000 conn#4 sends Cast
+   -> send conn#4 Fishing
+   -> send conn#8 Fishing
+-- 10 s later a fish bites
+@11000 tick
+   -> send conn#4 Ping
+   -> send conn#8 Ping
+   -> send conn#4 Fishing
+   -> send conn#8 Fishing
+-- she reels in 2 s later: the carp, the bait gone, the pole a point up
+@13000 conn#4 sends ReelIn
+   -> send conn#4 ItemSet 1:94 2401x1
+   -> send conn#4 Fishing
+   -> send conn#8 Fishing
+   -> send conn#4 ItemSet 1:1 2421x1
+   -> send conn#4 Chat kind=1 vid=0 "You caught a Pond Carp!"
+   -> send conn#4 Chat kind=1 vid=0 "Your fishing pole has 1 of its 2 points."
+   -> event: conn#4: character 1 caught item 2421

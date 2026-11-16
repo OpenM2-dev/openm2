@@ -1,0 +1,64 @@
+// The game menu (Escape, or the taskbar's gears, in the game) and the
+// Settings window it opens: the volumes, muting, the interface's size and
+// the names over characters.
+// Skins are in skin.ron; the format is in docs/specs/ui.md. The ids are what
+// `play` fills in (crates/m2-cli/src/interface.rs, `ids`; menu.rs).
+(
+    windows: [
+        (
+            id: "menu",
+            anchor: Center,
+            pos: (0, -60),
+            size: (220, 216),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (pos: (8, 8), size: (Fill(8), 32), kind: Panel(skin: "title_bar"), children: [
+                    (pos: (6, 0), size: (Fill(18), 21), kind: Text(text: "Menu", align: Center)),
+                    // over the X drawn in the bar's right end
+                    (id: "menu.close", anchor: TopRight, pos: (3, 2), size: (15, 15), kind: Button(skin: "close", text: "")),
+                ]),
+                (id: "menu.settings", anchor: Top, pos: (0, 46), size: (180, 25), kind: Button(skin: "xlarge_button", text: "Settings")),
+                (id: "menu.characters", anchor: Top, pos: (0, 78), size: (180, 25), kind: Button(skin: "xlarge_button", text: "Change character")),
+                (id: "menu.logout", anchor: Top, pos: (0, 110), size: (180, 25), kind: Button(skin: "xlarge_button", text: "Log out")),
+                (id: "menu.quit", anchor: Top, pos: (0, 142), size: (180, 25), kind: Button(skin: "xlarge_button", text: "Quit game")),
+                (id: "menu.back", anchor: Top, pos: (0, 174), size: (180, 25), kind: Button(skin: "xlarge_button", text: "Back to the game")),
+            ],
+        ),
+        (
+            // Opened from the menu; what it shows applies at once and is
+            // saved in the player's settings file.
+            id: "settings",
+            anchor: Center,
+            pos: (0, -60),
+            size: (255, 272),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (pos: (8, 8), size: (Fill(8), 32), kind: Panel(skin: "title_bar"), children: [
+                    (pos: (6, 0), size: (Fill(18), 21), kind: Text(text: "Settings", align: Center)),
+                    (id: "settings.close", anchor: TopRight, pos: (3, 2), size: (15, 15), kind: Button(skin: "close", text: "")),
+                ]),
+                // The volumes: sliders at the bar's own size, how much beside.
+                (pos: (20, 48), size: (Fill(20), 18), kind: Text(text: "Music volume")),
+                (id: "settings.music.value", anchor: TopRight, pos: (20, 48), size: (40, 18), kind: Text(text: "50%", align: Right)),
+                (id: "settings.music", anchor: Top, pos: (0, 70), size: (175, 12), kind: Slider(bar: "slider_bar", knob: "slider_knob", value: 0.5)),
+                (pos: (20, 92), size: (Fill(20), 18), kind: Text(text: "Sound volume")),
+                (id: "settings.sound.value", anchor: TopRight, pos: (20, 92), size: (40, 18), kind: Text(text: "100%", align: Right)),
+                (id: "settings.sound", anchor: Top, pos: (0, 114), size: (175, 12), kind: Slider(bar: "slider_bar", knob: "slider_knob", value: 1.0)),
+                // Muting, held down while on.
+                (pos: (20, 140), size: (150, 18), kind: Text(text: "Mute all sound")),
+                (id: "settings.mute", anchor: TopRight, pos: (20, 138), size: (61, 21), kind: Button(skin: "button", text: "Off")),
+                // The interface's size, times the display's scale.
+                (pos: (20, 172), size: (120, 18), kind: Text(text: "Interface size")),
+                (id: "settings.size.down", anchor: TopRight, pos: (99, 170), size: (21, 21), kind: Button(skin: "button", text: "-")),
+                (id: "settings.size.value", anchor: TopRight, pos: (45, 171), size: (50, 18), kind: Text(text: "100%", align: Center)),
+                (id: "settings.size.up", anchor: TopRight, pos: (20, 170), size: (21, 21), kind: Button(skin: "button", text: "+")),
+                // The names over characters' heads, held down while on.
+                (pos: (20, 204), size: (150, 18), kind: Text(text: "Show names")),
+                (id: "settings.names", anchor: TopRight, pos: (20, 202), size: (61, 21), kind: Button(skin: "button", text: "On")),
+                (id: "settings.back", anchor: Bottom, pos: (0, 16), size: (88, 21), kind: Button(skin: "large_button", text: "Back")),
+            ],
+        ),
+    ],
+)

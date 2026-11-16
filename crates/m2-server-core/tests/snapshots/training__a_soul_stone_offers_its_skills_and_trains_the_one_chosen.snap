@@ -1,0 +1,33 @@
+---
+source: crates/m2-server-core/tests/training.rs
+expression: h.log
+---
+-- the stone: the grand masters' skills, G1 and G10
+@1000 conn#4 sends UseItem 1:0
+   -> send conn#4 ChooseSkill slot=0 skills=[1, 2]
+-- Long Reach chosen: G10 to P
+@1000 conn#4 sends UseItemOnSkill 0 skill=2
+   -> send conn#4 ItemSet 1:0 3100x2
+   -> event: conn#4: character 1 trained skill 2 with item 3100: learned, level 40
+   -> send conn#4 Chat kind=1 vid=0 "The soul stone worked: Long Reach is P now."
+   -> send conn#4 Skills 1=30 grade 2, 2=40 grade 3 next at +3601s, 3=20 grade 1, 4=40 grade 3
+-- the stone again: Wide Swing alone; chosen, G1 to G2
+@1000 conn#4 sends UseItem 1:0
+   -> send conn#4 ChooseSkill slot=0 skills=[1]
+@1000 conn#4 sends UseItemOnSkill 0 skill=1
+   -> send conn#4 ItemSet 1:0 3100x1
+   -> event: conn#4: character 1 trained skill 1 with item 3100: learned, level 31
+   -> send conn#4 Chat kind=1 vid=0 "The soul stone worked: Wide Swing is G2 now."
+   -> send conn#4 Skills 1=31 grade 2 next at +3601s, 2=40 grade 3 next at +3601s, 3=20 grade 1, 4=40 grade 3
+-- the stone again: Wide Swing waits
+@1000 conn#4 sends UseItem 1:0
+   -> send conn#4 Chat kind=1 vid=0 "Your skills need rest: the next is ready in 1 h."
+-- picked anyway; a master's skill; a perfect one; a book's slot; outside the bag
+@1000 conn#4 sends UseItemOnSkill 0 skill=1
+   -> send conn#4 Chat kind=1 vid=0 "You can train this skill again in 1 h."
+@1000 conn#4 sends UseItemOnSkill 0 skill=3
+   -> send conn#4 Chat kind=1 vid=0 "Only a grand master's skill trains with a soul stone."
+@1000 conn#4 sends UseItemOnSkill 0 skill=4
+   -> send conn#4 Chat kind=1 vid=0 "This skill is perfect already."
+@1000 conn#4 sends UseItemOnSkill 1 skill=1
+@1000 conn#4 sends UseItemOnSkill 90 skill=1

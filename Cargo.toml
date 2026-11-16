@@ -1,0 +1,121 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "xtask"]
+
+[workspace.package]
+version = "0.18.0"
+edition = "2024"
+rust-version = "1.99"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# Exact versions on purpose: upgrades are deliberate, one dependency at a time.
+[workspace.dependencies]
+m2-protocol = { path = "crates/m2-protocol" }
+m2-core = { path = "crates/m2-core" }
+m2-net = { path = "crates/m2-net" }
+m2-formats = { path = "crates/m2-formats" }
+m2-assets = { path = "crates/m2-assets" }
+m2-render = { path = "crates/m2-render" }
+m2-ui = { path = "crates/m2-ui" }
+m2-audio = { path = "crates/m2-audio" }
+m2-content = { path = "crates/m2-content" }
+m2-server-core = { path = "crates/m2-server-core" }
+m2-server = { path = "crates/m2-server" }
+m2-update = { path = "crates/m2-update" }
+m2-launcher = { path = "crates/m2-launcher" }
+
+anyhow = "=1.0.104"
+# The system's clipboard for text fields: text only, no
+# images; on Wayland through XWayland.
+arboard = { version = "=3.7.0", default-features = false }
+# PKCE verifiers and challenges in the client's provider sign-in; tests' ID
+# tokens.
+base64 = "=0.22.1"
+bytemuck = { version = "=1.25.2", features = ["derive"] }
+clap = { version = "=4.6.7", features = ["derive"] }
+# Text shaping, font fallback and glyph rasterizing for the interface; system
+# fonts only (none ship with openm2).
+cosmic-text = { version = "=0.19.0", default-features = false, features = ["std", "swash", "fontconfig"] }
+# Postgres for the server's storage: runtime queries only (no macros, so a
+# build needs no database); TLS through rustls with aws-lc-rs, checked against
+# webpki-roots or the URL's sslrootcert.
+sqlx = { version = "=0.9.0", default-features = false, features = ["runtime-tokio", "postgres", "tls-rustls-aws-lc-rs"] }
+# Seeds the server core's random generator from the operating system.
+getrandom = "=0.4.3"
+glam = { version = "=0.33.12", features = ["bytemuck"] }
+insta = "=1.49.0"
+# The server checks providers' ID tokens: RS256 and ES256
+# through aws-lc-rs, no PEM, no RustCrypto (and so no `rsa`).
+jsonwebtoken = { version = "=11.1.0", default-features = false, features = ["aws_lc_rs"] }
+# Audio output through cpal, without kira's decoders (symphonia): WAV is read
+# by m2-formats, MP3 by nanomp3.
+kira = { version = "=0.12.5", default-features = false, features = ["cpal"] }
+# Tests only: an independent LZO1X encoder to check our decoder against.
+lzokay-native = { version = "=0.1.0", default-features = false, features = ["compress"] }
+# MP3 decoding, a pure-Rust port of minimp3; without SIMD (`wide`) or MPEG
+# layers I and II.
+nanomp3 = { version = "=0.2.0", default-features = false, features = ["std"] }
+# The server's traces and metrics through OpenTelemetry: OTLP
+# over plain HTTP to a collector next to it; no gRPC, no TLS.
+opentelemetry = { version = "=0.33.0", default-features = false, features = ["trace", "metrics"] }
+opentelemetry-otlp = { version = "=0.33.0", default-features = false, features = ["http-proto", "reqwest-blocking-client", "trace", "metrics"] }
+opentelemetry_sdk = { version = "=0.33.0", default-features = false, features = ["trace", "metrics"] }
+png = "=0.18.1"
+proptest = "=1.12.0"
+# The server core's random generator: tickets, and the world on a stream of its own.
+rand_chacha = { version = "=0.10.0", default-features = false }
+rand_core = "=0.10.1"
+# The server's self-signed certificate, made at its first start.
+rcgen = { version = "=0.14.10", default-features = false, features = ["aws_lc_rs", "pem"] }
+# The server's requests to OpenID Connect providers: HTTPS
+# through rustls with aws-lc-rs and the system's roots; HTTP/1.1 only, no
+# cookies; proxies from HTTPS_PROXY and the like, not the system's settings.
+reqwest = { version = "=0.13.5", default-features = false, features = ["rustls"] }
+ron = "=0.12.2"
+# TLS 1.3 under the protocol: rustls with aws-lc-rs, its
+# default provider (post-quantum key exchange first, prebuilt NASM on
+# Windows); no TLS 1.2, no `log`. aws-lc-rs itself hashes the server's key
+# for pins and signs and checks update manifests (Ed25519),
+# with prebuilt NASM where rustls isn't there to ask for it.
+aws-lc-rs = { version = "=1.18.1", default-features = false, features = ["aws-lc-sys", "prebuilt-nasm"] }
+rustls = { version = "=0.23.46", default-features = false, features = ["aws_lc_rs", "prefer-post-quantum", "std"] }
+# The client checks an operator's certificate against the system's roots.
+rustls-platform-verifier = "=0.7.1"
+# The key in a server's certificate, for pins (rustls's own parser).
+rustls-webpki = { version = "=0.103.16", default-features = false, features = ["std"] }
+tokio-rustls = { version = "=0.26.6", default-features = false, features = ["aws_lc_rs"] }
+secrecy = "=0.10.3"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
+thiserror = "=2.0.21"
+# The server's networking and its tasks.
+tokio = { version = "=1.53.3", default-features = false, features = ["io-util", "macros", "net", "rt", "rt-multi-thread", "signal", "sync", "time"] }
+toml = "=1.1.8"
+tracing = { version = "=0.1.44", default-features = false, features = ["std"] }
+tracing-opentelemetry = { version = "=0.34.0", default-features = false }
+tracing-subscriber = { version = "=0.3.23", default-features = false, features = ["fmt", "std", "ansi"] }
+# URLs of providers' endpoints and of the client's sign-in redirect.
+url = "=2.5.8"
+# Window decorations on Wayland come from the compositor (no wayland-csd-adwaita).
+winit = { version = "=0.30.13", default-features = false, features = ["rwh_06", "x11", "wayland", "wayland-dlopen"] }
+# No WebGPU (browser) or GLSL front end; Vulkan, Metal, DX12 and GLES backends.
+wgpu = { version = "=30.0.1", default-features = false, features = ["std", "parking_lot", "dx12", "metal", "gles", "vulkan", "wgsl"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+dbg_macro = "warn"
+todo = "warn"
+unimplemented = "warn"
+
+# Releases (the server's Docker image, the client's zip): smaller and a
+# little faster, slower to build.
+[profile.dist]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
+strip = true

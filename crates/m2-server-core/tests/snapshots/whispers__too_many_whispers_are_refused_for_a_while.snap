@@ -1,0 +1,21 @@
+---
+source: crates/m2-server-core/tests/whispers.rs
+expression: h.log
+---
+-- three whispers in the window, one to a name nobody has: the fourth is refused
+@1000 conn#2 sends SendWhisper to=Bob "one"
+   -> send conn#4 Whisper from Alice "one"
+   -> send conn#2 Whisper to Bob "one"
+@2000 conn#2 sends SendWhisper to=Nobody "two"
+   -> send conn#2 WhisperRefused Nobody reason=1
+@2000 conn#2 sends SendWhisper to=Bob "three"
+   -> send conn#4 Whisper from Alice "three"
+   -> send conn#2 Whisper to Bob "three"
+@2000 conn#2 sends SendWhisper to=Bob "four"
+   -> send conn#2 WhisperRefused Bob reason=2
+-- ten seconds after the first, one more goes
+@11000 conn#2 sends SendWhisper to=Bob "five"
+   -> send conn#4 Whisper from Alice "five"
+   -> send conn#2 Whisper to Bob "five"
+@11000 conn#2 sends SendWhisper to=Bob "six"
+   -> send conn#2 WhisperRefused Bob reason=2

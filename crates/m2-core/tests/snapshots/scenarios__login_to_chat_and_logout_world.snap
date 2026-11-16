@@ -1,0 +1,156 @@
+---
+source: crates/m2-core/tests/scenarios.rs
+expression: s.session.world()
+---
+World {
+    empire: Some(
+        Chunjo,
+    ),
+    characters: [
+        CharacterSummary {
+            slot: 0,
+            id: 1,
+            name: "Alice",
+            class: 3,
+            level: 10,
+            playtime: 0,
+            st: 0,
+            ht: 0,
+            dx: 0,
+            iq: 0,
+            body_part: 0,
+            hair_part: 0,
+            guild: "",
+        },
+        CharacterSummary {
+            slot: 2,
+            id: 2,
+            name: "Bob",
+            class: 3,
+            level: 3,
+            playtime: 0,
+            st: 0,
+            ht: 0,
+            dx: 0,
+            iq: 0,
+            body_part: 0,
+            hair_part: 0,
+            guild: "",
+        },
+    ],
+    selected: Some(
+        0,
+    ),
+    me: Some(
+        Me {
+            vid: 4660,
+            name: "Alice",
+            class: 3,
+            empire: Chunjo,
+            position: (
+                958400,
+                272800,
+                0,
+            ),
+        },
+    ),
+    channel: Some(
+        1,
+    ),
+    clock: Some(
+        ServerClock {
+            time: 10000,
+            received: Millis(
+                131,
+            ),
+        },
+    ),
+    entities: {
+        4660: Entity {
+            vid: 4660,
+            kind: Player,
+            race: 3,
+            track: Track {
+                from: Point {
+                    x: 958400,
+                    y: 272800,
+                },
+                to: Point {
+                    x: 958400,
+                    y: 272800,
+                },
+                start: Millis(
+                    0,
+                ),
+                duration: 0,
+            },
+            angle: 0,
+            z: 0,
+            action: Wait,
+            argument: 0,
+            move_speed: 100,
+            attack_speed: 100,
+            state: 0,
+            affects: 0,
+            parts: [
+                0,
+                0,
+                0,
+                0,
+            ],
+            dead: false,
+            health: None,
+            info: None,
+            mount: 0,
+            skills: [],
+            line: None,
+        },
+    },
+    target: None,
+    points: {},
+    items: {},
+    quickslots: {
+        0: QuickSlot {
+            kind: Item,
+            position: 3,
+        },
+    },
+    ground: {},
+    shop: None,
+    teacher: None,
+    skill_choice: None,
+    stable: None,
+    upgrade: None,
+    mount: None,
+    affects: [],
+    item_boosts: [],
+    skill_group: 0,
+    run_speed: 450,
+    skills: {},
+    chat: [
+        ChatLine {
+            at: Millis(
+                210,
+            ),
+            kind: Talk,
+            vid: 4660,
+            empire: Chunjo,
+            text: "Alice: hello from openm2",
+            mine: true,
+        },
+        ChatLine {
+            at: Millis(
+                211,
+            ),
+            kind: Talk,
+            vid: 153,
+            empire: Chunjo,
+            text: "Bob: hi Alice",
+            mine: false,
+        },
+    ],
+    whispers: [],
+    friends: {},
+    friend_requests: [],
+    path: None,
+}

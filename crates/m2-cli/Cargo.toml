@@ -1,0 +1,55 @@
+[package]
+name = "m2-cli"
+description = "The `openm2` command-line tool: inspect the protocol and game files, run the headless bot and the game window."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "openm2"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+# Pasting into the interface's fields and copying from them.
+arboard.workspace = true
+clap = { workspace = true, features = ["env"] }
+glam.workspace = true
+m2-assets.workspace = true
+m2-content.workspace = true
+m2-audio.workspace = true
+m2-core.workspace = true
+m2-formats.workspace = true
+m2-net.workspace = true
+m2-protocol.workspace = true
+m2-render.workspace = true
+m2-ui.workspace = true
+m2-update.workspace = true
+# The release key read from the environment.
+secrecy.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+wgpu.workspace = true
+winit.workspace = true
+
+[dev-dependencies]
+# The end-to-end test runs the bot against openm2's own server.
+m2-server.workspace = true
+m2-server-core.workspace = true
+# The launcher's import of a player's client, with this openm2.
+m2-launcher.workspace = true
+# The scripted servers of the end-to-end tests speak TLS.
+rustls.workspace = true
+# The fake OpenID Connect provider of m2-server's tests, for `bot --provider`.
+aws-lc-rs.workspace = true
+base64.workspace = true
+tokio.workspace = true
+url.workspace = true
+
+[lints]
+workspace = true

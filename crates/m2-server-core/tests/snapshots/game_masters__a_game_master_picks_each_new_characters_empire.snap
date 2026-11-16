@@ -1,0 +1,85 @@
+---
+source: crates/m2-server-core/tests/game_masters.rs
+expression: h.log
+---
+-- alice's list says no empire: her next characters pick theirs
+@1000 conn#9 accepted on auth from 10.0.0.1
+   -> event: conn#9: accepted on auth
+@1000 conn#9 sends Hello protocol=3 "openm2 test"
+   -> event: conn#9: openm2 test speaks protocol 3
+   -> send conn#9 Welcome protocol=3
+@1000 conn#9 sends StartSignIn
+   -> send conn#9 SignInOptions [example] nonce="77d8b6ab9c5ec06d295a3c0e72732aec"
+@1000 conn#9 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #17: example http://127.0.0.1:50000/callback nonce=77d8b6ab9c5ec06d295a3c0e72732aec
+@1000 sign-in #17 checked: https://id.example alice
+   -> store #18: identity login example https://id.example alice
+@1000 store answers #18: login ok, account 1 Some(1)
+   -> event: conn#9: account 1 signed in with example
+   -> send conn#9 SignedIn example:alice 502a… (32 bytes)
+@1000 conn#9 closed: the client left
+   -> event: conn#9: closed: the client left
+@1000 conn#10 accepted on game from 10.0.0.1
+   -> event: conn#10: accepted on game
+@1000 conn#10 sends Hello protocol=3 "openm2 test"
+   -> event: conn#10: openm2 test speaks protocol 3
+   -> send conn#10 Welcome protocol=3
+@1000 conn#10 sends TicketLogin example:alice 502a… (32 bytes)
+   -> event: conn#10: account 1 joined the game server
+   -> store #19: load characters of 1
+@1000 store answers #19: characters [0:Alice]
+   -> send conn#10 Empire 0
+   -> send conn#10 Phase 1
+   -> send conn#10 CharacterList [0: #1 Alice lv1]
+@1000 conn#10 sends CreateCharacter slot=1 Jin class=0 empire=3
+   -> store #20: create Jin for 1 in slot 1 at (963400, 278200) empire 3
+@1000 store answers #20: created #3 Jin in slot 1
+   -> event: conn#10: character 3 created
+   -> send conn#10 CharacterCreated slot=1 #3 Jin class=0 st=6 ht=4 dx=3 iq=3
+   -> send conn#10 Empire 0
+@1000 conn#10 sends CreateCharacter slot=2 Chun class=0 empire=2
+   -> store #21: create Chun for 1 in slot 2 at (60000, 156000) empire 2
+@1000 store answers #21: created #4 Chun in slot 2
+   -> event: conn#10: character 4 created
+   -> send conn#10 CharacterCreated slot=2 #4 Chun class=0 st=6 ht=4 dx=3 iq=3
+   -> send conn#10 Empire 0
+@1000 conn#10 sends CreateCharacter slot=3 Nowhere class=0 empire=7
+   -> store #22: create Nowhere for 1 in slot 3 at (475000, 966100) empire 1
+@1000 store answers #22: created #5 Nowhere in slot 3
+   -> event: conn#10: character 5 created
+   -> send conn#10 CharacterCreated slot=3 #5 Nowhere class=0 st=6 ht=4 dx=3 iq=3
+   -> send conn#10 Empire 0
+-- bob's says Shinsoo: the empire he asks for is not read
+@1000 conn#11 accepted on auth from 10.0.0.1
+   -> event: conn#11: accepted on auth
+@1000 conn#11 sends Hello protocol=3 "openm2 test"
+   -> event: conn#11: openm2 test speaks protocol 3
+   -> send conn#11 Welcome protocol=3
+@1000 conn#11 sends StartSignIn
+   -> send conn#11 SignInOptions [example] nonce="86a16687a178bf69d356e928ba53845b"
+@1000 conn#11 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #23: example http://127.0.0.1:50000/callback nonce=86a16687a178bf69d356e928ba53845b
+@1000 sign-in #23 checked: https://id.example bob
+   -> store #24: identity login example https://id.example bob
+@1000 store answers #24: login ok, account 2 Some(1)
+   -> event: conn#11: account 2 signed in with example
+   -> send conn#11 SignedIn example:bob 6331… (32 bytes)
+@1000 conn#11 closed: the client left
+   -> event: conn#11: closed: the client left
+@1000 conn#12 accepted on game from 10.0.0.1
+   -> event: conn#12: accepted on game
+@1000 conn#12 sends Hello protocol=3 "openm2 test"
+   -> event: conn#12: openm2 test speaks protocol 3
+   -> send conn#12 Welcome protocol=3
+@1000 conn#12 sends TicketLogin example:bob 6331… (32 bytes)
+   -> event: conn#12: account 2 joined the game server
+   -> store #25: load characters of 2
+@1000 store answers #25: characters [0:Bob]
+   -> send conn#12 Empire 1
+   -> send conn#12 Phase 1
+   -> send conn#12 CharacterList [0: #2 Bob lv1]
+@1000 conn#12 sends CreateCharacter slot=1 Bobby class=0 empire=3
+   -> store #26: create Bobby for 2 in slot 1 at (475000, 966100) empire 1
+@1000 store answers #26: created #6 Bobby in slot 1
+   -> event: conn#12: character 6 created
+   -> send conn#12 CharacterCreated slot=1 #6 Bobby class=0 st=6 ht=4 dx=3 iq=3

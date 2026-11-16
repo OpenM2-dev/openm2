@@ -1,0 +1,28 @@
+---
+source: crates/m2-server-core/tests/teachers.rs
+expression: h.log
+---
+-- level 1: too low, and skill points wait for a group
+@1000 conn#4 sends LearnSkillGroup vid=3
+   -> send conn#4 Chat kind=1 vid=0 "You can choose your skills from level 5."
+@1000 conn#4 sends RaiseSkill 1
+   -> send conn#4 Chat kind=1 vid=0 "Choose a skill group first: talk to a teacher of your class."
+-- a game master's /level 5: the reminder after the level
+@1000 conn#4 sends SendChat kind=0 "/level 5"
+   -> send conn#4 PointsChanged 1=5 4=5500 5=940 6=940 7=480 8=480 16=8 18=22 20=8 26=12 28=4
+   -> send conn#4 EntityEffect kind=2 vid=6
+   -> send conn#4 EntityInfo vid=6 Alice empire=1 level=5
+   -> send conn#4 Chat kind=1 vid=0 "Level 5."
+   -> send conn#4 Chat kind=1 vid=0 "You can choose your skills now: talk to a teacher of your class."
+   -> event: conn#4: game master account 1 on character 1: /level 5
+-- past it, no reminder again
+@1000 conn#4 sends SendChat kind=0 "/level 6"
+   -> send conn#4 PointsChanged 1=6 4=7800 5=976 6=976 7=524 8=524 16=9 18=24 20=9 26=15 28=5
+   -> send conn#4 EntityEffect kind=2 vid=6
+   -> send conn#4 EntityInfo vid=6 Alice empire=1 level=6
+   -> send conn#4 Chat kind=1 vid=0 "Level 6."
+   -> event: conn#4: game master account 1 on character 1: /level 6
+-- a game master still has /skillgroup
+@1000 conn#4 sends SendChat kind=0 "/skillgroup 2"
+   -> send conn#4 SkillGroup 2
+   -> event: conn#4: character 1 chose skill group 2

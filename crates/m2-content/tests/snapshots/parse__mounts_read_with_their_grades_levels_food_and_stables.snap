@@ -1,0 +1,43 @@
+---
+source: crates/m2-content/tests/parse.rs
+expression: text
+---
+format = 1
+
+[mount]
+summon = 2101
+drain = 2
+rest = 5
+
+[[grade]]
+grade = 1
+look = 1005
+
+[[grade]]
+grade = 2
+look = 1007
+fights = true
+skills = true
+
+[[level]]
+level = 1
+grade = 1
+move_speed = 180
+stamina = 60
+
+[[level]]
+level = 2
+grade = 2
+move_speed = 220
+stamina = 90
+rider_level = 10
+gold = 500
+items = [{ item = 2102, count = 3 }]
+skill_points = 2
+
+[[feed]]
+item = 2102
+stamina = 40
+
+[[stable]]
+npc = 1006

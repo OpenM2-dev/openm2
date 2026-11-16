@@ -1,0 +1,36 @@
+---
+source: crates/m2-server-core/tests/training.rs
+expression: h.log
+---
+-- the scroll that helps, kept over a logout; then a book
+@1000 conn#4 sends UseItem 1:1
+   -> send conn#4 ItemSet 1:1 empty
+   -> send conn#4 Chat kind=1 vid=0 "Your next training is 25% more likely to work."
+@1000 conn#4 closed: the client left
+   -> store #8: save #1 at (475000, 966100) played 0s items=[0:3001x3] group=1 skills=[1=20] read_bonus=25
+   -> event: conn#4: closed: the client left
+@1000 store answers #8: saved: Ok(())
+@1000 conn#6 sends UseItem 1:0
+   -> send conn#6 ItemSet 1:0 3001x2
+   -> event: conn#6: character 1 trained skill 1 with item 3001: learned, level 21
+   -> send conn#6 Chat kind=1 vid=0 "The book taught you: Wide Swing is M2 now."
+   -> send conn#6 Skills 1=21 grade 1 next at +3601s
+@1000 conn#6 closed: the client left
+   -> store #12: save #1 at (475000, 966100) played 0s items=[0:3001x2] group=1 skills=[1=21@+3601s]
+   -> event: conn#6: closed: the client left
+@1000 store answers #12: saved: Ok(())
+-- half an hour later, after a restart: the wait goes on
+-- restarted, time 0 at the epoch +1800s
+@1000 conn#8 sends UseItem 1:0
+   -> send conn#8 Chat kind=1 vid=0 "You can read about this skill again in 30 min."
+@1000 conn#8 closed: the client left
+   -> store #4: save #1 at (475000, 966100) played 0s items=[0:3001x2] group=1 skills=[1=21@+3601s]
+   -> event: conn#8: closed: the client left
+@1000 store answers #4: saved: Ok(())
+-- an hour after the read: it may read again
+-- restarted, time 0 at the epoch +3600s
+@1000 conn#10 sends UseItem 1:0
+   -> send conn#10 ItemSet 1:0 3001x1
+   -> event: conn#10: character 1 trained skill 1 with item 3001: learned, level 22
+   -> send conn#10 Chat kind=1 vid=0 "The book taught you: Wide Swing is M3 now."
+   -> send conn#10 Skills 1=22 grade 1 next at +7201s

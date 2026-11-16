@@ -1,0 +1,6 @@
+# Parser and state-machine crates deny unwrap/expect/indexing/panic in their lib.rs.
+# Tests may use them freely.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-indexing-slicing-in-tests = true
+allow-panic-in-tests = true

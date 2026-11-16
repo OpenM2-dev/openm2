@@ -1,0 +1,4 @@
+# An empty world: what compose.yaml mounts when OPENM2_CONTENT_DIR is not set
+# (docs/server.md, "Content").
+format = 1
+name = "empty"

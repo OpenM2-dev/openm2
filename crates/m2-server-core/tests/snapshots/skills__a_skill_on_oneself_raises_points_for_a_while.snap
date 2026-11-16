@@ -1,0 +1,111 @@
+---
+source: crates/m2-server-core/tests/skills.rs
+expression: h.log
+---
+-- the quick step: faster attacks and steps, which bob sees
+@1000 conn#4 sends UseSkill 3 target=None
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=166/112
+   -> send conn#8 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=166/112
+   -> send conn#4 PointsChanged 7=449 17=112 19=166
+   -> send conn#4 Affects 3:1=12 60s, 3:2=11 30s
+   -> send conn#4 EntitySkills vid=4 skills=[3]
+   -> send conn#8 EntitySkills vid=4 skills=[3]
+-- the hard skin: more defence and attack grade
+@1000 conn#4 sends UseSkill 4 target=None
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=166/112
+   -> send conn#8 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=166/112
+   -> send conn#4 PointsChanged 7=429 16=60 18=42 20=60
+   -> send conn#4 Affects 3:1=12 60s, 3:2=11 30s, 4:4=52 20s, 4:3=20 20s
+   -> send conn#4 EntitySkills vid=4 skills=[3, 4]
+   -> send conn#8 EntitySkills vid=4 skills=[3, 4]
+-- the hard skin ends after 20 s, the faster steps after 30, the faster attacks after 60
+@6000 conn#4 sends Pong
+@6000 conn#8 sends Pong
+@6000 tick
+   -> send conn#4 Ping
+   -> send conn#8 Ping
+   -> send conn#4 PointsChanged 7=468
+@11000 conn#4 sends Pong
+@11000 conn#8 sends Pong
+@11000 tick
+   -> send conn#4 Ping
+   -> send conn#8 Ping
+   -> send conn#4 PointsChanged 7=480
+@16000 conn#4 sends Pong
+@16000 conn#8 sends Pong
+@16000 tick
+   -> send conn#4 Ping
+   -> send conn#8 Ping
+   -> send conn#4 EntityMove kind=1 vid=3 (475001, 966299) angle=10 duration=277
+   -> send conn#8 EntityMove kind=1 vid=3 (475001, 966299) angle=10 duration=277
+@21000 conn#4 sends Pong
+@21000 conn#8 sends Pong
+@21000 tick
+   -> send conn#4 Ping
+   -> send conn#8 Ping
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=166/112
+   -> send conn#8 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=166/112
+   -> send conn#4 PointsChanged 16=8 18=22 20=8
+   -> send conn#4 Affects 3:1=12 40s, 3:2=11 10s
+   -> send conn#4 EntitySkills vid=4 skills=[3]
+   -> send conn#8 EntitySkills vid=4 skills=[3]
+   -> send conn#4 EntityMove kind=1 vid=2 (474998, 966299) angle=15 duration=280
+   -> send conn#8 EntityMove kind=1 vid=2 (474998, 966299) angle=15 duration=280
+   -> send conn#4 EntityMove kind=1 vid=1 (474999, 966303) angle=230 duration=205
+   -> send conn#8 EntityMove kind=1 vid=1 (474999, 966303) angle=230 duration=205
+@26000 conn#4 sends Pong
+@26000 conn#8 sends Pong
+@26000 tick
+   -> send conn#4 Ping
+   -> send conn#8 Ping
+@31000 conn#4 sends Pong
+@31000 conn#8 sends Pong
+@31000 tick
+   -> send conn#4 Ping
+   -> send conn#8 Ping
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/112
+   -> send conn#8 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/112
+   -> send conn#4 PointsChanged 19=150
+   -> send conn#4 Affects 3:1=12 30s
+@36000 conn#4 sends Pong
+@36000 conn#8 sends Pong
+@36000 tick
+   -> send conn#4 Ping
+   -> send conn#8 Ping
+   -> send conn#4 EntityMove kind=1 vid=2 (474999, 966299) angle=65 duration=2
+   -> send conn#8 EntityMove kind=1 vid=2 (474999, 966299) angle=65 duration=2
+   -> send conn#4 EntityMove kind=1 vid=1 (475000, 966301) angle=160 duration=4
+   -> send conn#8 EntityMove kind=1 vid=1 (475000, 966301) angle=160 duration=4
+@41000 conn#4 sends Pong
+@41000 conn#8 sends Pong
+@41000 tick
+   -> send conn#4 Ping
+   -> send conn#8 Ping
+@46000 conn#4 sends Pong
+@46000 conn#8 sends Pong
+@46000 tick
+   -> send conn#4 Ping
+   -> send conn#8 Ping
+@51000 conn#4 sends Pong
+@51000 conn#8 sends Pong
+@51000 tick
+   -> send conn#4 Ping
+   -> send conn#8 Ping
+@56000 conn#4 sends Pong
+@56000 conn#8 sends Pong
+@56000 tick
+   -> send conn#4 Ping
+   -> send conn#8 Ping
+   -> send conn#4 EntityMove kind=1 vid=1 (475000, 966300) angle=180 duration=2
+   -> send conn#8 EntityMove kind=1 vid=1 (475000, 966300) angle=180 duration=2
+@61000 conn#4 sends Pong
+@61000 conn#8 sends Pong
+@61000 tick
+   -> send conn#4 Ping
+   -> send conn#8 Ping
+   -> send conn#4 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#8 EntityUpdate vid=4 parts=[0, 0, 0, 0] speed=150/100
+   -> send conn#4 PointsChanged 17=100
+   -> send conn#4 Affects
+   -> send conn#4 EntitySkills vid=4 skills=[]
+   -> send conn#8 EntitySkills vid=4 skills=[]

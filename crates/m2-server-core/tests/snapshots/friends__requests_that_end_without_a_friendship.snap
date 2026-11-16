@@ -1,0 +1,45 @@
+---
+source: crates/m2-server-core/tests/friends.rs
+expression: h.log
+---
+-- Bob declines Alice
+@1000 conn#2 sends AskFriend Bob
+   -> send conn#4 FriendAsked Alice
+   -> send conn#2 FriendNotice Bob notice=1
+@1000 conn#4 sends AnswerFriend Alice accept=false
+   -> send conn#2 FriendNotice Bob notice=7
+-- Alice asks again, twice: Bob is asked once; the request expires after a minute
+@1000 conn#2 sends AskFriend Bob
+   -> send conn#4 FriendAsked Alice
+   -> send conn#2 FriendNotice Bob notice=1
+@1000 conn#2 sends AskFriend Bob
+   -> send conn#2 FriendNotice Bob notice=1
+@61000 tick
+   -> send conn#2 Ping
+   -> send conn#4 Ping
+   -> send conn#6 Ping
+   -> send conn#2 FriendNotice Bob notice=8
+   -> send conn#4 FriendNotice Alice notice=9
+-- an answer to a request that ended, and to one never made
+@61000 conn#4 sends AnswerFriend Alice accept=true
+   -> send conn#4 FriendNotice Alice notice=9
+@61000 conn#4 sends AnswerFriend Carol accept=true
+   -> send conn#4 FriendNotice Carol notice=9
+-- Carol asks Bob and leaves before he answers
+@61000 conn#6 sends AskFriend Bob
+   -> send conn#4 FriendAsked Carol
+   -> send conn#6 FriendNotice Bob notice=1
+@61000 conn#6 closed: the client left
+   -> store #13: save #3 at (963400, 278200) played 60s
+   -> send conn#4 FriendNotice Carol notice=9
+   -> send conn#2 EntityRemove vid=3
+   -> send conn#4 EntityRemove vid=3
+   -> event: conn#6: closed: the client left
+@61000 store answers #13: saved: Ok(())
+-- nobody of that name in the game; our own name and no name are ignored
+@61000 conn#2 sends AskFriend Carol
+   -> send conn#2 FriendNotice Carol notice=2
+@61000 conn#2 sends AskFriend alice
+   -> event: conn#2: ignored AskFriend
+@61000 conn#2 sends AskFriend B-o-b
+   -> event: conn#2: ignored AskFriend

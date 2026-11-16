@@ -1,0 +1,53 @@
+---
+source: crates/m2-server-core/tests/combat.rs
+expression: h.log
+---
+-- Alice logs in again before her save lands: her characters wait for it
+@3400 conn#3 accepted on auth from 10.0.0.1
+   -> event: conn#3: accepted on auth
+@3400 conn#3 sends Hello protocol=3 "openm2 test"
+   -> event: conn#3: openm2 test speaks protocol 3
+   -> send conn#3 Welcome protocol=3
+@3400 conn#3 sends StartSignIn
+   -> send conn#3 SignInOptions [example] nonce="03d78a3f20d154abd8ddfa6974eedf6b"
+@3400 conn#3 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #6: example http://127.0.0.1:50000/callback nonce=03d78a3f20d154abd8ddfa6974eedf6b
+@3400 sign-in #6 checked: https://id.example alice
+   -> store #7: identity login example https://id.example alice
+@3400 store answers #7: login ok, account 1 Some(1)
+   -> event: conn#3: account 1 signed in with example
+   -> send conn#3 SignedIn example:alice 3784… (32 bytes)
+@3400 conn#3 closed: the client left
+   -> event: conn#3: closed: the client left
+@3400 conn#4 accepted on game from 10.0.0.1
+   -> event: conn#4: accepted on game
+@3400 conn#4 sends Hello protocol=3 "openm2 test"
+   -> event: conn#4: openm2 test speaks protocol 3
+   -> send conn#4 Welcome protocol=3
+@3400 conn#4 sends TicketLogin example:alice 3784… (32 bytes)
+   -> event: conn#4: account 1 joined the game server
+-- the save lands
+@3400 store answers #5: saved: Ok(())
+   -> store #8: load characters of 1
+@3400 store answers #8: characters [0:Hero]
+   -> send conn#4 Empire 1
+   -> send conn#4 Phase 1
+   -> send conn#4 CharacterList [0: #1 Hero lv1]
+@3400 conn#4 sends SelectCharacter 0
+   -> send conn#4 Phase 2
+   -> send conn#4 MainCharacter vid=8 Hero class=0 (475000, 966800) empire=1 group=0 run=450
+   -> send conn#4 Points 1=1 3=100 4=300 5=796 6=796 7=304 8=304 12=6 13=4 14=3 15=3 16=4 17=100 18=14 19=150 20=4 27=1
+@3400 conn#4 sends EnterGame
+   -> send conn#4 Phase 3
+   -> send conn#4 GameTime 3400
+   -> send conn#4 Channel 1
+   -> send conn#4 EntitySpawn vid=8 (475000, 966800) kind=6 race=0 angle=0 speed=150/100
+   -> send conn#4 EntityInfo vid=8 Hero empire=1 level=1
+   -> send conn#4 Skills
+   -> event: conn#4: character 1 entered as vid 8
+   -> send conn#4 EntitySpawn vid=2 (477000, 966100) kind=0 race=1001 angle=195 speed=100/100
+   -> send conn#4 EntitySpawn vid=3 (477000, 966100) kind=0 race=1001 angle=125 speed=100/100
+   -> send conn#4 EntitySpawn vid=4 (475000, 972000) kind=0 race=1003 angle=5 speed=100/100
+   -> send conn#4 EntitySpawn vid=5 (473000, 966100) kind=2 race=1004 angle=295 speed=100/100
+   -> send conn#4 EntitySpawn vid=6 (474000, 966100) kind=1 race=1002 angle=0 speed=100/100
+   -> send conn#4 EntityInfo vid=6 Keeper Ilsa empire=0 level=0

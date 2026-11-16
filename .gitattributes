@@ -1,0 +1,11 @@
+# The repo is edited on Windows and built on Linux CI: keep everything LF.
+* text=auto eol=lf
+
+# Snapshots and generated files are compared byte for byte.
+*.snap text eol=lf
+**/generated.rs text eol=lf linguist-generated=true
+docs/specs/protocol/*/messages.md text eol=lf linguist-generated=true
+
+# Binary fixtures (byte transcripts, synthetic archives) and images.
+fixtures/**/*.bin binary
+*.png binary

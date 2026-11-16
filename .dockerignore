@@ -1,0 +1,12 @@
+# Only the sources go into the image's build.
+target/
+local/
+client/
+.git/
+.github/
+.claude/
+docs/
+*.m2cap
+keys.toml
+.env
+.env.*

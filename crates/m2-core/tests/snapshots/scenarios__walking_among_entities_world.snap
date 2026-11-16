@@ -1,0 +1,145 @@
+---
+source: crates/m2-core/tests/scenarios.rs
+expression: s.session.world()
+---
+World {
+    empire: Some(
+        Chunjo,
+    ),
+    characters: [
+        CharacterSummary {
+            slot: 0,
+            id: 1,
+            name: "Alice",
+            class: 3,
+            level: 10,
+            playtime: 0,
+            st: 0,
+            ht: 0,
+            dx: 0,
+            iq: 0,
+            body_part: 0,
+            hair_part: 0,
+            guild: "",
+        },
+    ],
+    selected: Some(
+        0,
+    ),
+    me: Some(
+        Me {
+            vid: 4660,
+            name: "Alice",
+            class: 3,
+            empire: Chunjo,
+            position: (
+                958400,
+                272800,
+                0,
+            ),
+        },
+    ),
+    channel: None,
+    clock: Some(
+        ServerClock {
+            time: 10000,
+            received: Millis(
+                131,
+            ),
+        },
+    ),
+    entities: {
+        4660: Entity {
+            vid: 4660,
+            kind: Player,
+            race: 3,
+            track: Track {
+                from: Point {
+                    x: 960000,
+                    y: 280000,
+                },
+                to: Point {
+                    x: 960000,
+                    y: 280000,
+                },
+                start: Millis(
+                    6100,
+                ),
+                duration: 0,
+            },
+            angle: 90,
+            z: 0,
+            action: Wait,
+            argument: 0,
+            move_speed: 150,
+            attack_speed: 100,
+            state: 0,
+            affects: 0,
+            parts: [
+                11209,
+                0,
+                0,
+                2,
+            ],
+            dead: false,
+            health: None,
+            info: Some(
+                EntityInfo {
+                    name: "Alice",
+                    empire: Chunjo,
+                    level: 10,
+                    guild: 0,
+                },
+            ),
+            mount: 0,
+            skills: [],
+            line: None,
+        },
+    },
+    target: None,
+    points: {
+        1: 10,
+        11: 4000,
+        28: 1,
+    },
+    items: {
+        (
+            Inventory,
+            3,
+        ): Item {
+            vnum: 27001,
+            count: 5,
+            flags: 0,
+            anti_flags: 0,
+            sockets: [
+                0,
+                0,
+                0,
+            ],
+            bonuses: [
+                (
+                    7,
+                    15,
+                ),
+            ],
+        },
+    },
+    quickslots: {},
+    ground: {},
+    shop: None,
+    teacher: None,
+    skill_choice: None,
+    stable: None,
+    upgrade: None,
+    mount: None,
+    affects: [],
+    item_boosts: [],
+    skill_group: 0,
+    run_speed: 450,
+    skills: {},
+    chat: [],
+    whispers: [],
+    friends: {},
+    friend_requests: [],
+    path: None,
+}

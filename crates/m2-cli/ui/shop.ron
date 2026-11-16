@@ -1,0 +1,40 @@
+// An NPC's shop in `openm2 play`, and the question before buying or selling.
+// Skins are in skin.ron; the format is in docs/specs/ui.md ("The shop"). The
+// ids are what `play` fills in (crates/m2-cli/src/interface.rs, `ids`).
+(
+    windows: [
+        (
+            // Left of the inventory, which opens with it.
+            id: "shop",
+            anchor: Right,
+            pos: (192, -132),
+            size: (176, 312),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (pos: (8, 8), size: (Fill(8), 32), kind: Panel(skin: "title_bar"), children: [
+                    // stops short of the X; long NPC names in a smaller size
+                    (id: "shop.title", pos: (6, 0), size: (Fill(18), 21), kind: Text(text: "Shop", align: Center, size: 11)),
+                    // over the X drawn in the bar's right end
+                    (id: "shop.close", anchor: TopRight, pos: (3, 2), size: (15, 15), kind: Button(skin: "close", text: "")),
+                ]),
+                // The shop's 40 places, 5 wide and 8 high.
+                (id: "shop.goods", anchor: Top, pos: (0, 44), size: (160, 256), kind: Slots(skin: "slot", columns: 5, rows: 8)),
+            ],
+        ),
+        (
+            // Before buying from the shop or selling to it.
+            id: "trade",
+            anchor: Center,
+            pos: (0, -140),
+            size: (320, 88),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (id: "trade.text", anchor: Top, pos: (0, 16), size: (Fill(14), 18), kind: Text(text: "", align: Center)),
+                (id: "trade.yes", anchor: Bottom, pos: (-50, 16), size: (88, 21), kind: Button(skin: "large_button", text: "Buy")),
+                (id: "trade.no", anchor: Bottom, pos: (50, 16), size: (88, 21), kind: Button(skin: "large_button", text: "Cancel")),
+            ],
+        ),
+    ],
+)

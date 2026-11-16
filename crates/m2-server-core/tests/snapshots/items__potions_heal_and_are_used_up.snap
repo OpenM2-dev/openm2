@@ -1,0 +1,14 @@
+---
+source: crates/m2-server-core/tests/items.rs
+expression: h.log
+---
+@1000 conn#4 sends UseItem 1:0
+   -> send conn#4 ItemSet 1:0 3004x1
+   -> send conn#4 PointsChanged 5=150
+   -> send conn#4 EntityEffect kind=0 vid=2
+@1000 conn#4 sends UseItem 1:0
+   -> send conn#4 ItemSet 1:0 empty
+   -> send conn#4 PointsChanged 5=250
+   -> send conn#4 EntityEffect kind=0 vid=2
+-- nothing left
+@1000 conn#4 sends UseItem 1:0

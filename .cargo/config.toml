@@ -1,0 +1,6 @@
+[alias]
+xtask = "run --quiet --package xtask --"
+
+# The LLVM linker ships with the toolchain and links much faster than link.exe.
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld.exe"

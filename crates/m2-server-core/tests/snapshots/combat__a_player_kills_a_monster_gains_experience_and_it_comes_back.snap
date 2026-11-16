@@ -1,0 +1,49 @@
+---
+source: crates/m2-server-core/tests/combat.rs
+expression: h.log
+---
+@1000 conn#2 sends EnterGame
+   -> send conn#2 Phase 3
+   -> send conn#2 GameTime 1000
+   -> send conn#2 Channel 1
+   -> send conn#2 EntitySpawn vid=7 (475000, 966100) kind=6 race=0 angle=0 speed=150/100
+   -> send conn#2 EntityInfo vid=7 Hero empire=1 level=1
+   -> send conn#2 Skills
+   -> event: conn#2: character 1 entered as vid 7
+   -> send conn#2 EntitySpawn vid=1 (475000, 967000) kind=0 race=1001 angle=75 speed=100/100
+   -> send conn#2 EntitySpawn vid=2 (477000, 966100) kind=0 race=1001 angle=195 speed=100/100
+   -> send conn#2 EntitySpawn vid=3 (477000, 966100) kind=0 race=1001 angle=125 speed=100/100
+   -> send conn#2 EntitySpawn vid=4 (475000, 972000) kind=0 race=1003 angle=5 speed=100/100
+   -> send conn#2 EntitySpawn vid=5 (473000, 966100) kind=2 race=1004 angle=295 speed=100/100
+   -> send conn#2 EntitySpawn vid=6 (474000, 966100) kind=1 race=1002 angle=0 speed=100/100
+   -> send conn#2 EntityInfo vid=6 Keeper Ilsa empire=0 level=0
+-- Alice looks at the hopper and walks up to it
+@1000 conn#2 sends SetTarget vid=1
+   -> send conn#2 TargetHealth vid=1 100%
+@1000 conn#2 sends CharacterMove kind=1 (475000, 966800)
+-- she hits it until it dies
+@3000 conn#2 sends Hit vid=1 skill=0
+   -> send conn#2 Damage vid=1 flags=1 amount=24
+   -> send conn#2 TargetHealth vid=1 60%
+@3200 conn#2 sends Hit vid=1 skill=0
+   -> send conn#2 Damage vid=1 flags=1 amount=20
+   -> send conn#2 TargetHealth vid=1 26%
+@3400 conn#2 sends Hit vid=1 skill=0
+   -> send conn#2 Damage vid=1 flags=1 amount=17
+   -> send conn#2 TargetHealth vid=1 0%
+   -> send conn#2 EntityDied vid=1
+   -> send conn#2 PointsChanged 3=100
+   -> send conn#2 Flight kind=0 from=1 to=7
+-- a corpse takes no hits
+@3600 conn#2 sends Hit vid=1 skill=0
+-- it is removed 5 s after it died, and comes back 10 s later
+@6000 tick
+   -> send conn#2 Ping
+@8400 tick
+   -> send conn#2 EntityRemove vid=1
+@11000 tick
+   -> send conn#2 Ping
+@16000 tick
+   -> send conn#2 Ping
+@18400 tick
+   -> send conn#2 EntitySpawn vid=1 (475000, 967000) kind=0 race=1001 angle=40 speed=100/100

@@ -1,0 +1,142 @@
+---
+source: crates/m2-server-core/tests/items.rs
+expression: h.log
+---
+@1000 conn#1 accepted on auth from 10.0.0.1
+   -> event: conn#1: accepted on auth
+@1000 conn#1 sends Hello protocol=3 "openm2 test"
+   -> event: conn#1: openm2 test speaks protocol 3
+   -> send conn#1 Welcome protocol=3
+@1000 conn#1 sends StartSignIn
+   -> send conn#1 SignInOptions [example] nonce="f400927857aaf64114f561baacb37970"
+@1000 conn#1 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #1: example http://127.0.0.1:50000/callback nonce=f400927857aaf64114f561baacb37970
+@1000 sign-in #1 checked: https://id.example alice
+   -> store #2: identity login example https://id.example alice
+@1000 store answers #2: login ok, account 1 None
+   -> event: conn#1: account 1 signed in with example
+   -> send conn#1 SignedIn example:alice 8c79… (32 bytes)
+@1000 conn#1 closed: the client left
+   -> event: conn#1: closed: the client left
+@1000 conn#2 accepted on game from 10.0.0.1
+   -> event: conn#2: accepted on game
+@1000 conn#2 sends Hello protocol=3 "openm2 test"
+   -> event: conn#2: openm2 test speaks protocol 3
+   -> send conn#2 Welcome protocol=3
+@1000 conn#2 sends TicketLogin example:alice 8c79… (32 bytes)
+   -> event: conn#2: account 1 joined the game server
+   -> store #3: load characters of 1
+@1000 store answers #3: characters []
+   -> send conn#2 Empire 0
+   -> send conn#2 Phase 1
+   -> send conn#2 CharacterList []
+@1000 conn#2 sends CreateCharacter slot=0 Alice class=0 empire=1
+   -> store #4: create Alice for 1 in slot 0 at (475000, 966100) empire 1 gold=500 items=[0:3004x5 1:3006x1 2:3002x1 3:3008x1 90:3003x1 94:3001x1]
+@1000 store answers #4: created #1 Alice in slot 0
+   -> event: conn#2: character 1 created
+   -> send conn#2 CharacterCreated slot=0 #1 Alice class=0 st=6 ht=4 dx=3 iq=3
+-- a warrior wears the blade and the coat; the rest goes in the bag
+@1000 conn#2 sends SelectCharacter 0
+   -> send conn#2 Phase 2
+   -> send conn#2 MainCharacter vid=2 Alice class=0 (475000, 966100) empire=1 group=0 run=450
+   -> send conn#2 Points 1=1 4=300 5=796 6=796 7=304 8=304 11=500 12=6 13=4 14=3 15=3 16=14 17=110 18=14 19=165 20=14 27=1
+@1000 conn#2 sends EnterGame
+   -> send conn#2 Phase 3
+   -> send conn#2 GameTime 1000
+   -> send conn#2 Channel 1
+   -> send conn#2 EntitySpawn vid=2 (475000, 966100) kind=6 race=0 angle=0 speed=165/110
+   -> send conn#2 EntityInfo vid=2 Alice empire=1 level=1 parts=[3003, 3001, 0, 0]
+   -> send conn#2 ItemSet 1:0 3004x5
+   -> send conn#2 ItemSet 1:1 3006x1
+   -> send conn#2 ItemSet 1:2 3002x1
+   -> send conn#2 ItemSet 1:3 3008x1
+   -> send conn#2 ItemSet 1:90 3003x1
+   -> send conn#2 ItemSet 1:94 3001x1
+   -> send conn#2 Skills
+   -> event: conn#2: character 1 entered as vid 2
+   -> send conn#2 EntitySpawn vid=1 (475000, 967000) kind=0 race=1001 angle=75 speed=100/100
+-- the character list shows the coat
+@1000 conn#2 closed: the client left
+   -> store #5: save #1 at (475000, 966100) played 0s gold=500 items=[0:3004x5 1:3006x1 2:3002x1 3:3008x1 90:3003x1 94:3001x1]
+   -> event: conn#2: closed: the client left
+@1000 store answers #5: saved: Ok(())
+@1000 conn#3 accepted on auth from 10.0.0.1
+   -> event: conn#3: accepted on auth
+@1000 conn#3 sends Hello protocol=3 "openm2 test"
+   -> event: conn#3: openm2 test speaks protocol 3
+   -> send conn#3 Welcome protocol=3
+@1000 conn#3 sends StartSignIn
+   -> send conn#3 SignInOptions [example] nonce="03d78a3f20d154abd8ddfa6974eedf6b"
+@1000 conn#3 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #6: example http://127.0.0.1:50000/callback nonce=03d78a3f20d154abd8ddfa6974eedf6b
+@1000 sign-in #6 checked: https://id.example alice
+   -> store #7: identity login example https://id.example alice
+@1000 store answers #7: login ok, account 1 Some(1)
+   -> event: conn#3: account 1 signed in with example
+   -> send conn#3 SignedIn example:alice 3784… (32 bytes)
+@1000 conn#3 closed: the client left
+   -> event: conn#3: closed: the client left
+@1000 conn#4 accepted on game from 10.0.0.1
+   -> event: conn#4: accepted on game
+@1000 conn#4 sends Hello protocol=3 "openm2 test"
+   -> event: conn#4: openm2 test speaks protocol 3
+   -> send conn#4 Welcome protocol=3
+@1000 conn#4 sends TicketLogin example:alice 3784… (32 bytes)
+   -> event: conn#4: account 1 joined the game server
+   -> store #8: load characters of 1
+@1000 store answers #8: characters [0:Alice]
+   -> send conn#4 Empire 1
+   -> send conn#4 Phase 1
+   -> send conn#4 CharacterList [0: #1 Alice lv1 body=3003]
+-- a shaman gets no blade and may not wear the coat
+@1000 conn#5 accepted on auth from 10.0.0.1
+   -> event: conn#5: accepted on auth
+@1000 conn#5 sends Hello protocol=3 "openm2 test"
+   -> event: conn#5: openm2 test speaks protocol 3
+   -> send conn#5 Welcome protocol=3
+@1000 conn#5 sends StartSignIn
+   -> send conn#5 SignInOptions [example] nonce="de0ea89a53f1ecf3f3d0a462fb77d2ba"
+@1000 conn#5 sends ProviderLogin example http://127.0.0.1:50000/callback
+   -> check sign-in #9: example http://127.0.0.1:50000/callback nonce=de0ea89a53f1ecf3f3d0a462fb77d2ba
+@1000 sign-in #9 checked: https://id.example bob
+   -> store #10: identity login example https://id.example bob
+@1000 store answers #10: login ok, account 2 None
+   -> event: conn#5: account 2 signed in with example
+   -> send conn#5 SignedIn example:bob f5e0… (32 bytes)
+@1000 conn#5 closed: the client left
+   -> event: conn#5: closed: the client left
+@1000 conn#6 accepted on game from 10.0.0.1
+   -> event: conn#6: accepted on game
+@1000 conn#6 sends Hello protocol=3 "openm2 test"
+   -> event: conn#6: openm2 test speaks protocol 3
+   -> send conn#6 Welcome protocol=3
+@1000 conn#6 sends TicketLogin example:bob f5e0… (32 bytes)
+   -> event: conn#6: account 2 joined the game server
+   -> store #11: load characters of 2
+@1000 store answers #11: characters []
+   -> send conn#6 Empire 0
+   -> send conn#6 Phase 1
+   -> send conn#6 CharacterList []
+@1000 conn#6 sends CreateCharacter slot=0 Bob class=3 empire=1
+   -> store #12: create Bob for 2 in slot 0 at (475000, 966100) empire 1 gold=500 items=[0:3003x1 1:3004x5 2:3006x1 3:3002x1 4:3008x1]
+@1000 store answers #12: created #2 Bob in slot 0
+   -> event: conn#6: character 2 created
+   -> send conn#6 CharacterCreated slot=0 #2 Bob class=3 st=3 ht=4 dx=3 iq=6
+@1000 conn#6 sends SelectCharacter 0
+   -> send conn#6 Phase 2
+   -> send conn#6 MainCharacter vid=3 Bob class=3 (475000, 966100) empire=1 group=0 run=450
+   -> send conn#6 Points 1=1 4=300 5=896 6=896 7=364 8=364 11=500 12=3 13=4 14=3 15=6 16=4 17=100 18=8 19=150 20=4 27=1
+@1000 conn#6 sends EnterGame
+   -> send conn#6 Phase 3
+   -> send conn#6 GameTime 1000
+   -> send conn#6 Channel 1
+   -> send conn#6 EntitySpawn vid=3 (475000, 966100) kind=6 race=3 angle=0 speed=150/100
+   -> send conn#6 EntityInfo vid=3 Bob empire=1 level=1
+   -> send conn#6 ItemSet 1:0 3003x1
+   -> send conn#6 ItemSet 1:1 3004x5
+   -> send conn#6 ItemSet 1:2 3006x1
+   -> send conn#6 ItemSet 1:3 3002x1
+   -> send conn#6 ItemSet 1:4 3008x1
+   -> send conn#6 Skills
+   -> event: conn#6: character 2 entered as vid 3
+   -> send conn#6 EntitySpawn vid=1 (475000, 967000) kind=0 race=1001 angle=75 speed=100/100

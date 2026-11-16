@@ -1,0 +1,37 @@
+---
+source: crates/m2-server-core/tests/upgrades.rs
+expression: h.log
+---
+-- talking to the smith: how he upgrades
+@1000 conn#4 sends Talk vid=1
+   -> send conn#4 Chat kind=1 vid=0 "Drag an item from your bag onto the smith to upgrade it."
+-- the blade dropped onto him: +1 for 100 gold, sure; a failure would break it
+@1000 conn#4 sends GiveItem vid=1 0
+   -> send conn#4 UpgradeOffer smith=Some(1) scroll=None 0: 2301 -> 2302 gold 100 items [] chance 100 on_fail 0
+-- the upgrade: 100 gold, the blade is +1 in its place
+@1000 conn#4 sends Upgrade smith=Some(1) scroll=None 0 vnum=2301
+   -> event: conn#4: character 1 upgraded item 2301: worked, item 2302 now
+   -> send conn#4 PointsChanged 11=900
+   -> send conn#4 ItemSet 1:0 2302x1
+   -> send conn#4 Chat kind=1 vid=0 "The upgrade worked: Pale Blade+1."
+-- ignored: the offer's item is not there any more
+@1000 conn#4 sends Upgrade smith=Some(1) scroll=None 0 vnum=2301
+-- +2 takes 200 gold and 2 grey grit, at 1 in 100
+@1000 conn#4 sends GiveItem vid=1 0
+   -> send conn#4 UpgradeOffer smith=Some(1) scroll=None 0: 2302 -> 2303 gold 200 items [2311x2] chance 1 on_fail 0
+-- it fails: the gold and the grit are gone, and so is the blade
+@1000 conn#4 sends Upgrade smith=Some(1) scroll=None 0 vnum=2302
+   -> event: conn#4: character 1 upgraded item 2302: failed, it broke
+   -> send conn#4 PointsChanged 11=700
+   -> send conn#4 ItemSet 1:0 empty
+   -> send conn#4 ItemSet 1:2 2311x1
+   -> send conn#4 Chat kind=1 vid=0 "The upgrade failed, and the Pale Blade+1 broke."
+-- the keeper upgrades nothing; the far smith is out of reach (ignored)
+@1000 conn#4 sends GiveItem vid=2 1
+   -> send conn#4 Chat kind=1 vid=0 "Only a smith upgrades items."
+@1000 conn#4 sends GiveItem vid=3 1
+-- the bag is saved with the character
+@1000 conn#4 closed: the client left
+   -> store #8: save #1 at (475000, 966100) played 0s gold=700 items=[1:2305x1 2:2311x1]
+   -> event: conn#4: closed: the client left
+@1000 store answers #8: saved: Ok(())

@@ -1,0 +1,42 @@
+---
+source: crates/m2-server-core/tests/game_masters.rs
+expression: h.log
+---
+-- everyone sees their own account
+@1000 conn#8 sends SendChat kind=0 "/account"
+   -> send conn#8 Chat kind=1 vid=0 "Your account: example:bob"
+-- bob is no game master: the commands are unknown to him
+@1000 conn#8 sends SendChat kind=0 "/level 30"
+   -> send conn#8 Chat kind=1 vid=0 "Unknown command level"
+@1000 conn#8 sends SendChat kind=0 "/gold 100"
+   -> send conn#8 Chat kind=1 vid=0 "Unknown command gold"
+-- alice is: her health, her level (bob sees it), gold and items
+@1000 conn#4 sends SendChat kind=0 "/heal"
+   -> send conn#4 PointsChanged 5=796
+   -> send conn#4 Chat kind=1 vid=0 "Healed."
+   -> event: conn#4: game master account 1 on character 1: /heal
+@1000 conn#4 sends SendChat kind=0 "/level 30"
+   -> send conn#4 PointsChanged 1=30 4=183000 5=1840 6=1840 7=1580 8=1580 16=33 18=72 20=33 26=87 28=29
+   -> send conn#4 EntityEffect kind=2 vid=1
+   -> send conn#8 EntityEffect kind=2 vid=1
+   -> send conn#4 EntityInfo vid=1 Alice empire=1 level=30
+   -> send conn#8 EntityInfo vid=1 Alice empire=1 level=30
+   -> send conn#4 Chat kind=1 vid=0 "Level 30."
+   -> send conn#4 Chat kind=1 vid=0 "You can choose your skills now: /skillgroup 1 or 2"
+   -> event: conn#4: game master account 1 on character 1: /level 30
+@1000 conn#4 sends SendChat kind=0 "/gold 5000"
+   -> send conn#4 PointsChanged 11=5000
+   -> send conn#4 Chat kind=1 vid=0 "5000 gold."
+   -> event: conn#4: game master account 1 on character 1: /gold 5000
+@1000 conn#4 sends SendChat kind=0 "/item 3004 200"
+   -> send conn#4 ItemSet 1:0 3004x200
+   -> send conn#4 Chat kind=1 vid=0 "Given 200 of Red Drop."
+   -> event: conn#4: game master account 1 on character 1: /item 3004 200
+@1000 conn#4 sends SendChat kind=0 "/item 3004 5"
+   -> send conn#4 ItemSet 1:1 3004x5
+   -> send conn#4 Chat kind=1 vid=0 "Given 5 of Red Drop."
+   -> event: conn#4: game master account 1 on character 1: /item 3004 5
+@1000 conn#4 sends SendChat kind=0 "/item 3001"
+   -> send conn#4 ItemSet 1:2 3001x1
+   -> send conn#4 Chat kind=1 vid=0 "Given 1 of Iron Blade."
+   -> event: conn#4: game master account 1 on character 1: /item 3001 1

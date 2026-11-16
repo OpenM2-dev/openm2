@@ -1,0 +1,126 @@
+// The Servers board of `openm2 play`'s login screen: the
+// game's own server first (★), then the player's, eight a page, each row its
+// name, its address and how it answered; Join opens that server's Sign in
+// board (login.ron). The dialog adds or edits a server, the question asks
+// before a server is removed or a new key is trusted. Skins are in
+// skin.ron; the format is in docs/specs/ui.md ("The Servers board"). The
+// ids are what `play` fills in and reads (crates/m2-cli/src/interface.rs,
+// `ids`; crates/m2-cli/src/server_list.rs).
+(
+    windows: [
+        (
+            id: "servers",
+            anchor: Center,
+            pos: (0, 60),
+            size: (560, 384),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (pos: (8, 8), size: (Fill(8), 32), kind: Panel(skin: "title_bar"), children: [
+                    (size: (Fill(0), 21), kind: Text(text: "Servers", align: Center)),
+                    (id: "servers.close", anchor: TopRight, pos: (3, 2), size: (15, 15), kind: Button(skin: "close", text: "")),
+                ]),
+                // A server a row; the one picked stays pressed. Its texts
+                // are the button's children, so a click on them is the row's.
+                (id: "servers.row.0", pos: (14, 46), size: (Fill(14), 27), hidden: true, kind: Button(skin: "server_row", text: ""), children: [
+                    (id: "servers.row.0.name", pos: (10, 0), size: (190, 27), kind: Text(text: "")),
+                    (id: "servers.row.0.place", pos: (204, 0), size: (170, 27), kind: Text(text: "", colour: (200, 180, 140, 255))),
+                    (id: "servers.row.0.state", anchor: TopRight, pos: (10, 0), size: (140, 27), kind: Text(text: "", align: Right, colour: (190, 190, 180, 255))),
+                ]),
+                (id: "servers.row.1", pos: (14, 76), size: (Fill(14), 27), hidden: true, kind: Button(skin: "server_row", text: ""), children: [
+                    (id: "servers.row.1.name", pos: (10, 0), size: (190, 27), kind: Text(text: "")),
+                    (id: "servers.row.1.place", pos: (204, 0), size: (170, 27), kind: Text(text: "", colour: (200, 180, 140, 255))),
+                    (id: "servers.row.1.state", anchor: TopRight, pos: (10, 0), size: (140, 27), kind: Text(text: "", align: Right, colour: (190, 190, 180, 255))),
+                ]),
+                (id: "servers.row.2", pos: (14, 106), size: (Fill(14), 27), hidden: true, kind: Button(skin: "server_row", text: ""), children: [
+                    (id: "servers.row.2.name", pos: (10, 0), size: (190, 27), kind: Text(text: "")),
+                    (id: "servers.row.2.place", pos: (204, 0), size: (170, 27), kind: Text(text: "", colour: (200, 180, 140, 255))),
+                    (id: "servers.row.2.state", anchor: TopRight, pos: (10, 0), size: (140, 27), kind: Text(text: "", align: Right, colour: (190, 190, 180, 255))),
+                ]),
+                (id: "servers.row.3", pos: (14, 136), size: (Fill(14), 27), hidden: true, kind: Button(skin: "server_row", text: ""), children: [
+                    (id: "servers.row.3.name", pos: (10, 0), size: (190, 27), kind: Text(text: "")),
+                    (id: "servers.row.3.place", pos: (204, 0), size: (170, 27), kind: Text(text: "", colour: (200, 180, 140, 255))),
+                    (id: "servers.row.3.state", anchor: TopRight, pos: (10, 0), size: (140, 27), kind: Text(text: "", align: Right, colour: (190, 190, 180, 255))),
+                ]),
+                (id: "servers.row.4", pos: (14, 166), size: (Fill(14), 27), hidden: true, kind: Button(skin: "server_row", text: ""), children: [
+                    (id: "servers.row.4.name", pos: (10, 0), size: (190, 27), kind: Text(text: "")),
+                    (id: "servers.row.4.place", pos: (204, 0), size: (170, 27), kind: Text(text: "", colour: (200, 180, 140, 255))),
+                    (id: "servers.row.4.state", anchor: TopRight, pos: (10, 0), size: (140, 27), kind: Text(text: "", align: Right, colour: (190, 190, 180, 255))),
+                ]),
+                (id: "servers.row.5", pos: (14, 196), size: (Fill(14), 27), hidden: true, kind: Button(skin: "server_row", text: ""), children: [
+                    (id: "servers.row.5.name", pos: (10, 0), size: (190, 27), kind: Text(text: "")),
+                    (id: "servers.row.5.place", pos: (204, 0), size: (170, 27), kind: Text(text: "", colour: (200, 180, 140, 255))),
+                    (id: "servers.row.5.state", anchor: TopRight, pos: (10, 0), size: (140, 27), kind: Text(text: "", align: Right, colour: (190, 190, 180, 255))),
+                ]),
+                (id: "servers.row.6", pos: (14, 226), size: (Fill(14), 27), hidden: true, kind: Button(skin: "server_row", text: ""), children: [
+                    (id: "servers.row.6.name", pos: (10, 0), size: (190, 27), kind: Text(text: "")),
+                    (id: "servers.row.6.place", pos: (204, 0), size: (170, 27), kind: Text(text: "", colour: (200, 180, 140, 255))),
+                    (id: "servers.row.6.state", anchor: TopRight, pos: (10, 0), size: (140, 27), kind: Text(text: "", align: Right, colour: (190, 190, 180, 255))),
+                ]),
+                (id: "servers.row.7", pos: (14, 256), size: (Fill(14), 27), hidden: true, kind: Button(skin: "server_row", text: ""), children: [
+                    (id: "servers.row.7.name", pos: (10, 0), size: (190, 27), kind: Text(text: "")),
+                    (id: "servers.row.7.place", pos: (204, 0), size: (170, 27), kind: Text(text: "", colour: (200, 180, 140, 255))),
+                    (id: "servers.row.7.state", anchor: TopRight, pos: (10, 0), size: (140, 27), kind: Text(text: "", align: Right, colour: (190, 190, 180, 255))),
+                ]),
+                (id: "servers.empty", anchor: Top, pos: (0, 60), size: (Fill(14), 18), kind: Text(text: "No servers yet: Add one by its address.", align: Center)),
+                // Eight servers a page.
+                (id: "servers.prev", anchor: BottomLeft, pos: (14, 74), size: (21, 21), hidden: true, kind: Button(skin: "arrow_left", text: "")),
+                (id: "servers.page", anchor: Bottom, pos: (0, 76), size: (100, 18), kind: Text(text: "", align: Center)),
+                (id: "servers.next", anchor: BottomRight, pos: (14, 74), size: (21, 21), hidden: true, kind: Button(skin: "arrow_right", text: "")),
+                // What joining found, or why it failed.
+                (id: "servers.status", anchor: Bottom, pos: (0, 50), size: (Fill(14), 18),
+                 kind: Text(text: "", align: Center, colour: (255, 200, 120, 255))),
+                (id: "servers.join", anchor: BottomLeft, pos: (20, 18), size: (88, 21), kind: Button(skin: "large_button", text: "Join")),
+                (id: "servers.add", anchor: BottomLeft, pos: (116, 18), size: (61, 21), kind: Button(skin: "button", text: "Add")),
+                (id: "servers.edit", anchor: BottomLeft, pos: (185, 18), size: (61, 21), kind: Button(skin: "button", text: "Edit")),
+                (id: "servers.remove", anchor: BottomLeft, pos: (254, 18), size: (61, 21), kind: Button(skin: "button", text: "Remove")),
+                (id: "servers.refresh", anchor: BottomLeft, pos: (323, 18), size: (61, 21), kind: Button(skin: "button", text: "Refresh")),
+                (id: "servers.quit", anchor: BottomRight, pos: (20, 18), size: (88, 21), kind: Button(skin: "large_button", text: "Quit")),
+            ],
+        ),
+        (
+            // Add or Edit: a name and an address (or a server's link).
+            id: "server_edit",
+            anchor: Center,
+            pos: (0, 40),
+            size: (420, 190),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (pos: (8, 8), size: (Fill(8), 32), kind: Panel(skin: "title_bar"), children: [
+                    (id: "server_edit.title", size: (Fill(0), 21), kind: Text(text: "Add a server", align: Center)),
+                    (id: "server_edit.close", anchor: TopRight, pos: (3, 2), size: (15, 15), kind: Button(skin: "close", text: "")),
+                ]),
+                (pos: (20, 52), size: (80, 22), kind: Text(text: "Name", colour: (200, 180, 140, 255))),
+                (pos: (100, 52), size: (Fill(20), 22), kind: Panel(skin: "field"), children: [
+                    (id: "server_edit.name", pos: (6, 2), size: (Fill(6), 18), kind: Edit(max_chars: 32)),
+                ]),
+                (pos: (20, 82), size: (80, 22), kind: Text(text: "Address", colour: (200, 180, 140, 255))),
+                (pos: (100, 82), size: (Fill(20), 22), kind: Panel(skin: "field"), children: [
+                    (id: "server_edit.address", pos: (6, 2), size: (Fill(6), 18), kind: Edit(max_chars: 340)),
+                ]),
+                (pos: (100, 106), size: (Fill(20), 16), kind: Text(text: "host, host:AUTH:GAME, or a link with #sha256:…", colour: (170, 160, 140, 255))),
+                (id: "server_edit.status", anchor: Bottom, pos: (0, 46), size: (Fill(14), 18),
+                 kind: Text(text: "", align: Center, colour: (255, 200, 120, 255))),
+                (id: "server_edit.save", anchor: Bottom, pos: (-50, 16), size: (88, 21), kind: Button(skin: "large_button", text: "Save")),
+                (id: "server_edit.cancel", anchor: Bottom, pos: (50, 16), size: (88, 21), kind: Button(skin: "large_button", text: "Cancel")),
+            ],
+        ),
+        (
+            // Before a server is removed, or a new key is trusted.
+            id: "server_question",
+            anchor: Center,
+            pos: (0, 40),
+            size: (540, 132),
+            hidden: true,
+            kind: Panel(skin: "board"),
+            children: [
+                (id: "server_question.line.0", anchor: Top, pos: (0, 16), size: (Fill(14), 18), kind: Text(text: "", align: Center)),
+                (id: "server_question.line.1", anchor: Top, pos: (0, 38), size: (Fill(14), 18), kind: Text(text: "", align: Center, colour: (223, 174, 79, 255))),
+                (id: "server_question.line.2", anchor: Top, pos: (0, 60), size: (Fill(14), 18), kind: Text(text: "", align: Center)),
+                (id: "server_question.yes", anchor: Bottom, pos: (-50, 16), size: (88, 21), kind: Button(skin: "large_button", text: "Yes")),
+                (id: "server_question.no", anchor: Bottom, pos: (50, 16), size: (88, 21), kind: Button(skin: "large_button", text: "No")),
+            ],
+        ),
+    ],
+)

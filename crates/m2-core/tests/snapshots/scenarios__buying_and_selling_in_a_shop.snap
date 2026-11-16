@@ -1,0 +1,94 @@
+---
+source: crates/m2-core/tests/scenarios.rs
+expression: s.log
+---
+@0ms Start
+    -> Connect { conn: ConnId(1), server: Auth }
+@5ms Connected(ConnId(1))
+    -> Send { conn: ConnId(1), message: Hello(Hello { protocol: 3, build: "openm2 test" }) }
+@6ms Message(ConnId(1), Welcome(Welcome { protocol: 3, server: "openm2-server test" }))
+    -> Event(Welcomed { server: Auth, protocol: 3, name: "openm2-server test" })
+    -> Send { conn: ConnId(1), message: StartSignIn(StartSignIn) }
+@7ms Message(ConnId(1), SignInOptions(SignInOptions { providers: [Provider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }], nonce: "n0nce" }))
+    -> Event(SignInOptions([SignInProvider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }]))
+    -> SignIn { provider: SignInProvider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }, nonce: "n0nce" }
+@8ms SignInCode(SignInCode { redirect: "http://127.0.0.1:50000/callback", .. })
+    -> Send { conn: ConnId(1), message: ProviderLogin(ProviderLogin { provider: "example", code: <redacted>, verifier: <redacted>, redirect: "http://127.0.0.1:50000/callback" }) }
+@20ms Message(ConnId(1), SignedIn(SignedIn { account: "example:admin", ticket: <redacted> }))
+    -> Event(LoggedIn)
+    -> Disconnect { conn: ConnId(1) }
+    -> Connect { conn: ConnId(2), server: Game }
+@25ms Connected(ConnId(2))
+    -> Send { conn: ConnId(2), message: Hello(Hello { protocol: 3, build: "openm2 test" }) }
+@26ms Message(ConnId(2), Welcome(Welcome { protocol: 3, server: "openm2-server test" }))
+    -> Event(Welcomed { server: Game, protocol: 3, name: "openm2-server test" })
+    -> Send { conn: ConnId(2), message: TicketLogin(TicketLogin { username: "example:admin", ticket: <redacted> }) }
+@110ms Message(ConnId(2), Empire(Empire { empire: 2 }))
+@110ms Message(ConnId(2), Phase(Phase { phase: 1 }))
+    -> Event(Phase { server: Game, phase: Select })
+@110ms Message(ConnId(2), CharacterList(CharacterList { characters: [Character { slot: 0, id: 1, name: "Alice", class: 3, level: 10, playtime: 0, st: 0, ht: 0, dx: 0, iq: 0, body_part: 0, hair_part: 0, guild: "" }] }))
+    -> Event(CharacterList([CharacterSummary { slot: 0, id: 1, name: "Alice", class: 3, level: 10, playtime: 0, st: 0, ht: 0, dx: 0, iq: 0, body_part: 0, hair_part: 0, guild: "" }]))
+    -> Event(Selected { slot: 0, name: "Alice" })
+    -> Send { conn: ConnId(2), message: SelectCharacter(SelectCharacter { slot: 0 }) }
+@120ms Message(ConnId(2), Phase(Phase { phase: 2 }))
+    -> Event(Phase { server: Game, phase: Loading })
+@121ms Message(ConnId(2), MainCharacter(MainCharacter { vid: 4660, class: 3, name: "Alice", x: 958400, y: 272800, z: 0, empire: 2, skill_group: 0, run_speed: 450 }))
+    -> Send { conn: ConnId(2), message: EnterGame(EnterGame) }
+@130ms Message(ConnId(2), Phase(Phase { phase: 3 }))
+    -> Event(Phase { server: Game, phase: Game })
+    -> Event(EnteredGame(Some(Me { vid: 4660, name: "Alice", class: 3, empire: Chunjo, position: (958400, 272800, 0) })))
+@131ms Message(ConnId(2), GameTime(GameTime { time: 10000 }))
+@131ms Message(ConnId(2), ItemSet(ItemSet { window: 1, slot: 3, vnum: 27001, count: 5, flags: 0, anti_flags: 0, sockets: [0, 0, 0], bonuses: [ItemBonus { kind: 7, value: 15 }] }))
+@131ms Message(ConnId(2), ItemSet(ItemSet { window: 1, slot: 94, vnum: 10, count: 1, flags: 0, anti_flags: 0, sockets: [0, 0, 0], bonuses: [ItemBonus { kind: 7, value: 15 }] }))
+@131ms Message(ConnId(2), PointsChanged(PointsChanged { points: [PointValue { point: 11, value: 120 }] }))
+@140ms Message(ConnId(2), EntitySpawn(EntitySpawn { vid: 4660, angle: 90, x: 958400, y: 272800, z: 0, kind: 6, race: 3, move_speed: 150, attack_speed: 100, state: 0, affects: 0 }))
+    -> Event(EntityAppeared { vid: 4660, kind: Player, race: 3, at: Point { x: 958400, y: 272800 } })
+@141ms Message(ConnId(2), EntitySpawn(EntitySpawn { vid: 30001, angle: 90, x: 958600, y: 272800, z: 0, kind: 1, race: 9001, move_speed: 0, attack_speed: 100, state: 0, affects: 0 }))
+    -> Event(EntityAppeared { vid: 30001, kind: Npc, race: 9001, at: Point { x: 958600, y: 272800 } })
+@141ms Message(ConnId(2), EntitySpawn(EntitySpawn { vid: 30002, angle: 90, x: 958600, y: 272800, z: 0, kind: 0, race: 101, move_speed: 100, attack_speed: 100, state: 0, affects: 0 }))
+    -> Event(EntityAppeared { vid: 30002, kind: Monster, race: 101, at: Point { x: 958600, y: 272800 } })
+@200ms Command(Talk { vid: 77 })
+    -> Event(Ignored { what: "Talk", why: "no such entity" })
+@200ms Command(Talk { vid: 30002 })
+    -> Event(Ignored { what: "Talk", why: "only NPCs are talked to" })
+@200ms Command(Buy { position: 0 })
+    -> Event(Ignored { what: "Buy", why: "no shop is open" })
+@210ms Command(Talk { vid: 30001 })
+    -> Send { conn: ConnId(2), message: Talk(Talk { vid: 30001 }) }
+@220ms Message(ConnId(2), ShopOpened(ShopOpened { vid: 30001, goods: [ShopGood { position: 0, vnum: 27001, price: 50, count: 5 }, ShopGood { position: 5, vnum: 10, price: 1000, count: 1 }, ShopGood { position: 40, vnum: 11, price: 1, count: 1 }] }))
+    -> Event(ShopOpened { vid: 30001 })
+@300ms Command(Buy { position: 1 })
+    -> Event(Ignored { what: "Buy", why: "nothing in that place" })
+@300ms Command(Buy { position: 5 })
+    -> Event(Ignored { what: "Buy", why: "it costs more than our gold" })
+@310ms Command(Buy { position: 0 })
+    -> Send { conn: ConnId(2), message: ShopBuy(ShopBuy { position: 0 }) }
+@320ms Message(ConnId(2), ItemSet(ItemSet { window: 1, slot: 4, vnum: 27001, count: 5, flags: 0, anti_flags: 0, sockets: [0, 0, 0], bonuses: [ItemBonus { kind: 7, value: 15 }] }))
+@320ms Message(ConnId(2), PointsChanged(PointsChanged { points: [PointValue { point: 11, value: 70 }] }))
+@330ms Message(ConnId(2), ShopRefused(ShopRefused { reason: 1 }))
+    -> Event(ShopRefused(NotEnoughGold))
+@330ms Message(ConnId(2), ShopRefused(ShopRefused { reason: 2 }))
+    -> Event(ShopRefused(BagFull))
+@330ms Message(ConnId(2), ShopRefused(ShopRefused { reason: 9 }))
+    -> Event(ShopRefused(Other(9)))
+@400ms Command(Sell { slot: 3 })
+    -> Send { conn: ConnId(2), message: ShopSell(ShopSell { slot: 3, count: 5 }) }
+@401ms Command(Sell { slot: 94 })
+    -> Event(Ignored { what: "Sell", why: "only items in the bag are sold" })
+@401ms Command(Sell { slot: 300 })
+    -> Event(Ignored { what: "Sell", why: "only items in the bag are sold" })
+@401ms Command(Sell { slot: 7 })
+    -> Event(Ignored { what: "Sell", why: "no item in that slot" })
+@500ms Command(CloseShop)
+    -> Send { conn: ConnId(2), message: ShopClose(ShopClose) }
+    -> Event(ShopClosed)
+@501ms Command(CloseShop)
+    -> Event(Ignored { what: "CloseShop", why: "no shop is open" })
+@501ms Command(Sell { slot: 4 })
+    -> Event(Ignored { what: "Sell", why: "no shop is open" })
+@600ms Message(ConnId(2), ShopOpened(ShopOpened { vid: 30001, goods: [ShopGood { position: 0, vnum: 27001, price: 50, count: 5 }, ShopGood { position: 5, vnum: 10, price: 1000, count: 1 }, ShopGood { position: 40, vnum: 11, price: 1, count: 1 }] }))
+    -> Event(ShopOpened { vid: 30001 })
+@610ms Message(ConnId(2), EntityRemove(EntityRemove { vid: 30001 }))
+    -> Event(EntityLeft { vid: 30001 })
+    -> Send { conn: ConnId(2), message: ShopClose(ShopClose) }
+    -> Event(ShopClosed)

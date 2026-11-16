@@ -1,0 +1,51 @@
+---
+source: crates/m2-server-core/tests/world.rs
+expression: h.log
+---
+@1000 conn#2 sends EnterGame
+   -> send conn#2 Phase 3
+   -> send conn#2 GameTime 1000
+   -> send conn#2 Channel 1
+   -> send conn#2 EntitySpawn vid=7 (475000, 966100) kind=6 race=0 angle=0 speed=150/100
+   -> send conn#2 EntityInfo vid=7 Hero empire=1 level=1
+   -> send conn#2 Skills
+   -> event: conn#2: character 1 entered as vid 7
+   -> send conn#2 EntitySpawn vid=1 (474162, 968342) kind=0 race=1001 angle=210 speed=100/100
+   -> send conn#2 EntitySpawn vid=2 (475356, 967775) kind=0 race=1001 angle=215 speed=100/100
+   -> send conn#2 EntitySpawn vid=3 (474394, 967539) kind=0 race=1001 angle=145 speed=100/100
+   -> send conn#2 EntitySpawn vid=6 (474000, 966100) kind=1 race=1002 angle=90 speed=100/100
+   -> send conn#2 EntityInfo vid=6 Keeper Ilsa empire=0 level=0
+@2000 tick
+@3000 tick
+@4000 tick
+@5000 tick
+@6000 tick
+   -> send conn#2 Ping
+@7000 tick
+@8000 tick
+   -> send conn#2 EntityMove kind=1 vid=3 (474487, 967191) angle=165 duration=1200
+@9000 tick
+@10000 tick
+@11000 tick
+   -> send conn#2 Ping
+@12000 tick
+@13000 tick
+@14000 tick
+@15000 tick
+@16000 tick
+   -> send conn#2 Ping
+@17000 tick
+@18000 tick
+@19000 tick
+   -> send conn#2 EntityMove kind=1 vid=2 (475759, 968256) angle=40 duration=2091
+@20000 tick
+   -> send conn#2 EntityMove kind=1 vid=3 (474199, 967603) angle=325 duration=1675
+@21000 tick
+   -> send conn#2 Ping
+@22000 tick
+   -> send conn#2 EntityMove kind=1 vid=1 (474774, 968120) angle=110 duration=2170
+@23000 tick
+@24000 tick
+@25000 tick
+@26000 tick
+   -> send conn#2 Ping
