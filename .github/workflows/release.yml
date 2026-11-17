@@ -148,21 +148,47 @@ jobs:
           & version/openm2.exe release verify "channel/$channel.manifest.signed" --key $key --channel $channel
           if ($LASTEXITCODE -ne 0) { throw "the manifest isn't signed with deploy/windows/launcher.toml's key" }
 
+      # Named without the version, so releases/latest/download/openm2-windows-x64.zip
+      # is always the latest (the release's title says the version).
       - name: Zip it
         shell: pwsh
         run: |
-          $name = "openm2-$env:VERSION-windows-x64"
+          $name = "openm2-windows-x64"
           New-Item -ItemType Directory $name | Out-Null
           Copy-Item version/*, deploy/windows/launcher.toml $name
           Compress-Archive -Path "$name/*" -DestinationPath "$name.zip"
           $hash = (Get-FileHash -Algorithm SHA256 "$name.zip").Hash.ToLowerInvariant()
           "$hash  $name.zip" | Out-File -Encoding ascii -NoNewline "$name.zip.sha256"
 
+      # The setup players download (deploy/windows/setup.iss), from the zip's
+      # folder, then tried as a player would get it: a silent install, its
+      # files, and a silent uninstall that leaves nothing.
+      - name: Build the setup
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $iscc /Q "/DVersion=$env:VERSION" "/DSource=$PWD\openm2-windows-x64" "/O$PWD" deploy/windows/setup.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
+          $dir = Join-Path $env:RUNNER_TEMP "openm2-tried"
+          $setup = Start-Process -FilePath ./openm2-setup.exe -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=`"$dir`"" -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw "the setup exited with $($setup.ExitCode)" }
+          foreach ($file in "openm2-launcher.exe", "openm2.exe", "launcher.toml") {
+            if (-not (Test-Path (Join-Path $dir $file))) { throw "the setup didn't install $file" }
+          }
+          $uninstall = Start-Process -FilePath (Join-Path $dir "unins000.exe") -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "the uninstaller exited with $($uninstall.ExitCode)" }
+          # The uninstaller finishes from a copy of itself in the temporary folder.
+          for ($i = 0; $i -lt 60 -and (Test-Path $dir); $i++) { Start-Sleep -Milliseconds 500 }
+          if (Test-Path $dir) { throw "the uninstaller left $dir" }
+          $hash = (Get-FileHash -Algorithm SHA256 openm2-setup.exe).Hash.ToLowerInvariant()
+          "$hash  openm2-setup.exe" | Out-File -Encoding ascii -NoNewline openm2-setup.exe.sha256
+
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: client-windows
           path: |
-            openm2-*-windows-x64.zip*
+            openm2-setup.exe*
+            openm2-windows-x64.zip*
             channel/
           if-no-files-found: error
           retention-days: 7
@@ -212,10 +238,13 @@ jobs:
           The server's image: \`$IMAGE:$VERSION\`, digest \`$DIGEST\`
           (\`docker pull $IMAGE@$DIGEST\`).
 
-          The Windows client and its launcher: \`openm2-$VERSION-windows-x64.zip\`, with its SHA-256 beside it.
-          Unzip it anywhere and start \`openm2-launcher.exe\`: it imports your own client once, then keeps
-          itself and the game up to date from the latest release. The downloads named by a SHA-256, and
+          The Windows client and its launcher: \`openm2-setup.exe\`, which installs them for you alone with
+          no administrator (always the latest: https://github.com/$REPO/releases/latest/download/openm2-setup.exe),
+          or \`openm2-windows-x64.zip\` to unzip anywhere and start \`openm2-launcher.exe\`; each with its SHA-256
+          beside it. The launcher imports your own client once, then keeps itself and the game up to date
+          from the latest release. The downloads named by a SHA-256, and
           \`windows-x64.manifest.signed\`, are that update channel: the programs only, never a client's files.
           EOF
           gh release create "$TAG" --repo "$REPO" --verify-tag --title "openm2 $VERSION" \
-            --notes-file notes.md openm2-*-windows-x64.zip openm2-*-windows-x64.zip.sha256 channel/*
+            --notes-file notes.md openm2-setup.exe openm2-setup.exe.sha256 \
+            openm2-windows-x64.zip openm2-windows-x64.zip.sha256 channel/*

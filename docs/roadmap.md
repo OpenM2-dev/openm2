@@ -56,7 +56,7 @@ What openm2 does today, what comes next, and what is still unknown. When you fin
 **Releases and updates**
 - **Releases:** a tag publishes the server's image to GHCR, and the Windows client with `openm2-launcher` to a GitHub Release, with third-party notices.
 - **`openm2-launcher`:** a window that keeps an install up to date from a channel's signed manifests and bundles. It imports the player's client once (Browse buttons for the folder and the keys file on Windows), imports it again when a version reads clients differently, then starts the game.
-- **The release updates itself:** its zip's launcher follows the latest GitHub release, a flat channel of the programs only, signed with openm2's own key.
+- **The release updates itself:** `openm2-setup.exe` installs it for the player alone (or the zip, unzipped anywhere), and its launcher follows the latest GitHub release, a flat channel of the programs only, signed with openm2's own key.
 - **`openm2 release`:** makes keys, writes, signs and verifies manifests.
 
 ## Next

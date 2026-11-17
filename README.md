@@ -25,8 +25,8 @@ An open-source game client and server, written from scratch in Rust and built to
 
 ## Playing
 On Windows:
-1. **Download** `openm2-X.Y.Z-windows-x64.zip` from the [latest release](https://github.com/OpenM2-dev/openm2/releases/latest) and unzip it into a folder you can write to.
-2. **Start `openm2-launcher.exe`.** It downloads the game's programs from the latest release, then asks for your client folder (a TMP4 40250 client you already have, the one with `pack` in it) and your keys file ([`keys.toml`](docs/specs/formats/keys.md)). Browse to them, or drop them on its window.
+1. **Download and run [`openm2-setup.exe`](https://github.com/OpenM2-dev/openm2/releases/latest/download/openm2-setup.exe)**, the [latest release](https://github.com/OpenM2-dev/openm2/releases/latest)'s. It installs openm2 for you alone, without an administrator, into `%LOCALAPPDATA%\Programs\openm2`, with a Start menu shortcut and an uninstaller. Or unzip [`openm2-windows-x64.zip`](https://github.com/OpenM2-dev/openm2/releases/latest/download/openm2-windows-x64.zip) into a folder you can write to.
+2. **Start openm2** (`openm2-launcher.exe`). It downloads the game's programs from the latest release, then asks for your client folder (a TMP4 40250 client you already have, the one with `pack` in it) and your keys file ([`keys.toml`](docs/specs/formats/keys.md)). Browse to them, or drop them on its window.
 3. **It converts your client** into openm2's own formats inside that folder, in about a minute, and starts the game. Later starts take a second or two.
 4. **On the Servers board, add a server** by its address. Its operator gives you its key, or the game shows it at the first join and asks you to trust it.
 
