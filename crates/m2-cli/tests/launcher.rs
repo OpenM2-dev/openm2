@@ -123,7 +123,9 @@ fn the_launcher_imports_the_client_and_again_when_the_import_changes() {
     .unwrap();
     assert_eq!(
         state(),
-        Imported::Stale(format!("import 0, not this openm2's ({number})"))
+        Imported::Stale(format!(
+            "this version reads clients differently (import 0, now {number})"
+        ))
     );
     m2_launcher::import(game(), &root, &client, &keys, &Stop::default(), &mut |_| {}).unwrap();
     assert_eq!(state(), Imported::Current);

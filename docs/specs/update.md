@@ -4,8 +4,8 @@
 
 **Checked by:**
 - `crates/m2-update/tests/manifest.rs` (byte-exact vectors of both formats, refusals, paths, bundles cut and the requests that fetch them, random input);
-- `crates/m2-launcher/tests/update.rs` (updates from a local HTTP server into a temporary folder; bundles fetched whole and then by range, a server that doesn't answer ranges, a bundle stopped part-way, a content at several paths downloaded once, requests at once; how far an update says it has got; a version naming `assets` started without a client; a game that doesn't import asking for the client folder);
-- `crates/m2-launcher/tests/window.rs` (the window drawn offscreen in a game's colours with its picture) and the unit tests of `src/window/screen.rs` (each stage's texts and buttons), `src/progress.rs` (the console's lines) and `src/settings.rs` (`[window]`);
+- `crates/m2-launcher/tests/update.rs` (updates from a local HTTP server into a temporary folder; a flat channel behind a redirect, as a GitHub release's downloads, and a redirect away from HTTPS refused; bundles fetched whole and then by range, a server that doesn't answer ranges, a bundle stopped part-way, a content at several paths downloaded once, requests at once; how far an update says it has got; a version naming `assets` started without a client; a game that doesn't import asking for the client folder);
+- `crates/m2-launcher/tests/window.rs` (the window drawn offscreen in a game's colours with its picture) and the unit tests of `src/window/screen.rs` (each stage's texts and buttons), `src/progress.rs` (the console's lines) and `src/settings.rs` (`layout`, `[window]`, and the release's own `deploy/windows/launcher.toml`);
 - `crates/m2-cli/tests/launcher.rs` (the launcher's import with `openm2` itself, on a synthetic client: imported at the first start, current at the next, imported again for another import's number, a failed import leaving the last, one that stopped part-way deleted);
 - `crates/m2-cli/tests/release.rs` (`release keygen`, `manifest`, `sign` and `verify` together; imported files refused, and let through with `--allow-imported`; `--bundles` and `--add`).
 
@@ -57,12 +57,22 @@ One file, so a manifest and its signature are always published together:
 - **The private key** is a PKCS#8 file in PEM (`-----BEGIN PRIVATE KEY-----`), as `openm2 release keygen` writes it and `openssl genpkey -algorithm ed25519` does. Signing reads it from the environment variable `OPENM2_RELEASE_KEY`, never from a file named on the command line or from an argument.
 
 ## On the server
-Under the channel's address (`url` in `launcher.toml`):
-- `<channel>/manifest.signed`: the channel's signed manifest. It must not be cached for long: players see a new version as soon as it's there.
-- `files/<sha256>`: each file on its own, and each bundle, named by its SHA-256 in lowercase hex. These never change, so they can be cached forever, and channels share them.
+Under the channel's address (`url` in `launcher.toml`), in one of two layouts (`layout` in `launcher.toml`):
+
+| | `folders` (the default) | `flat` |
+|---|---|---|
+| the channel's signed manifest | `<channel>/manifest.signed` | `<channel>.manifest.signed` |
+| each file on its own, and each bundle | `files/<sha256>` | `<sha256>` |
+
+- **The signed manifest** must not be cached for long: players see a new version as soon as it's there.
+- **Files and bundles** are named by their SHA-256 in lowercase hex. They never change, so they can be cached forever, and channels share them.
+- **`flat`** is for a host that serves one flat list of names, as a GitHub release's downloads: `https://github.com/<owner>/<repo>/releases/latest/download/<name>` answers with a redirect (`302`) to the latest release's file of that name. So every release carries all of its version's files, not only the new ones, and a version whose files were published with an earlier release can't be reached.
+- **Redirects** are followed, at most 10, only to `https://` (or `http://` to 127.0.0.1, localhost or [::1], as a channel's own address). A redirect elsewhere fails the request.
 - **Ranges:** the launcher asks for part of a bundle with `Range: bytes=A-B`, at updates. The server must answer `206 Partial Content` with that `Content-Range`. Whole files and bundles are asked for with a plain GET.
 
-Publishing a version: upload the files that aren't there yet, then the signed manifest.
+Publishing a version: upload the files that aren't there yet, then the signed manifest. In a flat channel on GitHub, both go up with the release itself (below).
+
+**openm2's own Windows release** is a flat channel: `deploy/windows/launcher.toml` names the repository's latest release, the channel `windows-x64` and the key its manifests are signed with, and the release's zip carries that file beside the programs. `.github/workflows/release.yml` writes the manifest of the version's files (`openm2.exe`, `openm2-launcher.exe`, the licences, the third-party notices and the README) with `release manifest --objects` for a year, signs it with `OPENM2_RELEASE_KEY` (a secret of the repository's `release` environment), checks it with the committed key, and uploads `windows-x64.manifest.signed` and every `<sha256>` with the zip. The channel carries the programs only: the player's client is imported on their machine, never downloaded.
 
 ## `openm2 release`
 - **`keygen --out FILE`** writes a new private key to `FILE`, which must not exist yet (readable only by its owner on Unix), and prints the public key as `launcher.toml` takes it.
@@ -104,6 +114,7 @@ Publishing a version: upload the files that aren't there yet, then the signed ma
   | `format` | `1` |
   | `url` | the channel's address: `https://`, no query or fragment (`http://` only to `127.0.0.1`, `localhost` or `[::1]`) |
   | `channel` | the channel's name |
+  | `layout` | how the channel's server names its files, `folders` (the default) or `flat` (On the server, above); optional |
   | `key` | the public key manifests must be signed with |
   | `[window]` | how the window looks, optional, and so is each key in it: `name` (the title, and the large text without a picture; 1 to 64 characters), `picture` (a PNG file beside `launcher.toml`, 4 : 1, drawn at 640 × 160), `accent` (the gauge and the main button) and `background`, as `#rrggbb`. Without them the window is openm2's own. A picture that won't read is noted in `launcher.log`, and the window shows without it |
 
@@ -144,7 +155,7 @@ Publishing a version: upload the files that aren't there yet, then the signed ma
 6. **Replaces itself,** when it runs from the install folder and `app/` holds an `openm2-launcher` (`.exe`) whose SHA-256 differs from its own: it renames itself to `openm2-launcher.old` and copies the new one in its place, renaming itself back if that fails. The new launcher runs from the next start.
 7. **Imports the player's client**, unless the version plays with its own files:
    - **It asks the game** whether `imported/` holds its import: `app/openm2 assets current imported` ([`assets.md`](assets.md)), which reads only `assets.toml` and answers at once.
-   - **It imports** when it doesn't (no import yet, or another import's number: an update changed the import), when `--client` or `--keys` name another client folder or keys file than `client.toml`, or with `--import`. It asks for what `client.toml` and the flags don't name (the flags' paths from the folder the launcher was started in): in the window, two fields filled by typing, pasting (Ctrl+V) or dropping the folder and the file on it, checked to be a folder and a file; on the console, a line each. It says why it imports, and runs `app/openm2 assets import --client DIR --keys FILE --out importing` (the lines it writes show as it goes, the last one in the window; its report goes to `import.log`, and its first line is said), then `app/openm2 assets check importing` (its report too). Closing the window stops them. Only when both pass it deletes `imported/`, renames `importing/` to `imported/` and saves the client folder and keys file in `client.toml`. A failed import or check deletes `importing/`, leaves `imported/` and `client.toml` as they were, and says why.
+   - **It imports** when it doesn't (no import yet, or another import's number: an update changed the import), when `--client` or `--keys` name another client folder or keys file than `client.toml`, or with `--import`. It asks for what `client.toml` and the flags don't name (the flags' paths from the folder the launcher was started in): in the window, two fields filled by typing, pasting (Ctrl+V) or dropping the folder and the file on it, or on Windows with a Browse button beside each, which opens the system's own dialog for a folder or a `.toml` file over the window, starting where the field points; checked to be a folder and a file; on the console, a line each. It says why it imports (no import yet; another client folder or keys file; or, after an update, that this version reads clients differently, with the import's numbers), and runs `app/openm2 assets import --client DIR --keys FILE --out importing` (the lines it writes show as it goes, the last one in the window; its report goes to `import.log`, and its first line is said), then `app/openm2 assets check importing` (its report too). Closing the window stops them. Only when both pass it deletes `imported/`, renames `importing/` to `imported/` and saves the client folder and keys file in `client.toml`. A failed import or check deletes `importing/`, leaves `imported/` and `client.toml` as they were, and says why.
    - **A game that doesn't import** (it refuses `assets current` as a command it doesn't know, with exit code 2: openm2 0.2.1 and earlier, which `--previous` may start) plays with the client folder itself, as before: the launcher asks for it as above, checks it with `app/openm2 vfs check` and saves it in `client.toml` when the check passes; `--import` is noted as unused.
    - **Not when the version plays with its own files:** when `app/openm2.toml` names `assets` (an asset folder the channel carries; the launcher reads only that key of it), nothing is asked or imported, and `--client`, `--keys` and `--import` are noted as unused.
 

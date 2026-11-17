@@ -283,7 +283,7 @@ fn console(args: Args, root: &Path, exe: &Path, log: &Log) -> Result<ExitCode> {
             .duration_since(UNIX_EPOCH)
             .map(|since| Timestamp::from_unix(since.as_secs()))
             .context("the system's clock is before 1970")?;
-        let updated = Http::new(&settings.url).and_then(|http| {
+        let updated = Http::new(&settings.url, settings.layout).and_then(|http| {
             install.update(&settings, &http, now, &mut |progress| {
                 say.progress(&progress);
             })

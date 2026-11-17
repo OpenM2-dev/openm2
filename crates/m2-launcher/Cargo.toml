@@ -30,5 +30,10 @@ url.workspace = true
 wgpu.workspace = true
 winit.workspace = true
 
+# Browse buttons beside the client folder's and the keys file's fields: the
+# system's own dialogs. Elsewhere the fields take typing, pasting and drops.
+[target.'cfg(windows)'.dependencies]
+rfd.workspace = true
+
 [lints]
 workspace = true

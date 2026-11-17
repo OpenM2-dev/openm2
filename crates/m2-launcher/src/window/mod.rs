@@ -179,6 +179,9 @@ enum Event {
     GameStarted,
     /// The game ended.
     GameExited(Result<ExitStatus>),
+    /// The system's dialog closed: what the player picked, if anything.
+    #[cfg(windows)]
+    Browsed(Option<PathBuf>),
 }
 
 /// What Try again does.
@@ -381,7 +384,7 @@ impl App {
             let outcome = if update {
                 (|| {
                     let settings = LauncherSettings::read(&root.join(LAUNCHER_FILE))?;
-                    let http = Http::new(&settings.url)?;
+                    let http = Http::new(&settings.url, settings.layout)?;
                     let now = SystemTime::now()
                         .duration_since(UNIX_EPOCH)
                         .map(|since| Timestamp::from_unix(since.as_secs()))
@@ -671,6 +674,12 @@ impl App {
                     self.open_window(event_loop);
                 }
             }
+            #[cfg(windows)]
+            Event::Browsed(picked) => {
+                if let Some(path) = picked {
+                    self.dropped(&path);
+                }
+            }
         }
     }
 
@@ -740,9 +749,71 @@ impl App {
                 Retry::Ask => self.ask(None),
             },
             Action::Import => self.import_typed(),
+            Action::BrowseClient => self.browse(false),
+            Action::BrowseKeys => self.browse(true),
             Action::Close => self.close(event_loop),
         }
     }
+
+    /// Opens the system's dialog for the client folder, or for the keys
+    /// file, over the window and starting where its field points. It runs
+    /// on a thread of its own, so the window goes on drawing; what the
+    /// player picks comes back as [`Event::Browsed`] and fills the field as
+    /// a drop does.
+    #[cfg(windows)]
+    fn browse(&mut self, keys: bool) {
+        if !matches!(self.stage, Stage::Asking { .. }) {
+            return;
+        }
+        let id = if keys {
+            "launcher.keys"
+        } else {
+            "launcher.client"
+        };
+        let typed = self
+            .ui
+            .as_ref()
+            .and_then(|ui| ui.text(id))
+            .and_then(flow::typed_path);
+        let start = typed.and_then(|path| {
+            if path.is_dir() {
+                Some(path)
+            } else {
+                path.parent()
+                    .filter(|parent| parent.is_dir())
+                    .map(Path::to_path_buf)
+            }
+        });
+        let mut dialog = rfd::FileDialog::new().set_title(if keys {
+            "Your keys file (keys.toml)"
+        } else {
+            "Your client folder (the one with pack in it)"
+        });
+        if let Some(start) = start {
+            dialog = dialog.set_directory(start);
+        }
+        if let Some(painter) = &self.painter {
+            dialog = dialog.set_parent(painter.window.as_ref());
+        }
+        let proxy = self.proxy.clone();
+        let spawned = thread::Builder::new()
+            .name("browse".to_owned())
+            .spawn(move || {
+                let picked = if keys {
+                    dialog.add_filter("Keys file", &["toml"]).pick_file()
+                } else {
+                    dialog.pick_folder()
+                };
+                Self::send(&proxy, Event::Browsed(picked));
+            });
+        if let Err(error) = spawned {
+            self.log.line(&format!("note: no dialog: {error}"));
+        }
+    }
+
+    /// No dialog of the system's here: the buttons aren't shown.
+    #[cfg(not(windows))]
+    fn browse(&mut self, _keys: bool) {}
 
     /// Imports with the paths in the fields, once they name a folder and
     /// a file.

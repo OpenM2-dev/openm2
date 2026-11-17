@@ -23,6 +23,16 @@ An open-source game client and server, written from scratch in Rust and built to
 - Not a source of game files, archive keys or leaked code.
 - Not a server for the original client, nor a client for other servers: openm2's client and server speak only to each other.
 
+## Playing
+On Windows:
+1. **Download** `openm2-X.Y.Z-windows-x64.zip` from the [latest release](https://github.com/OpenM2-dev/openm2/releases/latest) and unzip it into a folder you can write to.
+2. **Start `openm2-launcher.exe`.** It downloads the game's programs from the latest release, then asks for your client folder (a TMP4 40250 client you already have, the one with `pack` in it) and your keys file ([`keys.toml`](docs/specs/formats/keys.md)). Browse to them, or drop them on its window.
+3. **It converts your client** into openm2's own formats inside that folder, in about a minute, and starts the game. Later starts take a second or two.
+4. **On the Servers board, add a server** by its address. Its operator gives you its key, or the game shows it at the first join and asks you to trust it.
+
+- **Updates:** at each start the launcher checks the latest release and downloads only the programs that changed, signed with openm2's release key ([docs/specs/update.md](docs/specs/update.md)). Your client's files are never downloaded or uploaded. When a version reads clients differently, the launcher imports yours again by itself and says why.
+- **Servers:** openm2 lists none of its own; you join the servers you add. To run one, see [docs/server.md](docs/server.md).
+
 ## Building
 Prerequisites: [rustup](https://rustup.rs) (the toolchain is pinned in `rust-toolchain.toml` and installed on first build), [just](https://github.com/casey/just), and `cargo install --locked cargo-deny`.
 

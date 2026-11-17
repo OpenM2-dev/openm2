@@ -55,7 +55,8 @@ What openm2 does today, what comes next, and what is still unknown. When you fin
 
 **Releases and updates**
 - **Releases:** a tag publishes the server's image to GHCR, and the Windows client with `openm2-launcher` to a GitHub Release, with third-party notices.
-- **`openm2-launcher`:** a window that keeps an install up to date from a channel's signed manifests and bundles. It imports the player's client once, then starts the game.
+- **`openm2-launcher`:** a window that keeps an install up to date from a channel's signed manifests and bundles. It imports the player's client once (Browse buttons for the folder and the keys file on Windows), imports it again when a version reads clients differently, then starts the game.
+- **The release updates itself:** its zip's launcher follows the latest GitHub release, a flat channel of the programs only, signed with openm2's own key.
 - **`openm2 release`:** makes keys, writes, signs and verifies manifests.
 
 ## Next
@@ -72,7 +73,7 @@ What openm2 does today, what comes next, and what is still unknown. When you fin
   - horseback skills' own motions
 - **Deleting characters:** the original asks for a code typed on the select screen.
 - **The server's image carries the third-party notices** (`just notices --package m2-server --target x86_64-unknown-linux-gnu`). Today it carries only webpki-roots' terms.
-- **The launcher on a real channel on Windows:** an update to a new version, and a manifest edited by hand refused.
+- **The launcher on a real channel on Windows:** an update to a new version, and a manifest edited by hand refused. The first release with its own channel is the first that can show it: the one after it updates from it.
 
 ## Open questions
 - **Run speeds with a weapon:** walks are timed with the race's run speed without a weapon, on the server and in the client alike. A character holding a weapon runs with that weapon's motion, so its feet may slide a little. Timing by the weapon would need the import to take each weapon kind's run speed, and the server to send it when the weapon changes.

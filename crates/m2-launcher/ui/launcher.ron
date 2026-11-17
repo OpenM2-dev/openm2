@@ -25,10 +25,15 @@
                 // the player's client.
                 (id: "launcher.ask", pos: (32, 210), size: (Fill(32), 118), hidden: true, kind: Group, children: [
                     (id: "launcher.ask.client", pos: (0, 0), size: (Fill(0), 18), kind: Text(text: "Your client folder (the one with pack in it)")),
-                    (id: "launcher.client", pos: (0, 20), size: (Fill(0), 26), kind: Edit(skin: "field", max_chars: 1024)),
+                    // Each field with a Browse button beside it, for the
+                    // system's own dialog (on Windows; elsewhere the fields
+                    // take the whole width, screen.rs).
+                    (id: "launcher.client", pos: (0, 20), size: (Fill(104), 26), kind: Edit(skin: "field", max_chars: 1024)),
+                    (id: "launcher.browse.client", anchor: TopRight, pos: (0, 20), size: (96, 26), kind: Button(skin: "secondary", text: "Browse…")),
                     (id: "launcher.ask.keys", pos: (0, 52), size: (Fill(0), 18), kind: Text(text: "Your keys file (keys.toml)")),
-                    (id: "launcher.keys", pos: (0, 72), size: (Fill(0), 26), kind: Edit(skin: "field", max_chars: 1024)),
-                    (id: "launcher.ask.hint", pos: (0, 102), size: (Fill(0), 16), kind: Text(text: "Type the paths, or drop the folder and the file on this window.")),
+                    (id: "launcher.keys", pos: (0, 72), size: (Fill(104), 26), kind: Edit(skin: "field", max_chars: 1024)),
+                    (id: "launcher.browse.keys", anchor: TopRight, pos: (0, 72), size: (96, 26), kind: Button(skin: "secondary", text: "Browse…")),
+                    (id: "launcher.ask.hint", pos: (0, 102), size: (Fill(0), 16), kind: Text(text: "Browse, type or paste the paths, or drop the folder and the file on this window.")),
                 ]),
                 (id: "launcher.previous", anchor: BottomLeft, pos: (32, 24), size: (196, 36), hidden: true, kind: Button(skin: "secondary", text: "Play the previous version")),
                 // Beside it when the main button plays what's installed.
