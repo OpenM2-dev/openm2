@@ -345,9 +345,26 @@ fn now() -> Timestamp {
     "2026-10-22T00:00:00Z".parse().unwrap()
 }
 
+/// Takes `root`'s lock, as the launcher does at its start. On Unix, a
+/// child process another test starts holds a copy of every open file for
+/// the moment between its fork and its exec, the lock's file among them: a
+/// folder whose lock was just let go may still look locked then. So this
+/// tries again for up to a second; one launcher per folder never meets it.
+fn open(root: &Path) -> anyhow::Result<Install> {
+    for _ in 0..100 {
+        match Install::open(root) {
+            Err(error) if error.to_string().starts_with("another launcher is running") => {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            opened => return opened,
+        }
+    }
+    Install::open(root)
+}
+
 fn update(root: &Path) -> anyhow::Result<Outcome> {
     let settings = LauncherSettings::read(&root.join(LAUNCHER_FILE)).unwrap();
-    let install = Install::open(root)?;
+    let install = open(root)?;
     install.update(
         &settings,
         &Http::new(&settings.url, settings.layout)?,
@@ -516,7 +533,7 @@ fn an_update_says_how_far_it_has_got() {
     server.publish(&key, &manifest(1, "1.0", &files), &files);
     let said = |root: &Path| {
         let settings = LauncherSettings::read(&root.join(LAUNCHER_FILE)).unwrap();
-        let install = Install::open(root).unwrap();
+        let install = open(root).unwrap();
         let mut said = Vec::new();
         install
             .update(
@@ -706,7 +723,7 @@ fn a_manifest_signed_again_replaces_only_the_record() {
     assert!(matches!(update(&root).unwrap(), Outcome::Renewed(_)));
     assert_eq!(server.files_asked(), 0);
     assert!(!root.join("previous").exists());
-    let install = Install::open(&root).unwrap();
+    let install = open(&root).unwrap();
     assert_eq!(install.installed(&key.public_key()).unwrap().sequence(), 2);
     drop(install);
     fs::remove_dir_all(&root).unwrap();
@@ -742,7 +759,7 @@ fn an_interrupted_swap_is_put_back() {
     update(&root).unwrap();
     // As if the launcher stopped between its two renames.
     fs::rename(root.join("app"), root.join("previous")).unwrap();
-    let install = Install::open(&root).unwrap();
+    let install = open(&root).unwrap();
     assert!(!install.previous().exists());
     assert_eq!(without_record(contents(&install.app())), expected(&V1));
     drop(install);
@@ -753,11 +770,12 @@ fn an_interrupted_swap_is_put_back() {
 fn one_launcher_at_a_time() {
     let (server, key) = (Server::start(), key());
     let root = folder("lock", &server, &key);
-    let first = Install::open(&root).unwrap();
+    let first = open(&root).unwrap();
+    // Refused at once, while the first holds it.
     let error = Install::open(&root).err().unwrap().to_string();
     assert!(error.contains("another launcher"), "{error}");
     drop(first);
-    assert!(Install::open(&root).is_ok());
+    assert!(open(&root).is_ok());
     fs::remove_dir_all(&root).unwrap();
 }
 
@@ -778,7 +796,7 @@ fn the_launcher_replaces_itself() {
     assert!(!replace_launcher(&running, &new).unwrap());
     assert!(!replace_launcher(&running, &root.join("missing")).unwrap());
     // The next start deletes the old one.
-    drop(Install::open(&root).unwrap());
+    drop(open(&root).unwrap());
     assert!(!root.join("openm2-launcher.old").exists());
     fs::remove_dir_all(&root).unwrap();
 }
