@@ -5,43 +5,63 @@ use std::io::Read;
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
-use m2_update::Request;
+use m2_update::{Layout, Request};
 use reqwest::StatusCode;
 use reqwest::blocking::{Client, Response};
 use reqwest::header::{CONTENT_RANGE, RANGE};
+use reqwest::redirect::Policy;
 use url::Url;
 
 /// How long connecting may take.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
 /// How long any one read or write may take.
 const IO_TIMEOUT: Duration = Duration::from_secs(60);
+/// The most redirects one request follows.
+const MAX_REDIRECTS: usize = 10;
 
 /// A channel's server. Threads share it, and its connections.
 pub struct Http {
     client: Client,
     base: Url,
+    layout: Layout,
 }
 
 impl Http {
-    /// The server at `base`, which ends in `/` (`LauncherSettings::url`).
-    pub fn new(base: &Url) -> Result<Self> {
+    /// The server at `base`, which ends in `/` (`LauncherSettings::url`),
+    /// naming its manifest and files by `layout`.
+    pub fn new(base: &Url, layout: Layout) -> Result<Self> {
         let client = Client::builder()
             .user_agent(concat!("openm2-launcher/", env!("CARGO_PKG_VERSION")))
             .connect_timeout(CONNECT_TIMEOUT)
             .timeout(IO_TIMEOUT)
             .tls_version_min(reqwest::tls::Version::TLS_1_3)
+            .redirect(Policy::custom(|attempt| {
+                if attempt.previous().len() >= MAX_REDIRECTS {
+                    attempt.error(format!("more than {MAX_REDIRECTS} redirects"))
+                } else if allowed(attempt.url()) {
+                    attempt.follow()
+                } else {
+                    let to = format!(
+                        "{}://{}",
+                        attempt.url().scheme(),
+                        attempt.url().host_str().unwrap_or("")
+                    );
+                    attempt.error(format!("a redirect to {to}, which isn't https://"))
+                }
+            }))
             .build()
             .context("starting HTTPS")?;
         Ok(Self {
             client,
             base: base.clone(),
+            layout,
         })
     }
 
     /// The channel's signed manifest, at most `MAX_SIGNED` bytes.
     pub fn manifest(&self, channel: &str) -> Result<Vec<u8>> {
         let limit = m2_update::MAX_SIGNED as u64;
-        let mut response = self.get(&m2_update::manifest_location(channel), None, limit)?;
+        let mut response = self.get(&self.layout.manifest_location(channel), None, limit)?;
         let mut bytes = Vec::new();
         (&mut response)
             .take(limit + 1)
@@ -58,7 +78,7 @@ impl Http {
     /// that range (`206`). Its bytes are read as they come, never more than
     /// the request's size.
     pub fn fetch(&self, request: &Request) -> Result<Body> {
-        let location = m2_update::file_location(&request.object);
+        let location = self.layout.file_location(&request.object);
         let response = self.get(&location, request.range, request.size)?;
         Ok(Body {
             url: response.url().clone(),
@@ -112,6 +132,16 @@ impl Http {
             bail!("{url}: more than {limit} bytes");
         }
         Ok(response)
+    }
+}
+
+/// Whether a redirect may lead to `url`: HTTPS, or HTTP only to this
+/// machine, as a channel's own address (`LauncherSettings::url`).
+fn allowed(url: &Url) -> bool {
+    match url.scheme() {
+        "https" => true,
+        "http" => matches!(url.host_str(), Some("127.0.0.1" | "localhost" | "[::1]")),
+        _ => false,
     }
 }
 

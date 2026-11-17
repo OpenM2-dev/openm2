@@ -14,6 +14,7 @@
 //!   newer than the installed one ([`Verdict`]).
 //! - [`plan`]: where each file of a new version comes from ([`Source`]);
 //!   [`requests`]: the requests that fetch the files it must download.
+//! - [`Layout`]: where a channel's server keeps its manifest and files.
 //! - [`cut_bundles`] and [`place_bundled`]: how `openm2 release` cuts a
 //!   version's files into bundles.
 
@@ -52,15 +53,46 @@ pub use time::Timestamp;
 /// The signed manifest's name in its channel's folder on the server.
 pub const MANIFEST_NAME: &str = "manifest.signed";
 
-/// Where a channel's signed manifest is, from the channel's address.
-pub fn manifest_location(channel: &str) -> String {
-    format!("{channel}/{MANIFEST_NAME}")
+/// How a channel's server names its signed manifest and its files, from
+/// the channel's address (`docs/specs/update.md`, "On the server").
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Layout {
+    /// `<channel>/manifest.signed` and `files/<sha256>`: a folder per
+    /// channel, and the files that channels share in one folder.
+    #[default]
+    Folders,
+    /// `<channel>.manifest.signed` and `<sha256>`, all side by side: for a
+    /// host that serves one flat list of names, as a GitHub release's
+    /// downloads.
+    Flat,
 }
 
-/// Where a file or a bundle is, from the channel's address: named by its
-/// SHA-256.
-pub fn file_location(sha256: &Sha256) -> String {
-    format!("files/{sha256}")
+impl Layout {
+    /// The layout `launcher.toml` names: `folders` or `flat`.
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "folders" => Some(Self::Folders),
+            "flat" => Some(Self::Flat),
+            _ => None,
+        }
+    }
+
+    /// Where a channel's signed manifest is, from the channel's address.
+    pub fn manifest_location(self, channel: &str) -> String {
+        match self {
+            Self::Folders => format!("{channel}/{MANIFEST_NAME}"),
+            Self::Flat => format!("{channel}.{MANIFEST_NAME}"),
+        }
+    }
+
+    /// Where a file or a bundle is, from the channel's address: named by
+    /// its SHA-256.
+    pub fn file_location(self, sha256: &Sha256) -> String {
+        match self {
+            Self::Folders => format!("files/{sha256}"),
+            Self::Flat => sha256.to_string(),
+        }
+    }
 }
 
 /// Text from a file or the network, safe to print: printable ASCII kept,

@@ -3,8 +3,11 @@ name: release
 # A tag vX.Y.Z publishes a release: the server's image to
 # GHCR, ghcr.io/<owner>/openm2-server:X.Y.Z, and the Windows client with its
 # launcher to a GitHub Release with its SHA-256, the release's notes starting
-# with the changelog since the previous tag. The tag must be the workspace's
-# version.
+# with the changelog since the previous tag. The release is also the
+# launcher's update channel (deploy/windows/launcher.toml): its downloads
+# carry the version's files by their SHA-256 and the manifest signed with
+# OPENM2_RELEASE_KEY, the `release` environment's secret. The tag must be
+# the workspace's version.
 on:
   push:
     tags: ["v*"]
@@ -92,6 +95,8 @@ jobs:
   client-windows:
     name: Windows client
     needs: version
+    # The release key's secret is only given to jobs of this environment.
+    environment: release
     runs-on: windows-latest
     # Fat LTO in one codegen unit, with no cache, is the slowest build.
     timeout-minutes: 60
@@ -108,21 +113,47 @@ jobs:
       - name: Build the client and its launcher
         run: cargo build --locked --profile dist --package m2-cli --bin openm2 --package m2-launcher --bin openm2-launcher
 
+      # The version's files: what the channel's manifest names, and the zip
+      # holds with launcher.toml beside them.
+      - name: The version's files
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory version | Out-Null
+          Copy-Item target/dist/openm2.exe, target/dist/openm2-launcher.exe, LICENSE-MIT, LICENSE-APACHE, README.md version
+          # The licences of every package the programs are built from.
+          cargo xtask notices --out "version/THIRD-PARTY-NOTICES.txt"
+          if ($LASTEXITCODE -ne 0) { throw "cargo xtask notices failed" }
+          foreach ($program in "openm2", "openm2-launcher") {
+            # Piped: the launcher is a Windows-subsystem program, whose
+            # output PowerShell reads, and waits for, only then.
+            $printed = (& "version/$program.exe" --version | Out-String).Trim()
+            if ($printed -ne "$program $env:VERSION") { throw "$program --version printed: $printed" }
+          }
+
+      # The channel, flat as a release's downloads are: each file once by its
+      # SHA-256, and the signed manifest, checked with the key launchers have.
+      # A year before it expires, so releases months apart still update.
+      - name: Sign the channel's manifest
+        shell: pwsh
+        env:
+          OPENM2_RELEASE_KEY: ${{ secrets.OPENM2_RELEASE_KEY }}
+        run: |
+          if (-not $env:OPENM2_RELEASE_KEY) { throw "the release environment has no OPENM2_RELEASE_KEY" }
+          $channel = "windows-x64"
+          & version/openm2.exe release manifest --dir version --channel $channel --version $env:VERSION --days 365 --objects channel --out manifest.json
+          if ($LASTEXITCODE -ne 0) { throw "release manifest failed" }
+          & version/openm2.exe release sign manifest.json --out "channel/$channel.manifest.signed"
+          if ($LASTEXITCODE -ne 0) { throw "release sign failed" }
+          $key = (Select-String -Path deploy/windows/launcher.toml -Pattern '^key = "(.+)"$').Matches[0].Groups[1].Value
+          & version/openm2.exe release verify "channel/$channel.manifest.signed" --key $key --channel $channel
+          if ($LASTEXITCODE -ne 0) { throw "the manifest isn't signed with deploy/windows/launcher.toml's key" }
+
       - name: Zip it
         shell: pwsh
         run: |
           $name = "openm2-$env:VERSION-windows-x64"
           New-Item -ItemType Directory $name | Out-Null
-          Copy-Item target/dist/openm2.exe, target/dist/openm2-launcher.exe, LICENSE-MIT, LICENSE-APACHE, README.md $name
-          # The licences of every package the programs are built from.
-          cargo xtask notices --out "$name/THIRD-PARTY-NOTICES.txt"
-          if ($LASTEXITCODE -ne 0) { throw "cargo xtask notices failed" }
-          foreach ($program in "openm2", "openm2-launcher") {
-            # Piped: the launcher is a Windows-subsystem program, whose
-            # output PowerShell reads, and waits for, only then.
-            $printed = (& "$name/$program.exe" --version | Out-String).Trim()
-            if ($printed -ne "$program $env:VERSION") { throw "$program --version printed: $printed" }
-          }
+          Copy-Item version/*, deploy/windows/launcher.toml $name
           Compress-Archive -Path "$name/*" -DestinationPath "$name.zip"
           $hash = (Get-FileHash -Algorithm SHA256 "$name.zip").Hash.ToLowerInvariant()
           "$hash  $name.zip" | Out-File -Encoding ascii -NoNewline "$name.zip.sha256"
@@ -130,7 +161,9 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: client-windows
-          path: openm2-*-windows-x64.zip*
+          path: |
+            openm2-*-windows-x64.zip*
+            channel/
           if-no-files-found: error
           retention-days: 7
 
@@ -180,6 +213,9 @@ jobs:
           (\`docker pull $IMAGE@$DIGEST\`).
 
           The Windows client and its launcher: \`openm2-$VERSION-windows-x64.zip\`, with its SHA-256 beside it.
+          Unzip it anywhere and start \`openm2-launcher.exe\`: it imports your own client once, then keeps
+          itself and the game up to date from the latest release. The downloads named by a SHA-256, and
+          \`windows-x64.manifest.signed\`, are that update channel: the programs only, never a client's files.
           EOF
           gh release create "$TAG" --repo "$REPO" --verify-tag --title "openm2 $VERSION" \
-            --notes-file notes.md openm2-*-windows-x64.zip openm2-*-windows-x64.zip.sha256
+            --notes-file notes.md openm2-*-windows-x64.zip openm2-*-windows-x64.zip.sha256 channel/*

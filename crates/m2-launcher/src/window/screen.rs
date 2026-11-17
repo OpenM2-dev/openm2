@@ -283,19 +283,30 @@ pub enum Action {
     Retry,
     /// Import (or check) the client folder and keys file in the fields.
     Import,
+    /// Pick the client folder in the system's dialog.
+    BrowseClient,
+    /// Pick the keys file in the system's dialog.
+    BrowseKeys,
     /// Close the window, stopping what runs.
     Close,
 }
 
 /// The buttons, and what they ask for.
-const BUTTONS: [(&str, Action); 6] = [
+const BUTTONS: [(&str, Action); 8] = [
     ("launcher.play", Action::Play),
     ("launcher.previous", Action::Previous),
     ("launcher.retry", Action::Retry),
     ("launcher.again", Action::Retry),
     ("launcher.import", Action::Import),
+    ("launcher.browse.client", Action::BrowseClient),
+    ("launcher.browse.keys", Action::BrowseKeys),
     ("launcher.close", Action::Close),
 ];
+
+/// Whether the fields have Browse buttons: the system's own dialogs, on
+/// Windows only. Elsewhere the fields take the whole width, and paths are
+/// typed, pasted or dropped.
+const BROWSE: bool = cfg!(windows);
 
 /// What clicking the node `id` asks for, if it's a button.
 pub fn action(id: &str) -> Option<Action> {
@@ -362,6 +373,21 @@ pub fn show(ui: &mut Ui, stage: &Stage, look: &Look) {
         Stage::Asking { problem } => {
             ui.set_visible("launcher.ask", true);
             ui.set_visible("launcher.import", true);
+            for (field, button) in [
+                ("launcher.client", "launcher.browse.client"),
+                ("launcher.keys", "launcher.browse.keys"),
+            ] {
+                ui.set_visible(button, BROWSE);
+                if !BROWSE {
+                    ui.set_size(field, (Length::Fill(0.0), Length::Px(26.0)));
+                }
+            }
+            if !BROWSE {
+                ui.set_text(
+                    "launcher.ask.hint",
+                    "Type or paste the paths, or drop the folder and the file on this window.",
+                );
+            }
             (
                 problem
                     .clone()
@@ -580,6 +606,8 @@ mod tests {
     fn clicks_and_enter_ask_for_actions() {
         assert_eq!(action("launcher.play"), Some(Action::Play));
         assert_eq!(action("launcher.close"), Some(Action::Close));
+        assert_eq!(action("launcher.browse.client"), Some(Action::BrowseClient));
+        assert_eq!(action("launcher.browse.keys"), Some(Action::BrowseKeys));
         assert_eq!(action("launcher.log"), None);
         assert_eq!(
             main_action(&Stage::Asking { problem: None }),

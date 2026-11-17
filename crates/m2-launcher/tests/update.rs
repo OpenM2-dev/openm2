@@ -37,6 +37,9 @@ struct Served {
     /// The answers being sent now, and the most at once.
     busy: usize,
     most: usize,
+    /// Every request answered with a redirect (`302`) to this address
+    /// and its place, as GitHub's `releases/latest/download/` answers.
+    forward: Option<String>,
 }
 
 /// A channel's server: plain HTTP/1.1, one request per connection, each
@@ -81,6 +84,22 @@ impl Server {
     /// From now on, ranges are answered with the whole file.
     fn ignore_ranges(&self) {
         self.served.lock().unwrap().whole = true;
+    }
+
+    /// From now on, every request is sent on to `to` and its place.
+    fn forward(&self, to: &str) {
+        self.served.lock().unwrap().forward = Some(to.to_owned());
+    }
+
+    /// Publishes a version as a flat channel names it
+    /// (`<channel>.manifest.signed` and `<sha256>`): its files, then its
+    /// signed manifest.
+    fn publish_flat(&self, key: &SigningKey, manifest: &Manifest, contents: &[(&str, &[u8])]) {
+        for (_, bytes) in contents {
+            self.put(&Sha256::of(bytes).to_string(), bytes);
+        }
+        let signed = m2_update::sign(&manifest.to_json(), key).unwrap();
+        self.put(&format!("{}.manifest.signed", manifest.channel()), &signed);
     }
 
     /// From now on, every answer for a file waits `wait` first.
@@ -155,7 +174,7 @@ fn answer(mut stream: TcpStream, served: &Mutex<Served>) -> std::io::Result<()> 
         Some((first.parse::<usize>().ok()?, last.parse::<usize>().ok()?))
     });
     let file = place.starts_with("files/");
-    let (body, cut, whole, slow) = {
+    let (body, cut, whole, slow, forward) = {
         let mut served = served.lock().unwrap();
         served.asked.push(place.clone());
         served.busy += 1;
@@ -165,8 +184,22 @@ fn answer(mut stream: TcpStream, served: &Mutex<Served>) -> std::io::Result<()> 
             served.cut.get(&place).copied(),
             served.whole,
             served.slow,
+            served.forward.clone(),
         )
     };
+    if let Some(to) = forward {
+        served.lock().unwrap().busy -= 1;
+        write!(
+            stream,
+            "HTTP/1.1 302 Found
+Location: {to}{place}
+Content-Length: 0
+Connection: close
+
+"
+        )?;
+        return stream.flush();
+    }
     let answered = (|| {
         if file {
             std::thread::sleep(slow);
@@ -312,10 +345,32 @@ fn now() -> Timestamp {
     "2026-10-22T00:00:00Z".parse().unwrap()
 }
 
+/// Takes `root`'s lock, as the launcher does at its start. On Unix, a
+/// child process another test starts holds a copy of every open file for
+/// the moment between its fork and its exec, the lock's file among them: a
+/// folder whose lock was just let go may still look locked then. So this
+/// tries again for up to a second; one launcher per folder never meets it.
+fn open(root: &Path) -> anyhow::Result<Install> {
+    for _ in 0..100 {
+        match Install::open(root) {
+            Err(error) if error.to_string().starts_with("another launcher is running") => {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            opened => return opened,
+        }
+    }
+    Install::open(root)
+}
+
 fn update(root: &Path) -> anyhow::Result<Outcome> {
     let settings = LauncherSettings::read(&root.join(LAUNCHER_FILE)).unwrap();
-    let install = Install::open(root)?;
-    install.update(&settings, &Http::new(&settings.url)?, now(), &mut |_| {})
+    let install = open(root)?;
+    install.update(
+        &settings,
+        &Http::new(&settings.url, settings.layout)?,
+        now(),
+        &mut |_| {},
+    )
 }
 
 /// Every file under `folder` and its contents, by path with `/`.
@@ -398,6 +453,67 @@ fn a_first_install_then_an_update_then_nothing_to_do() {
     fs::remove_dir_all(&root).unwrap();
 }
 
+/// A flat channel (`layout = "flat"`) behind a redirect, as a GitHub
+/// release's downloads are: `releases/latest/download/<name>` answers
+/// `302` to the file's own address.
+#[test]
+fn a_flat_channel_behind_a_redirect() {
+    let (front, files, key) = (Server::start(), Server::start(), key());
+    front.forward(&files.url);
+    let root = std::env::temp_dir().join(format!("openm2-launcher-flat-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    let settings = |url: &str| {
+        format!(
+            "format = 1
+url = \"{url}\"
+channel = \"test\"
+layout = \"flat\"
+key = \"{}\"
+",
+            key.public_key()
+        )
+    };
+    fs::write(root.join(LAUNCHER_FILE), settings(&front.url)).unwrap();
+
+    files.publish_flat(&key, &manifest(1, "1.0", &V1), &V1);
+    let Outcome::Updated { downloaded, .. } = update(&root).unwrap() else {
+        panic!("not an update");
+    };
+    assert_eq!(downloaded, 3);
+    assert_eq!(without_record(contents(&root.join("app"))), expected(&V1));
+    assert_eq!(front.asked("test.manifest.signed"), 1);
+    assert_eq!(files.asked("test.manifest.signed"), 1);
+    let game_two = Sha256::of(b"game two").to_string();
+    assert_eq!(front.asked(&game_two), 0);
+
+    // Only what changed comes, by its SHA-256 alone.
+    files.publish_flat(&key, &manifest(2, "2.0", &V2), &V2);
+    let Outcome::Updated { downloaded, .. } = update(&root).unwrap() else {
+        panic!("not an update");
+    };
+    assert_eq!(downloaded, 2);
+    assert_eq!(front.asked(&game_two), 1);
+    assert_eq!(files.asked(&game_two), 1);
+    assert_eq!(without_record(contents(&root.join("app"))), expected(&V2));
+
+    // A manifest whose files aren't there yet (a release published between
+    // the two requests) fails the update and leaves the installed version.
+    let v3: [(&str, &[u8]); 1] = [("openm2.exe", b"game three")];
+    let signed = m2_update::sign(&manifest(3, "3.0", &v3).to_json(), &key).unwrap();
+    files.put("test.manifest.signed", &signed);
+    let error = format!("{:#}", update(&root).unwrap_err());
+    assert!(error.contains("404"), "{error}");
+    assert_eq!(without_record(contents(&root.join("app"))), expected(&V2));
+
+    // A redirect away from HTTPS is refused before anything is asked there.
+    front.forward("http://example.net/");
+    let error = format!("{:#}", update(&root).unwrap_err());
+    assert!(error.contains("isn't https://"), "{error}");
+    assert_eq!(without_record(contents(&root.join("app"))), expected(&V2));
+    fs::remove_dir_all(&root).unwrap();
+}
+
 /// What an update says as it goes: the window's gauge and the console's
 /// lines come from it.
 #[test]
@@ -417,12 +533,12 @@ fn an_update_says_how_far_it_has_got() {
     server.publish(&key, &manifest(1, "1.0", &files), &files);
     let said = |root: &Path| {
         let settings = LauncherSettings::read(&root.join(LAUNCHER_FILE)).unwrap();
-        let install = Install::open(root).unwrap();
+        let install = open(root).unwrap();
         let mut said = Vec::new();
         install
             .update(
                 &settings,
-                &Http::new(&settings.url).unwrap(),
+                &Http::new(&settings.url, settings.layout).unwrap(),
                 now(),
                 &mut |progress| {
                     said.push(progress);
@@ -607,7 +723,7 @@ fn a_manifest_signed_again_replaces_only_the_record() {
     assert!(matches!(update(&root).unwrap(), Outcome::Renewed(_)));
     assert_eq!(server.files_asked(), 0);
     assert!(!root.join("previous").exists());
-    let install = Install::open(&root).unwrap();
+    let install = open(&root).unwrap();
     assert_eq!(install.installed(&key.public_key()).unwrap().sequence(), 2);
     drop(install);
     fs::remove_dir_all(&root).unwrap();
@@ -643,7 +759,7 @@ fn an_interrupted_swap_is_put_back() {
     update(&root).unwrap();
     // As if the launcher stopped between its two renames.
     fs::rename(root.join("app"), root.join("previous")).unwrap();
-    let install = Install::open(&root).unwrap();
+    let install = open(&root).unwrap();
     assert!(!install.previous().exists());
     assert_eq!(without_record(contents(&install.app())), expected(&V1));
     drop(install);
@@ -654,11 +770,12 @@ fn an_interrupted_swap_is_put_back() {
 fn one_launcher_at_a_time() {
     let (server, key) = (Server::start(), key());
     let root = folder("lock", &server, &key);
-    let first = Install::open(&root).unwrap();
+    let first = open(&root).unwrap();
+    // Refused at once, while the first holds it.
     let error = Install::open(&root).err().unwrap().to_string();
     assert!(error.contains("another launcher"), "{error}");
     drop(first);
-    assert!(Install::open(&root).is_ok());
+    assert!(open(&root).is_ok());
     fs::remove_dir_all(&root).unwrap();
 }
 
@@ -679,7 +796,7 @@ fn the_launcher_replaces_itself() {
     assert!(!replace_launcher(&running, &new).unwrap());
     assert!(!replace_launcher(&running, &root.join("missing")).unwrap());
     // The next start deletes the old one.
-    drop(Install::open(&root).unwrap());
+    drop(open(&root).unwrap());
     assert!(!root.join("openm2-launcher.old").exists());
     fs::remove_dir_all(&root).unwrap();
 }

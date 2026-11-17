@@ -8,7 +8,7 @@ use std::io::Read as _;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
-use m2_update::{InstallPath, PublicKey};
+use m2_update::{InstallPath, Layout, PublicKey};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -40,6 +40,8 @@ pub struct LauncherSettings {
     pub url: Url,
     /// The channel's name.
     pub channel: String,
+    /// How its server names the manifest and the files.
+    pub layout: Layout,
     /// The key its manifests are signed with.
     pub key: PublicKey,
     /// How its window looks.
@@ -74,6 +76,8 @@ struct LauncherFile {
     format: u32,
     url: String,
     channel: String,
+    #[serde(default)]
+    layout: Option<String>,
     key: String,
     #[serde(default)]
     window: Option<WindowFile>,
@@ -208,6 +212,11 @@ impl LauncherSettings {
         if !m2_update::valid_channel(&file.channel) {
             bail!("`channel` is 1 to 32 of a-z, 0-9 and -");
         }
+        let layout = match file.layout.as_deref() {
+            None => Layout::default(),
+            Some(name) => Layout::from_name(name)
+                .with_context(|| format!("`layout` is \"folders\" or \"flat\", not {name:?}"))?,
+        };
         let key = file
             .key
             .parse()
@@ -215,6 +224,7 @@ impl LauncherSettings {
         Ok(Self {
             url: channel_url(&file.url)?,
             channel: file.channel,
+            layout,
             key,
             window: WindowSettings::parse(file.window)?,
         })
@@ -361,7 +371,20 @@ mod tests {
         let settings = launcher("https://dl.example.net").unwrap();
         assert_eq!(settings.url.as_str(), "https://dl.example.net/");
         assert_eq!(settings.channel, "test");
+        assert_eq!(settings.layout, Layout::Folders);
         assert_eq!(settings.key.to_string(), KEY);
+        let flat = LauncherSettings::parse(&format!(
+            "format = 1\nurl = \"https://github.com/o/r/releases/latest/download\"\nchannel = \"windows-x64\"\nlayout = \"flat\"\nkey = \"{KEY}\"\n"
+        ))
+        .unwrap();
+        assert_eq!(flat.layout, Layout::Flat);
+        assert_eq!(
+            flat.url
+                .join(&flat.layout.manifest_location(&flat.channel))
+                .unwrap()
+                .as_str(),
+            "https://github.com/o/r/releases/latest/download/windows-x64.manifest.signed"
+        );
         let deeper = launcher("https://cdn.example.net/game").unwrap();
         assert_eq!(
             deeper.url.join("test/manifest.signed").unwrap().as_str(),
@@ -374,6 +397,21 @@ mod tests {
         ] {
             assert!(launcher(local).is_ok(), "{local}");
         }
+    }
+
+    /// The settings openm2's own Windows release carries: its latest
+    /// GitHub release, as a flat channel.
+    #[test]
+    fn the_releases_own_settings() {
+        let settings =
+            LauncherSettings::parse(include_str!("../../../deploy/windows/launcher.toml")).unwrap();
+        assert_eq!(
+            settings.url.as_str(),
+            "https://github.com/OpenM2-dev/openm2/releases/latest/download/"
+        );
+        assert_eq!(settings.channel, "windows-x64");
+        assert_eq!(settings.layout, Layout::Flat);
+        assert_eq!(settings.window, WindowSettings::default());
     }
 
     #[test]
@@ -409,6 +447,10 @@ mod tests {
             (
                 "format = 1\nurl = \"https://a\"\nchannel = \"test\"\nkey = \"{KEY}\"\nclient = \"x\"\n",
                 "client",
+            ),
+            (
+                "format = 1\nurl = \"https://a\"\nchannel = \"test\"\nlayout = \"tree\"\nkey = \"{KEY}\"\n",
+                "`layout`",
             ),
         ] {
             let text = text.replace("{KEY}", KEY);

@@ -2258,7 +2258,11 @@ fn current(dir: &Path) -> Result<ExitCode> {
                     println!("this openm2's import ({IMPORT})");
                     return Ok(ExitCode::SUCCESS);
                 }
-                Some(import) => format!("import {import}, not this openm2's ({IMPORT})"),
+                Some(import) => {
+                    format!(
+                        "this version reads clients differently (import {import}, now {IMPORT})"
+                    )
+                }
                 None => "not an import, or one from before imports had numbers".to_owned(),
             },
             Err(error) => format!("it doesn't read: {error}"),

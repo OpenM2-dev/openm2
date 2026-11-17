@@ -872,3 +872,26 @@ proptest! {
         prop_assert_eq!(parts, contents.len());
     }
 }
+
+#[test]
+fn the_two_layouts_name_the_manifest_and_files() {
+    use m2_update::Layout;
+    let sha = Sha256::of(b"hello");
+    let hex = sha.to_string();
+    assert_eq!(Layout::default(), Layout::Folders);
+    assert_eq!(
+        Layout::Folders.manifest_location("test"),
+        "test/manifest.signed"
+    );
+    assert_eq!(Layout::Folders.file_location(&sha), format!("files/{hex}"));
+    assert_eq!(
+        Layout::Flat.manifest_location("windows-x64"),
+        "windows-x64.manifest.signed"
+    );
+    assert_eq!(Layout::Flat.file_location(&sha), hex);
+    assert_eq!(Layout::from_name("folders"), Some(Layout::Folders));
+    assert_eq!(Layout::from_name("flat"), Some(Layout::Flat));
+    for other in ["", "Flat", "tree", "flat "] {
+        assert_eq!(Layout::from_name(other), None, "{other:?}");
+    }
+}

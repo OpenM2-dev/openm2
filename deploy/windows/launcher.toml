@@ -1,0 +1,12 @@
+# The launcher's settings in openm2's own Windows release
+# (docs/specs/update.md, "The install folder"): updates come from the
+# repository's latest GitHub release, whose downloads carry the version's
+# files by their SHA-256 and the signed manifest beside them (a flat
+# channel). release.yml signs that manifest with OPENM2_RELEASE_KEY, the
+# private half of `key`, and puts this file into the zip. Changing `url` or
+# `key` needs a new download.
+format = 1
+url = "https://github.com/OpenM2-dev/openm2/releases/latest/download"
+channel = "windows-x64"
+layout = "flat"
+key = "ed25519:103c8e15e900cd4701c7a3e7421c503ef1e7286aaee6840fda386a5f14efd8ca"
