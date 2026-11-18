@@ -1,5 +1,7 @@
 # openm2
 
+<p align="center"><img src="branding/openm2-banner.png" alt="openm2" width="640"></p>
+
 An open-source game client and server, written from scratch in Rust and built to be maintained mostly by coding agents. The client plays from the files of a **Metin2** client you already have, converted on your machine into openm2's own formats; client and server speak a protocol of their own. It is growing into an engine with open formats of its own.
 
 > **Status: early.** What works today:
@@ -25,7 +27,7 @@ An open-source game client and server, written from scratch in Rust and built to
 
 ## Playing
 On Windows:
-1. **Download and run [`openm2-setup.exe`](https://github.com/OpenM2-dev/openm2/releases/latest/download/openm2-setup.exe)**, the [latest release](https://github.com/OpenM2-dev/openm2/releases/latest)'s. It installs openm2 for you alone, without an administrator, into `%LOCALAPPDATA%\Programs\openm2`, with a Start menu shortcut and an uninstaller. Or unzip [`openm2-windows-x64.zip`](https://github.com/OpenM2-dev/openm2/releases/latest/download/openm2-windows-x64.zip) into a folder you can write to.
+1. **Download and run [`openm2-setup.exe`](https://github.com/OpenM2-dev/openm2/releases/latest/download/openm2-setup.exe)**, the [latest release](https://github.com/OpenM2-dev/openm2/releases/latest)'s, also on [openm2.net](https://openm2.net). It installs openm2 for you alone, without an administrator, into `%LOCALAPPDATA%\Programs\openm2`, with a Start menu shortcut and an uninstaller. Or unzip [`openm2-windows-x64.zip`](https://github.com/OpenM2-dev/openm2/releases/latest/download/openm2-windows-x64.zip) into a folder you can write to.
 2. **Start openm2** (`openm2-launcher.exe`). It downloads the game's programs from the latest release, then asks for your client folder (a TMP4 40250 client you already have, the one with `pack` in it) and your keys file ([`keys.toml`](docs/specs/formats/keys.md)). Browse to them, or drop them on its window.
 3. **It converts your client** into openm2's own formats inside that folder, in about a minute, and starts the game. Later starts take a second or two.
 4. **On the Servers board, add a server** by its address. Its operator gives you its key, or the game shows it at the first join and asks you to trust it.
@@ -78,5 +80,7 @@ openm2's protocol runs under **TLS 1.3**. A server with a certificate for its na
 
 ## License
 Dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
+
+The project's logo in [`branding/`](branding/) is not under these licences: you may show it unchanged to point at openm2, and builds and forks you ship use their own name and logo ([branding/README.md](branding/README.md)).
 
 "Metin2" is a trademark of its owners. It is used here only to describe compatibility. This project is not affiliated with or endorsed by them, and uses none of their logos or art.

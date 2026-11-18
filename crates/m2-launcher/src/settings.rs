@@ -400,7 +400,7 @@ mod tests {
     }
 
     /// The settings openm2's own Windows release carries: its latest
-    /// GitHub release, as a flat channel.
+    /// GitHub release, as a flat channel, and the project's look.
     #[test]
     fn the_releases_own_settings() {
         let settings =
@@ -411,7 +411,19 @@ mod tests {
         );
         assert_eq!(settings.channel, "windows-x64");
         assert_eq!(settings.layout, Layout::Flat);
-        assert_eq!(settings.window, WindowSettings::default());
+        // The version's window.toml has the same look, for installs whose
+        // launcher.toml has none.
+        let version =
+            WindowSettings::parse_version(include_str!("../../../deploy/windows/window.toml"))
+                .unwrap();
+        assert_eq!(settings.window, version);
+        assert_eq!(version.name.as_deref(), Some("openm2"));
+        assert_eq!(
+            version.picture.as_ref().map(InstallPath::as_str),
+            Some("openm2-banner.png")
+        );
+        assert_eq!(version.accent, Some([0xdf, 0xae, 0x4f]));
+        assert_eq!(version.background, Some([6, 7, 9]));
     }
 
     #[test]

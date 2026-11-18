@@ -10,3 +10,12 @@ url = "https://github.com/OpenM2-dev/openm2/releases/latest/download"
 channel = "windows-x64"
 layout = "flat"
 key = "ed25519:103c8e15e900cd4701c7a3e7421c503ef1e7286aaee6840fda386a5f14efd8ca"
+
+# How the window looks before the first update; afterwards the version's
+# own window.toml, which carries the same look, comes first. The picture is
+# the release's openm2-banner.png, beside this file (branding/README.md).
+[window]
+name = "openm2"
+picture = "openm2-banner.png"
+accent = "#dfae4f"
+background = "#060709"
