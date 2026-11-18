@@ -2098,6 +2098,7 @@ dependencies = [
  "jsonwebtoken",
  "m2-content",
  "m2-core",
+ "m2-launcher",
  "m2-net",
  "m2-protocol",
  "m2-server-core",

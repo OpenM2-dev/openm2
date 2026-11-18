@@ -1478,8 +1478,12 @@ impl PlayInterface {
                     self.actions.push(Action::Back);
                 }
                 self.busy = true;
-                self.ui
-                    .set_text(ids::LOGIN_STATUS, "Opening your browser...");
+                let status = if config.signs_with_key() {
+                    "Signing in..."
+                } else {
+                    "Opening your browser..."
+                };
+                self.ui.set_text(ids::LOGIN_STATUS, status);
                 self.ui.set_text(ids::LOGIN_QUIT, "Cancel");
                 self.actions.push(Action::LogIn(config));
             }
@@ -1862,6 +1866,19 @@ mod tests {
             [Action::Back]
         ));
         interface.follow(Progress::Offline, &World::default());
+        // A device's key opens no browser.
+        interface.set_providers(vec![provider("key", "This device")]);
+        interface.clicked(ids::PROVIDER_BUTTONS[0]);
+        let actions = interface.take_actions();
+        let [Action::LogIn(config)] = actions.as_slice() else {
+            panic!("{actions:?}");
+        };
+        assert!(config.signs_with_key());
+        assert_eq!(interface.ui.text(ids::LOGIN_STATUS), Some("Signing in..."));
+        interface.clicked(ids::LOGIN_QUIT);
+        interface.take_actions();
+        interface.follow(Progress::Offline, &World::default());
+        interface.set_providers(vec![provider("example", "Example ID")]);
         // A failure brings the screen back with the reason.
         let refused = SessionError::LoginRejected {
             server: m2_core::ServerKind::Auth,

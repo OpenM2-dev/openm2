@@ -1,7 +1,8 @@
 //! `openm2-server serve` as another program runs it (`docs/server.md`,
 //! "Run by another program"): on a save, signing in with a device's key,
 //! its ports and key in the ready line, stopped by closing its stdin, and
-//! the save still there when it starts again.
+//! the save still there when it starts again. And as the launcher runs it
+//! for a local save, with `m2_launcher::host`'s own command.
 
 use std::io::{BufRead as _, BufReader, Read as _};
 use std::path::{Path, PathBuf};
@@ -237,6 +238,43 @@ fn a_save_runs_until_stdin_closes_and_is_there_again_after() {
     assert_eq!(enters.entered.as_deref(), Some("Saved"));
     server.stop();
     std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// The launcher's command for a local save, its wait for the ready line
+/// and its stop: the server takes the flags, the save's owner plays, and
+/// the server saves and stops when the launcher lets go of its stdin.
+#[test]
+fn the_launcher_hosts_a_local_save() {
+    use m2_launcher::host::{Hosted, READY_PATIENCE, STOP_PATIENCE, server_command};
+    use m2_launcher::process::Stop;
+    use m2_launcher::saves::{self, SERVER_LOG};
+
+    let root = save_folder("launcher");
+    std::fs::create_dir_all(&root).unwrap();
+    let save = saves::create(&root, "Mine").unwrap();
+    let key = Arc::new(DeviceKey::generate().unwrap());
+    let owner = key.public_key().to_string();
+    let server = Path::new(env!("CARGO_BIN_EXE_openm2-server"));
+    let mut command = server_command(server, &root, &save, None, &owner).unwrap();
+    let hosted = Hosted::start(&mut command, &Stop::default(), READY_PATIENCE).unwrap();
+    let said = hosted.ready();
+    let ready = Ready {
+        auth: said.auth,
+        game: said.game,
+        key: said.key.parse().unwrap(),
+    };
+    let hero = NewCharacter::new("Hosted", CharacterClass::WarriorMale, Empire::Shinsoo).unwrap();
+    let (session, enters) = play(ready, &key, CharacterChoice::Create(hero));
+    assert_eq!(session.stage(), Stage::LoggedOut, "{:?}", session.error());
+    assert_eq!(enters.entered.as_deref(), Some("Hosted"));
+
+    let status = hosted.stop(STOP_PATIENCE).unwrap();
+    let log = std::fs::read_to_string(save.folder.join(SERVER_LOG)).unwrap();
+    assert!(status.success(), "{status}\n{log}");
+    assert!(log.contains("stdin closed"), "{log}");
+    let listed = saves::list(&root).unwrap();
+    assert!(listed[0].played.is_some(), "its world was written");
+    std::fs::remove_dir_all(&root).unwrap();
 }
 
 #[test]

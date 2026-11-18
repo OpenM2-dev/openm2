@@ -184,6 +184,11 @@ struct ContentFile {
     #[allow(dead_code)]
     format: i64,
     name: Spanned<String>,
+    /// The number of the import that wrote the folder, for `openm2 content
+    /// current`; nothing else reads it.
+    #[allow(dead_code)]
+    #[serde(default)]
+    import: Option<u32>,
 }
 
 #[derive(Deserialize)]

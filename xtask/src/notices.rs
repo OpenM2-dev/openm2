@@ -15,7 +15,7 @@ use serde_json::Value;
 use crate::util::{display_path, output, repo_root};
 
 /// The packages whose programs the Windows release ships.
-pub const WINDOWS_PACKAGES: &[&str] = &["m2-cli", "m2-launcher"];
+pub const WINDOWS_PACKAGES: &[&str] = &["m2-cli", "m2-launcher", "m2-server"];
 /// The target the Windows release is built for.
 pub const WINDOWS_TARGET: &str = "x86_64-pc-windows-msvc";
 

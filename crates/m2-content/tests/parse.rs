@@ -1920,6 +1920,35 @@ fn a_folder_without_content_toml_is_refused() {
 }
 
 #[test]
+fn content_toml_may_name_the_import_that_wrote_it() {
+    let mut sources = folder();
+    sources
+        .insert(
+            "content.toml",
+            "format = 1
+name = \"test world\"
+import = 3
+",
+        )
+        .unwrap();
+    assert_eq!(parse(&sources).unwrap().name(), "test world");
+    sources
+        .insert(
+            "content.toml",
+            "format = 1
+name = \"test world\"
+import = -1
+",
+        )
+        .unwrap();
+    assert!(
+        errors(&sources).starts_with("content.toml:"),
+        "{}",
+        errors(&sources)
+    );
+}
+
+#[test]
 fn unknown_files_are_refused() {
     let mut sources = Sources::new();
     let error = sources.insert("quests.toml", "format = 1").unwrap_err();

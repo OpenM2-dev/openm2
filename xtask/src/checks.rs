@@ -55,7 +55,7 @@ const ALLOWED_DEPS: &[(&str, &[&str])] = &[
 /// client never depends on the server outside tests, nor the server on the
 /// client.
 const ALLOWED_DEV_DEPS: &[(&str, &[&str])] = &[
-    ("m2-server", &["m2-core", "m2-net"]),
+    ("m2-server", &["m2-core", "m2-net", "m2-launcher"]),
     ("m2-cli", &["m2-server", "m2-server-core", "m2-launcher"]),
 ];
 

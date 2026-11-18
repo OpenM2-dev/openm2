@@ -479,6 +479,27 @@ fn open_browser(url: &str) -> std::io::Result<()> {
         .map(|_| ())
 }
 
+/// The login board's buttons: the server's providers and, when it takes
+/// devices' keys, This device, which signs in with this device's key; it
+/// takes the last button there is room for.
+fn with_device(mut providers: Vec<SignInProvider>, key_sign_in: bool) -> Vec<SignInProvider> {
+    if key_sign_in {
+        let at = providers
+            .len()
+            .min(crate::interface::ids::PROVIDER_BUTTONS.len() - 1);
+        providers.insert(
+            at,
+            SignInProvider {
+                id: m2_protocol::key_sign_in::PROVIDER.to_owned(),
+                name: "This device".to_owned(),
+                authorize: String::new(),
+                client_id: String::new(),
+            },
+        );
+    }
+    providers
+}
+
 /// Asks the auth server at `net` for its providers on a thread of its own;
 /// the login screen shows a button each when they come, or why there are
 /// none.
@@ -488,7 +509,7 @@ fn ask_providers(net: NetConfig) -> mpsc::Receiver<Result<Vec<SignInProvider>, S
         .name("openm2 providers".to_owned())
         .spawn(move || {
             let result = match crate::servers::ask(&net) {
-                Ok(answer) => Ok(answer.providers),
+                Ok(answer) => Ok(with_device(answer.providers, answer.key_sign_in)),
                 Err(AskError::Session(error)) => Err(crate::screens::failure_text(&error)),
                 Err(AskError::Silent) => Err("The server did not say how to sign in.".to_owned()),
                 Err(AskError::Net(words)) => Err(crate::screens::sentence(&words)),
@@ -524,6 +545,8 @@ struct Connection {
     remote: Remote,
     shared: Arc<Mutex<Shared>>,
     thread: Option<JoinHandle<()>>,
+    /// It signs in with the device's key: no browser to wait for.
+    key: bool,
 }
 
 impl Connection {
@@ -535,7 +558,8 @@ impl Connection {
         config: SessionConfig,
         login: u32,
     ) -> Result<Self> {
-        if config.signs_with_key() {
+        let key = config.signs_with_key();
+        if key {
             net_config.device_key = Some(crate::key::load(
                 args.device_key.as_deref(),
                 args.settings.as_deref(),
@@ -581,6 +605,7 @@ impl Connection {
             remote,
             shared,
             thread: Some(thread),
+            key,
         })
     }
 
@@ -3753,6 +3778,10 @@ impl<'a> Client<'a> {
         let progress = match stage {
             None | Some(Stage::LoggedOut | Stage::Failed) => Progress::Offline,
             Some(Stage::Idle | Stage::Auth) => Progress::Connecting,
+            // A device's key signs at once: no browser to wait for.
+            Some(Stage::SigningIn) if self.connection.as_ref().is_some_and(|c| c.key) => {
+                Progress::Connecting
+            }
             Some(Stage::SigningIn) => Progress::SigningIn,
             Some(Stage::Joining) if world.selected.is_none() => Progress::Connecting,
             Some(Stage::Joining) => Progress::Loading(0.25),
@@ -4681,6 +4710,35 @@ fn once_key(once: Once) -> u32 {
 mod tests {
     use super::*;
     use crate::actors::tests::motion;
+
+    #[test]
+    fn a_server_that_takes_devices_keys_has_a_this_device_button() {
+        let provider = |id: &str| SignInProvider {
+            id: id.to_owned(),
+            name: id.to_owned(),
+            authorize: "https://id.example/authorize".to_owned(),
+            client_id: "openm2".to_owned(),
+        };
+        let ids = |list: Vec<SignInProvider>| -> Vec<String> {
+            list.into_iter().map(|provider| provider.id).collect()
+        };
+        assert_eq!(ids(with_device(vec![provider("a")], false)), ["a"]);
+        assert_eq!(ids(with_device(Vec::new(), true)), ["key"]);
+        assert_eq!(ids(with_device(vec![provider("a")], true)), ["a", "key"]);
+        let four = ["a", "b", "c", "d"].map(provider).to_vec();
+        assert_eq!(
+            ids(with_device(four, true)),
+            ["a", "b", "c", "key", "d"],
+            "on the last button there is"
+        );
+        let device = with_device(Vec::new(), true).remove(0);
+        assert_eq!(device.name, "This device");
+        assert!(
+            SessionConfig::provider(&device.id)
+                .unwrap()
+                .signs_with_key()
+        );
+    }
 
     #[test]
     fn each_login_in_the_window_has_its_own_capture() {

@@ -62,6 +62,9 @@ pub struct Planned {
     pub saved: ClientSettings,
     /// What the flags ask that this version doesn't use.
     pub notes: Vec<String>,
+    /// The game imports the player's client into `imported/`: local saves
+    /// can be played with it.
+    pub imports: bool,
 }
 
 /// What starting the installed version (or, with `previous`, the one
@@ -100,12 +103,14 @@ pub fn plan(install: &Install, previous: bool, wanted: Wanted) -> Result<Planned
             plan: Plan::Play(Vec::new()),
             saved: ClientSettings::default(),
             notes,
+            imports: false,
         });
     }
     let saved = ClientSettings::read(&root.join(CLIENT_FILE), root)?;
     let chosen = chosen(&saved, wanted.client, wanted.keys)?;
     let state = crate::imported(&game, root)?;
-    let plan = if state == Imported::Unsupported {
+    let imports = state != Imported::Unsupported;
+    let plan = if !imports {
         if wanted.again {
             notes.push(
                 "this version's game doesn't import your client: --import isn't used".to_owned(),
@@ -126,6 +131,7 @@ pub fn plan(install: &Install, previous: bool, wanted: Wanted) -> Result<Planned
         plan,
         saved,
         notes,
+        imports,
     })
 }
 
@@ -271,7 +277,7 @@ fn client_args(client: &Path, keys: &Path) -> Vec<OsString> {
 }
 
 /// `play`'s arguments for the imported client.
-fn assets_args(root: &Path) -> Result<Vec<OsString>> {
+pub(crate) fn assets_args(root: &Path) -> Result<Vec<OsString>> {
     let imported = std::path::absolute(root.join(IMPORTED)).context("the install folder")?;
     Ok(vec!["--assets".into(), imported.into_os_string()])
 }

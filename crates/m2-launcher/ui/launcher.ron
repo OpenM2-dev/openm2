@@ -1,6 +1,6 @@
 // The launcher's window, 640 × 400 (crates/m2-launcher/src/window/): the
 // game's picture or its name, how far the update has got, the question for
-// a client folder and keys file, and the buttons. Which nodes show, and
+// a client folder and keys file, the local saves, and the buttons. Which nodes show, and
 // their texts, follow the stage (screen.rs). Skins are in skin.ron; the
 // format is in docs/specs/ui.md.
 (
@@ -35,15 +35,56 @@
                     (id: "launcher.browse.keys", anchor: TopRight, pos: (0, 72), size: (96, 26), kind: Button(skin: "secondary", text: "Browse…")),
                     (id: "launcher.ask.hint", pos: (0, 102), size: (Fill(0), 16), kind: Text(text: "Browse, type or paste the paths, or drop the folder and the file on this window.")),
                 ]),
+                // The local saves, four rows a page, the one chosen marked in
+                // the accent; the arrows beside them when there are more.
+                (id: "launcher.saves.list", pos: (32, 212), size: (Fill(32), 118), hidden: true, kind: Group, children: [
+                    (id: "launcher.row.0", pos: (0, 0), size: (Fill(0), 28), kind: Group, children: [
+                        (id: "launcher.save.0", size: (Fill(0), Fill(0)), kind: Button(skin: "row", text: "")),
+                        (id: "launcher.save.0.mark", size: (4, Fill(0)), hidden: true, kind: Panel(skin: "mark")),
+                        (id: "launcher.save.0.name", pos: (14, 0), size: (Fill(190), Fill(0)), kind: Text(text: "")),
+                        (id: "launcher.save.0.detail", anchor: TopRight, pos: (12, 0), size: (170, Fill(0)), kind: Text(text: "", align: Right)),
+                    ]),
+                    (id: "launcher.row.1", pos: (0, 30), size: (Fill(0), 28), kind: Group, children: [
+                        (id: "launcher.save.1", size: (Fill(0), Fill(0)), kind: Button(skin: "row", text: "")),
+                        (id: "launcher.save.1.mark", size: (4, Fill(0)), hidden: true, kind: Panel(skin: "mark")),
+                        (id: "launcher.save.1.name", pos: (14, 0), size: (Fill(190), Fill(0)), kind: Text(text: "")),
+                        (id: "launcher.save.1.detail", anchor: TopRight, pos: (12, 0), size: (170, Fill(0)), kind: Text(text: "", align: Right)),
+                    ]),
+                    (id: "launcher.row.2", pos: (0, 60), size: (Fill(0), 28), kind: Group, children: [
+                        (id: "launcher.save.2", size: (Fill(0), Fill(0)), kind: Button(skin: "row", text: "")),
+                        (id: "launcher.save.2.mark", size: (4, Fill(0)), hidden: true, kind: Panel(skin: "mark")),
+                        (id: "launcher.save.2.name", pos: (14, 0), size: (Fill(190), Fill(0)), kind: Text(text: "")),
+                        (id: "launcher.save.2.detail", anchor: TopRight, pos: (12, 0), size: (170, Fill(0)), kind: Text(text: "", align: Right)),
+                    ]),
+                    (id: "launcher.row.3", pos: (0, 90), size: (Fill(0), 28), kind: Group, children: [
+                        (id: "launcher.save.3", size: (Fill(0), Fill(0)), kind: Button(skin: "row", text: "")),
+                        (id: "launcher.save.3.mark", size: (4, Fill(0)), hidden: true, kind: Panel(skin: "mark")),
+                        (id: "launcher.save.3.name", pos: (14, 0), size: (Fill(190), Fill(0)), kind: Text(text: "")),
+                        (id: "launcher.save.3.detail", anchor: TopRight, pos: (12, 0), size: (170, Fill(0)), kind: Text(text: "", align: Right)),
+                    ]),
+                    (id: "launcher.saves.up", anchor: TopRight, pos: (0, 0), size: (28, 58), hidden: true, kind: Button(skin: "secondary", text: "↑")),
+                    (id: "launcher.saves.down", anchor: TopRight, pos: (0, 60), size: (28, 58), hidden: true, kind: Button(skin: "secondary", text: "↓")),
+                ]),
+                // A new save's name.
+                (id: "launcher.naming", pos: (32, 212), size: (Fill(32), 60), hidden: true, kind: Group, children: [
+                    (id: "launcher.save.name", pos: (0, 0), size: (Fill(0), 26), kind: Edit(skin: "field", max_chars: 32)),
+                    (id: "launcher.naming.hint", pos: (0, 32), size: (Fill(0), 16), kind: Text(text: "Letters, digits, spaces, - and _: up to 32 of them")),
+                ]),
                 (id: "launcher.previous", anchor: BottomLeft, pos: (32, 24), size: (196, 36), hidden: true, kind: Button(skin: "secondary", text: "Play the previous version")),
                 // Beside it when the main button plays what's installed.
                 (id: "launcher.again", anchor: BottomLeft, pos: (236, 24), size: (106, 36), hidden: true, kind: Button(skin: "secondary", text: "Try again")),
+                // On the ready screen, the way to the local saves; on theirs,
+                // the way back and a new one.
+                (id: "launcher.saves", anchor: BottomLeft, pos: (32, 24), size: (140, 36), hidden: true, kind: Button(skin: "secondary", text: "Local saves")),
+                (id: "launcher.back", anchor: BottomLeft, pos: (32, 24), size: (100, 36), hidden: true, kind: Button(skin: "secondary", text: "Back")),
+                (id: "launcher.new", anchor: BottomLeft, pos: (140, 24), size: (120, 36), hidden: true, kind: Button(skin: "secondary", text: "New save")),
                 // Always there, in the corner; the main button beside it, one
                 // at a time.
                 (id: "launcher.close", anchor: BottomRight, pos: (32, 24), size: (100, 36), kind: Button(skin: "secondary", text: "Close")),
                 (id: "launcher.play", anchor: BottomRight, pos: (140, 24), size: (150, 36), hidden: true, kind: Button(skin: "primary", text: "Play")),
                 (id: "launcher.import", anchor: BottomRight, pos: (140, 24), size: (150, 36), hidden: true, kind: Button(skin: "primary", text: "Import")),
                 (id: "launcher.retry", anchor: BottomRight, pos: (140, 24), size: (150, 36), hidden: true, kind: Button(skin: "primary", text: "Try again")),
+                (id: "launcher.create", anchor: BottomRight, pos: (140, 24), size: (150, 36), hidden: true, kind: Button(skin: "primary", text: "Create")),
             ],
         ),
     ],

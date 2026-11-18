@@ -69,13 +69,18 @@ Filename: "{app}\openm2-launcher.exe"; Description: "{cm:LaunchProgram,openm2}";
 [UninstallDelete]
 ; What the launcher makes beside the setup's files (docs/specs/update.md,
 ; "The install folder"): its versions, the player's import of their own game
-; files (the files themselves, wherever they are, are never touched), the
-; player's choices and settings, the logs and the lock.
+; files and the saves' world made from them (the files themselves, wherever
+; they are, are never touched), the player's choices and settings, the logs
+; and the lock. The local saves (saves\) and the device's key
+; (device-key.pem), which their characters belong to, stay: a new install
+; finds them.
 Type: filesandordirs; Name: "{app}\app"
 Type: filesandordirs; Name: "{app}\previous"
 Type: filesandordirs; Name: "{app}\staging"
 Type: filesandordirs; Name: "{app}\imported"
 Type: filesandordirs; Name: "{app}\importing"
+Type: filesandordirs; Name: "{app}\content"
+Type: filesandordirs; Name: "{app}\content-importing"
 Type: files; Name: "{app}\client.toml"
 Type: files; Name: "{app}\settings.toml"
 Type: files; Name: "{app}\servers.toml"
@@ -83,6 +88,7 @@ Type: files; Name: "{app}\*.part"
 Type: files; Name: "{app}\launcher.log"
 Type: files; Name: "{app}\game.log"
 Type: files; Name: "{app}\import.log"
+Type: files; Name: "{app}\content.log"
 Type: files; Name: "{app}\launcher.lock"
 Type: files; Name: "{app}\openm2-launcher.old"
 Type: dirifempty; Name: "{app}"

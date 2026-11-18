@@ -150,7 +150,7 @@ openm2-server serve --save local/saves/mine --key-sign-in --owner-key "$(openm2 
 - **With Postgres too?** No: `--save` and `--memory` each replace the database, and only one store is used.
 
 ## Run by another program
-A program that starts the server for its player (the launcher, a script) wants to know when it is ready and to stop it cleanly:
+A program that starts the server for its player (the launcher for a local save, [`specs/update.md`](specs/update.md), "Local saves"; a script) wants to know when it is ready and to stop it cleanly:
 - **`--ready-line`:** once both servers listen, the server writes one line on stdout, then nothing more there (its logs go to stderr): `ready auth=PORT game=PORT key=sha256:…`, the ports it listens on (useful with `--auth-port 0 --game-port 0`, which take free ones) and the pin of its key, for the client's `--server-key`.
 - **`--until-stdin-closes`:** the server stops, saving everyone, when its stdin closes, as well as on Ctrl+C. A program that holds the server's stdin and closes it (or ends, even by crashing) stops it. Off by default: `docker run` without `-i` gives a closed stdin, which would stop the server at once.
 - **The exit code** is 0 after a clean stop, else 1 with the reason on stderr.

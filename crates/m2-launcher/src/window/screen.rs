@@ -32,6 +32,11 @@ const ERRORS_HEIGHT: f32 = 112.0;
 const ERRORS_PADDING: f32 = 12.0;
 const ERRORS_LINE: f32 = 19.0;
 const ERRORS_WIDTH: usize = 80;
+/// The local saves' rows on a page.
+pub const ROWS: usize = 4;
+/// A row's height, and the room the arrows beside the rows take.
+const ROW_HEIGHT: f32 = 28.0;
+const ARROWS_WIDTH: f32 = 36.0;
 
 /// How the window looks.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -136,6 +141,22 @@ impl Look {
                     };
                     *text_colour = text;
                 }
+                (
+                    "row",
+                    Skin::Button {
+                        fallback,
+                        text_colour,
+                        ..
+                    },
+                ) => {
+                    *fallback = if light {
+                        [0, 0, 0, 14]
+                    } else {
+                        [255, 255, 255, 14]
+                    };
+                    *text_colour = text;
+                }
+                ("mark", Skin::Colour(colour)) => *colour = opaque(self.accent),
                 ("field", Skin::Colour(colour)) => *colour = self.shade(110, 24),
                 ("well", Skin::Colour(colour)) => *colour = self.shade(70, 16),
                 _ => {}
@@ -168,13 +189,17 @@ fn opaque([r, g, b]: Rgb) -> Colour {
 /// shows when there is a picture, the name's otherwise.
 pub fn new_ui(look: &Look, fonts: Fonts) -> Result<Ui, UiError> {
     let mut layout = Layout::parse(LAYOUT)?;
-    for id in [
+    let details = (0..ROWS).map(|at| format!("launcher.save.{at}.detail"));
+    let dim = [
         "launcher.detail",
         "launcher.ask.client",
         "launcher.ask.keys",
         "launcher.ask.hint",
-    ] {
-        recolour(&mut layout.windows, id, look.dim());
+        "launcher.naming.hint",
+    ]
+    .map(str::to_owned);
+    for id in dim.into_iter().chain(details) {
+        recolour(&mut layout.windows, &id, look.dim());
     }
     let mut ui = Ui::new(look.skins()?, fonts);
     ui.add(&layout)?;
@@ -247,6 +272,38 @@ pub enum Stage {
         version: Option<String>,
         /// What the player should know (the launcher updated itself).
         notes: Vec<String>,
+        /// The version can play local saves: their button shows.
+        saves: bool,
+    },
+    /// The player's local saves, to play one or make one.
+    Saves {
+        /// Every save, the last played first.
+        rows: Vec<SaveRow>,
+        /// The first row shown.
+        first: usize,
+        /// The one chosen, which Play plays.
+        selected: Option<usize>,
+    },
+    /// A new save's name is asked for.
+    Naming {
+        /// What was wrong with the last one, if anything.
+        problem: Option<String>,
+    },
+    /// A save's world is made ready, then its game starts.
+    Hosting {
+        /// What it does, in a few words.
+        step: String,
+        /// The game's last line, while it imports the world.
+        line: String,
+        /// Seconds since it started.
+        seconds: u64,
+    },
+    /// Playing a save failed: its world, its server or its game.
+    SaveFailed {
+        /// What failed, in a few words.
+        what: String,
+        /// Why: the error, and the end of a log.
+        why: Vec<String>,
     },
     /// The game is being started.
     Launching,
@@ -272,6 +329,15 @@ pub enum Stage {
     },
 }
 
+/// A local save's row.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SaveRow {
+    /// Its name.
+    pub name: String,
+    /// Beside it: when it was last played.
+    pub detail: String,
+}
+
 /// What a click (or Enter) asks for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Action {
@@ -287,12 +353,27 @@ pub enum Action {
     BrowseClient,
     /// Pick the keys file in the system's dialog.
     BrowseKeys,
+    /// Show the local saves.
+    Saves,
+    /// Ask for a new save's name.
+    NewSave,
+    /// Make the save named in the field.
+    Create,
+    /// Go back: from the saves to Play, from a new save or a failure to the
+    /// saves.
+    Back,
+    /// Choose the save of this row of the page.
+    Pick(usize),
+    /// Show the rows above the page.
+    Up,
+    /// Show the rows below it.
+    Down,
     /// Close the window, stopping what runs.
     Close,
 }
 
 /// The buttons, and what they ask for.
-const BUTTONS: [(&str, Action); 8] = [
+const BUTTONS: [(&str, Action); 18] = [
     ("launcher.play", Action::Play),
     ("launcher.previous", Action::Previous),
     ("launcher.retry", Action::Retry),
@@ -300,6 +381,16 @@ const BUTTONS: [(&str, Action); 8] = [
     ("launcher.import", Action::Import),
     ("launcher.browse.client", Action::BrowseClient),
     ("launcher.browse.keys", Action::BrowseKeys),
+    ("launcher.saves", Action::Saves),
+    ("launcher.new", Action::NewSave),
+    ("launcher.create", Action::Create),
+    ("launcher.back", Action::Back),
+    ("launcher.save.0", Action::Pick(0)),
+    ("launcher.save.1", Action::Pick(1)),
+    ("launcher.save.2", Action::Pick(2)),
+    ("launcher.save.3", Action::Pick(3)),
+    ("launcher.saves.up", Action::Up),
+    ("launcher.saves.down", Action::Down),
     ("launcher.close", Action::Close),
 ];
 
@@ -322,7 +413,12 @@ pub fn main_action(stage: &Stage) -> Option<Action> {
         Stage::Ready { .. } | Stage::GameFailed { .. } => Some(Action::Play),
         Stage::Asking { .. } => Some(Action::Import),
         Stage::Failed { play: true, .. } => Some(Action::Play),
-        Stage::Failed { .. } => Some(Action::Retry),
+        Stage::Failed { .. } | Stage::SaveFailed { .. } => Some(Action::Retry),
+        Stage::Saves { rows, .. } if rows.is_empty() => Some(Action::NewSave),
+        Stage::Saves {
+            selected: Some(_), ..
+        } => Some(Action::Play),
+        Stage::Naming { .. } => Some(Action::Create),
         _ => None,
     }
 }
@@ -338,6 +434,12 @@ pub fn show(ui: &mut Ui, stage: &Stage, look: &Look) {
         "launcher.play",
         "launcher.import",
         "launcher.retry",
+        "launcher.saves",
+        "launcher.saves.list",
+        "launcher.naming",
+        "launcher.back",
+        "launcher.new",
+        "launcher.create",
     ] {
         ui.set_visible(id, false);
     }
@@ -406,8 +508,13 @@ pub fn show(ui: &mut Ui, stage: &Stage, look: &Look) {
                 "every file is read, which can take a few minutes",
             ),
         ),
-        Stage::Ready { version, notes } => {
+        Stage::Ready {
+            version,
+            notes,
+            saves,
+        } => {
             ui.set_visible("launcher.play", true);
+            ui.set_visible("launcher.saves", *saves);
             let version = version
                 .as_ref()
                 .map(|version| format!("Version {version}"))
@@ -420,6 +527,44 @@ pub fn show(ui: &mut Ui, stage: &Stage, look: &Look) {
             ("Ready to play".to_owned(), detail)
         }
         Stage::Launching => ("Starting the game".to_owned(), String::new()),
+        Stage::Saves {
+            rows,
+            first,
+            selected,
+        } => {
+            ui.set_visible("launcher.back", true);
+            ui.set_visible("launcher.new", true);
+            ui.set_visible("launcher.play", selected.is_some());
+            saves(ui, rows, *first, *selected);
+            let detail = if rows.is_empty() {
+                "No saves yet. A save is a world on this computer, where you are the game master."
+            } else {
+                ""
+            };
+            ("Local saves".to_owned(), detail.to_owned())
+        }
+        Stage::Naming { problem } => {
+            ui.set_visible("launcher.naming", true);
+            ui.set_visible("launcher.back", true);
+            ui.set_visible("launcher.create", true);
+            (
+                problem
+                    .clone()
+                    .unwrap_or_else(|| "Name the new save".to_owned()),
+                String::new(),
+            )
+        }
+        Stage::Hosting {
+            step,
+            line,
+            seconds,
+        } => (step.clone(), joined(&elapsed(*seconds), &shortened(line))),
+        Stage::SaveFailed { what, why } => {
+            errors(ui, why, look);
+            ui.set_visible("launcher.retry", true);
+            ui.set_visible("launcher.back", true);
+            (what.clone(), String::new())
+        }
         Stage::Failed {
             what,
             why,
@@ -456,6 +601,40 @@ pub fn show(ui: &mut Ui, stage: &Stage, look: &Look) {
     };
     ui.set_text("launcher.status", &status);
     ui.set_text("launcher.detail", &detail);
+}
+
+/// Fills the saves' rows from `first`, marking `selected`, with the
+/// arrows beside them when there are more than a page.
+fn saves(ui: &mut Ui, rows: &[SaveRow], first: usize, selected: Option<usize>) {
+    ui.set_visible("launcher.saves.list", !rows.is_empty());
+    let paged = rows.len() > ROWS;
+    ui.set_visible("launcher.saves.up", paged);
+    ui.set_visible("launcher.saves.down", paged);
+    let room = if paged { ARROWS_WIDTH } else { 0.0 };
+    for at in 0..ROWS {
+        let index = first + at;
+        let row = rows.get(index);
+        let id = format!("launcher.row.{at}");
+        ui.set_visible(&id, row.is_some());
+        ui.set_size(&id, (Length::Fill(room), Length::Px(ROW_HEIGHT)));
+        if let Some(row) = row {
+            ui.set_text(&format!("launcher.save.{at}.name"), &row.name);
+            ui.set_text(&format!("launcher.save.{at}.detail"), &row.detail);
+        }
+        ui.set_visible(&format!("launcher.save.{at}.mark"), selected == Some(index));
+    }
+}
+
+/// The first row to show so that `selected` is on the page, from the page
+/// that started at `first`, among `count` rows.
+pub fn page(first: usize, selected: Option<usize>, count: usize) -> usize {
+    let last_first = count.saturating_sub(ROWS);
+    let first = match selected {
+        Some(at) if at < first => at,
+        Some(at) if at >= first + ROWS => at + 1 - ROWS,
+        _ => first,
+    };
+    first.min(last_first)
 }
 
 /// Fills the errors' panel with `lines`, sized to about what they take.
@@ -511,11 +690,26 @@ mod tests {
             "launcher.play",
             "launcher.import",
             "launcher.retry",
+            "launcher.saves",
+            "launcher.saves.list",
+            "launcher.naming",
+            "launcher.back",
+            "launcher.new",
+            "launcher.create",
             "launcher.close",
         ]
         .into_iter()
         .filter(|id| ui.is_visible(id))
         .collect()
+    }
+
+    fn rows(count: usize) -> Vec<SaveRow> {
+        (0..count)
+            .map(|at| SaveRow {
+                name: format!("save {at}"),
+                detail: "new".to_owned(),
+            })
+            .collect()
     }
 
     #[test]
@@ -559,10 +753,82 @@ mod tests {
                 Stage::Ready {
                     version: Some("1.0+abc".to_owned()),
                     notes: vec!["the launcher was updated".to_owned()],
+                    saves: false,
                 },
                 vec!["launcher.play", "launcher.close"],
                 "Ready to play",
                 "Version 1.0+abc · the launcher was updated",
+            ),
+            (
+                Stage::Ready {
+                    version: None,
+                    notes: Vec::new(),
+                    saves: true,
+                },
+                vec!["launcher.play", "launcher.saves", "launcher.close"],
+                "Ready to play",
+                "",
+            ),
+            (
+                Stage::Saves {
+                    rows: Vec::new(),
+                    first: 0,
+                    selected: None,
+                },
+                vec!["launcher.back", "launcher.new", "launcher.close"],
+                "Local saves",
+                "No saves yet. A save is a world on this computer, where you are the game master.",
+            ),
+            (
+                Stage::Saves {
+                    rows: rows(2),
+                    first: 0,
+                    selected: Some(1),
+                },
+                vec![
+                    "launcher.play",
+                    "launcher.saves.list",
+                    "launcher.back",
+                    "launcher.new",
+                    "launcher.close",
+                ],
+                "Local saves",
+                "",
+            ),
+            (
+                Stage::Naming { problem: None },
+                vec![
+                    "launcher.naming",
+                    "launcher.back",
+                    "launcher.create",
+                    "launcher.close",
+                ],
+                "Name the new save",
+                "",
+            ),
+            (
+                Stage::Hosting {
+                    step: "Starting Mine".to_owned(),
+                    line: String::new(),
+                    seconds: 3,
+                },
+                vec!["launcher.close"],
+                "Starting Mine",
+                "0:03",
+            ),
+            (
+                Stage::SaveFailed {
+                    what: "The save's server didn't start".to_owned(),
+                    why: vec!["the save is held".to_owned()],
+                },
+                vec![
+                    "launcher.errors",
+                    "launcher.retry",
+                    "launcher.back",
+                    "launcher.close",
+                ],
+                "The save's server didn't start",
+                "",
             ),
             (
                 Stage::Failed {
@@ -603,6 +869,44 @@ mod tests {
     }
 
     #[test]
+    fn the_saves_rows_show_a_page_and_mark_the_one_chosen() {
+        let look = Look::default();
+        let mut ui = made(&look);
+        let stage = |first, selected| Stage::Saves {
+            rows: rows(6),
+            first,
+            selected,
+        };
+        show(&mut ui, &stage(2, Some(3)), &look);
+        assert!(ui.is_visible("launcher.saves.up") && ui.is_visible("launcher.saves.down"));
+        assert_eq!(ui.text("launcher.save.0.name"), Some("save 2"));
+        assert_eq!(ui.text("launcher.save.3.name"), Some("save 5"));
+        let marked: Vec<bool> = (0..ROWS)
+            .map(|at| ui.is_visible(&format!("launcher.save.{at}.mark")))
+            .collect();
+        assert_eq!(marked, [false, true, false, false]);
+
+        show(
+            &mut ui,
+            &Stage::Saves {
+                rows: rows(3),
+                first: 0,
+                selected: Some(0),
+            },
+            &look,
+        );
+        assert!(!ui.is_visible("launcher.saves.up"));
+        assert!(ui.is_visible("launcher.row.2") && !ui.is_visible("launcher.row.3"));
+
+        // The page follows the one chosen.
+        assert_eq!(page(0, Some(5), 6), 2);
+        assert_eq!(page(2, Some(1), 6), 1);
+        assert_eq!(page(2, Some(3), 6), 2);
+        assert_eq!(page(5, None, 6), 2, "never past the last page");
+        assert_eq!(page(3, Some(0), 2), 0);
+    }
+
+    #[test]
     fn clicks_and_enter_ask_for_actions() {
         assert_eq!(action("launcher.play"), Some(Action::Play));
         assert_eq!(action("launcher.close"), Some(Action::Close));
@@ -629,6 +933,19 @@ mod tests {
         };
         assert_eq!(main_action(&failed), Some(Action::Retry));
         assert_eq!(action("launcher.again"), Some(Action::Retry));
+        assert_eq!(action("launcher.save.2"), Some(Action::Pick(2)));
+        assert_eq!(action("launcher.saves"), Some(Action::Saves));
+        let saves = |rows, selected| Stage::Saves {
+            rows,
+            first: 0,
+            selected,
+        };
+        assert_eq!(main_action(&saves(Vec::new(), None)), Some(Action::NewSave));
+        assert_eq!(main_action(&saves(rows(1), Some(0))), Some(Action::Play));
+        assert_eq!(
+            main_action(&Stage::Naming { problem: None }),
+            Some(Action::Create)
+        );
     }
 
     #[test]

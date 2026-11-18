@@ -107,6 +107,7 @@ impl Install {
         // An import starts over; this one goes, or the next import says why
         // it can't.
         let _ = crate::import::remove_folder(&root.join(crate::IMPORTING));
+        let _ = crate::import::remove_folder(&root.join(crate::CONTENT_IMPORTING));
         if !install.app().exists() && install.previous().exists() {
             fs::rename(install.previous(), install.app())
                 .context("putting back the version an update moved aside")?;

@@ -19,6 +19,10 @@
 //! - [`flow`]: the steps from the update to the game, the same in both
 //!   modes; [`process`]: the game's programs started without a console
 //!   window, stoppable, and their logs; [`Log`]: `launcher.log`.
+//! - [`saves`]: local saves, worlds on the player's machine in `saves/`;
+//!   [`host`]: one played, the version's `openm2-server` started on it
+//!   for the device's key and stopped when the game ends; the world they
+//!   play in imported into `content/` ([`import_content`]).
 //! - [`window`]: the launcher's window.
 
 mod http;
@@ -29,11 +33,16 @@ mod progress;
 mod settings;
 
 pub mod flow;
+pub mod host;
 pub mod process;
+pub mod saves;
 pub mod window;
 
 pub use http::{Body, Http};
-pub use import::{IMPORT_LOG, IMPORTED, IMPORTING, Imported, import, imported};
+pub use import::{
+    CONTENT, CONTENT_IMPORTING, CONTENT_LOG, IMPORT_LOG, IMPORTED, IMPORTING, Imported,
+    content_imported, import, import_content, imported,
+};
 pub use install::{
     APP, AT_ONCE, Install, LOCK, OLD_LAUNCHER, Outcome, PREVIOUS, RECORD, STAGING, counted,
     game_name, hash_file, launcher_name, replace_launcher, size_text,

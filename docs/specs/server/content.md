@@ -7,7 +7,7 @@ What openm2's own server knows about its world, as a folder of TOML files and wa
 ## The folder
 | File | Written by | Holds |
 |---|---|---|
-| `content.toml` | the import or by hand | `format` and `name`. Required: it tells a content folder from any other |
+| `content.toml` | the import or by hand | `format` and `name`, and from the import `import`, its number (below). Required: it tells a content folder from any other |
 | `maps.toml` | the import | `[[map]]` entries |
 | `monsters.toml` | the import | `[[monster]]` entries: monsters, NPCs, stones and other things that stand in the world |
 | `items.toml` | the import | `[[item]]` entries |
@@ -437,3 +437,4 @@ Everything is checked before the server starts, and every problem is listed as `
 - Every file starts with `# openm2 content import: from the operator's own client; never commit (docs/source-policy.md)`. `just no-assets` refuses any file in the tree that starts so.
 - It refuses to replace files (walk masks and `spawns/imported.toml` too) without `--force`, and never touches `levels.toml`, `drops.toml`, `start.toml`, `shops.toml`, `teachers.toml`, `training.toml`, `mounts.toml`, `upgrades.toml`, `packs.toml` or the other spawn files. With `--force`, an earlier import's `spawns/imported.toml` is removed when the client now carries no spawns.
 - It prints what it wrote and what it left out.
+- **The import's number:** `content.toml` gets `import = N`, a number openm2 raises whenever its import writes something else from the same client. The server reads nothing from it. `openm2 content current DIR` says whether a folder holds this openm2's import: exit code 0 when it does; 1, with a line saying why not (no import yet, an import of another number, a folder written by hand or before imports had numbers, a file that does not read). The launcher asks it before it hosts a save ([`../update.md`](../update.md), "Local saves").

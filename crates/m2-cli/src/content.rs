@@ -5,6 +5,9 @@
 //! operator's folder and never into the repo (`docs/source-policy.md`); each
 //! starts with [`m2_content::IMPORT_MARKER`]. The operator writes the packs
 //! the spawn lists' groups name, and the rest of the spawns.
+//!
+//! `content.toml` carries the import's number ([`IMPORT`]): `content
+//! current` tells a launcher whether to import again.
 
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
@@ -45,7 +48,20 @@ pub enum ContentCommand {
     /// items, skills, run speeds, the spawns its maps carry) from your own
     /// client into a folder of yours; never commit them
     Import(ImportArgs),
+    /// Whether a content folder holds this openm2's import: exit code 0 when
+    /// it does; 1, saying why not, when importing again would write
+    /// something else
+    Current {
+        /// The content folder
+        dir: PathBuf,
+    },
 }
+
+/// The import's number, written into `content.toml` (`import`). Raise it
+/// whenever the import writes something else from the same client (a file
+/// more or less, other values, another layout), so launchers import their
+/// players' clients again (`content current`, `docs/specs/update.md`).
+pub const IMPORT: u32 = 1;
 
 /// `content import`'s arguments.
 #[derive(Debug, Args)]
@@ -80,7 +96,43 @@ const PORTAL_EFFECT: &[u8] = b"warpgate";
 pub fn content(command: ContentCommand) -> Result<ExitCode> {
     match command {
         ContentCommand::Import(args) => import(&args),
+        ContentCommand::Current { dir } => current(&dir),
     }
+}
+
+/// `content current`: whether the folder at `dir` holds this openm2's
+/// import, as a launcher asks before it hosts a save (`docs/specs/update.md`).
+/// One line says so, or why not.
+fn current(dir: &Path) -> Result<ExitCode> {
+    /// What `content current` reads of `content.toml`.
+    #[derive(serde::Deserialize)]
+    struct Marked {
+        import: Option<u32>,
+    }
+    let path = dir.join("content.toml");
+    let why = match std::fs::read_to_string(&path) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => "no import yet".to_owned(),
+        Err(error) => format!("it doesn't read: {error}"),
+        Ok(text) => match toml::from_str::<Marked>(&text) {
+            Ok(Marked {
+                import: Some(IMPORT),
+            }) => {
+                println!("this openm2's import ({IMPORT})");
+                return Ok(ExitCode::SUCCESS);
+            }
+            Ok(Marked {
+                import: Some(import),
+            }) => {
+                format!("this version reads clients differently (import {import}, now {IMPORT})")
+            }
+            Ok(Marked { import: None }) => {
+                "not an import, or one from before imports had numbers".to_owned()
+            }
+            Err(error) => format!("it doesn't read: {}", error.message()),
+        },
+    };
+    println!("{why}");
+    Ok(ExitCode::FAILURE)
 }
 
 /// What the import counted on the way, for its summary.
@@ -1080,6 +1132,15 @@ fn write(content: &Content, out: &Path, force: bool) -> Result<()> {
         .to_files(Header::Imported)
         .into_iter()
         .filter(|(path, _)| IMPORTED_FILES.contains(&path.as_str()) || *path == imported_spawns)
+        .map(|(path, mut text)| {
+            if path == "content.toml" {
+                text.push_str(&format!(
+                    "import = {IMPORT}
+"
+                ));
+            }
+            (path, text)
+        })
         .collect();
     let walks = content
         .walk_files(Header::Imported)

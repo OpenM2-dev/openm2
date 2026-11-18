@@ -3,6 +3,11 @@
 //! folder made by the version's own `openm2 assets import` in
 //! `importing/`, checked with `openm2 assets check`, then put in the place
 //! of the last one. Updates never touch it and channels never carry it.
+//!
+//! And the world local saves play in (`docs/specs/update.md`, "Local
+//! saves"): `content/`, a content folder made from the same client by
+//! `openm2 content import` in `content-importing/`, then put in the place
+//! of the last one; deleted whenever the client is imported again.
 
 use std::fs::{self, File};
 use std::path::Path;
@@ -19,6 +24,12 @@ pub const IMPORTED: &str = "imported";
 pub const IMPORTING: &str = "importing";
 /// What the last import and its check reported.
 pub const IMPORT_LOG: &str = "import.log";
+/// The world local saves play in, imported from the player's client.
+pub const CONTENT: &str = "content";
+/// The next content folder while it's made.
+pub const CONTENT_IMPORTING: &str = "content-importing";
+/// What the last content import reported.
+pub const CONTENT_LOG: &str = "content.log";
 
 /// What a version's game says of `imported/`.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -50,9 +61,21 @@ impl Imported {
 /// Asks the game at `game` whether `root`'s `imported/` holds its import
 /// (`openm2 assets current`).
 pub fn imported(game: &Path, root: &Path) -> Result<Imported> {
+    current(game, "assets", &root.join(IMPORTED))
+}
+
+/// Asks the game at `game` whether `root`'s `content/` holds its import
+/// (`openm2 content current`); [`Imported::Unsupported`] for a game that
+/// can't import content.
+pub fn content_imported(game: &Path, root: &Path) -> Result<Imported> {
+    current(game, "content", &root.join(CONTENT))
+}
+
+/// `openm2 <what> current <folder>`.
+fn current(game: &Path, what: &str, folder: &Path) -> Result<Imported> {
     let output = game_command(game)
-        .args(["assets", "current"])
-        .arg(root.join(IMPORTED))
+        .args([what, "current"])
+        .arg(folder)
         .stdin(Stdio::null())
         .output()
         .with_context(|| format!("starting {}", game.display()))?;
@@ -139,7 +162,56 @@ pub fn import(
     remove_folder(&imported)
         .context("deleting the last import (close the game if it's running)")?;
     fs::rename(&importing, &imported)
-        .with_context(|| format!("putting the import in {}", imported.display()))
+        .with_context(|| format!("putting the import in {}", imported.display()))?;
+    // The saves' world comes from the same client: imported again next.
+    remove_folder(&root.join(CONTENT))
+}
+
+/// Imports the world local saves play in from the player's client with the
+/// game at `game` (`openm2 content import`) into `root`'s
+/// `content-importing/`, then puts it in the place of `content/`.
+/// `progress` hears the lines the game writes as it goes and the report's
+/// first line; the report is written to `content.log`. The import checks
+/// what it writes against the content format's rules, and the server reads
+/// it again when it starts. A failed or stopped import leaves `content/` as
+/// it was.
+pub fn import_content(
+    game: &Path,
+    root: &Path,
+    client: &Path,
+    keys: &Path,
+    stop: &Stop,
+    progress: &mut dyn FnMut(Progress),
+) -> Result<()> {
+    let importing = root.join(CONTENT_IMPORTING);
+    let content = root.join(CONTENT);
+    let log = root.join(CONTENT_LOG);
+    remove_folder(&importing)?;
+    let report = File::create(&log).with_context(|| format!("writing {}", log.display()))?;
+    let status = run(
+        game_command(game)
+            .args(["content", "import", "--client"])
+            .arg(client)
+            .arg("--keys")
+            .arg(keys)
+            .arg("--out")
+            .arg(&importing)
+            .stdout(report),
+        stop,
+        &mut |line| progress(Progress::Line(line)),
+    );
+    if !status.as_ref().is_ok_and(|status| status.success()) {
+        let _ = remove_folder(&importing);
+        status?;
+        bail!(
+            "importing the world from your client failed (the game's last lines say why; {} has the import's report)",
+            log.display()
+        );
+    }
+    say_first_line(&log, progress);
+    remove_folder(&content).context("deleting the last world (close any save that's open)")?;
+    fs::rename(&importing, &content)
+        .with_context(|| format!("putting the world in {}", content.display()))
 }
 
 /// The first line of the import's report.

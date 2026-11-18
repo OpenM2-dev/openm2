@@ -1,7 +1,8 @@
 //! `openm2 content import` on a synthetic client built with our own writers
 //! and test keys: what it takes from the tables, the atlas, the attributes,
 //! the motions and the maps' spawn lists, what it leaves out, and that it
-//! never touches the operator's packs and spawns.
+//! never touches the operator's packs and spawns. And the launcher's import
+//! of the world local saves play in, with this `openm2`.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -898,6 +899,112 @@ fn warps_go_onto_the_portal_their_map_draws_beside_them() {
     assert_eq!(centre(1006), Some((10_350, 5_725)));
     assert_eq!(centre(1007), Some((3_000, 3_000)));
     assert_eq!(centre(1001), Some((10_100, 5_800)));
+}
+
+/// `openm2 content current DIR`: whether it succeeded, and its line.
+fn current(dir: &Path) -> (bool, String) {
+    let output = Command::new(env!("CARGO_BIN_EXE_openm2"))
+        .args(["content", "current"])
+        .arg(dir)
+        .output()
+        .unwrap();
+    (
+        output.status.success(),
+        text(&output.stdout).trim().to_owned(),
+    )
+}
+
+#[test]
+fn content_current_tells_this_import_from_others() {
+    let folder = Folder::new();
+    let out = folder.0.join("content");
+    assert_eq!(current(&out), (false, "no import yet".to_owned()));
+    client(&folder);
+    assert!(import(&folder, &[]).status.success());
+    let (ok, line) = current(&out);
+    assert!(ok, "{line}");
+    assert!(line.starts_with("this openm2's import ("), "{line}");
+
+    let file = out.join("content.toml");
+    let text = std::fs::read_to_string(&file).unwrap();
+    let import = text
+        .lines()
+        .find(|line| line.starts_with("import = "))
+        .unwrap()
+        .to_owned();
+    std::fs::write(&file, text.replace(&import, "import = 0")).unwrap();
+    let (ok, line) = current(&out);
+    assert!(!ok);
+    assert!(
+        line.starts_with("this version reads clients differently (import 0, now "),
+        "{line}"
+    );
+    std::fs::write(
+        &file,
+        "format = 1
+name = \"mine\"
+",
+    )
+    .unwrap();
+    assert_eq!(
+        current(&out),
+        (
+            false,
+            "not an import, or one from before imports had numbers".to_owned()
+        )
+    );
+    std::fs::write(&file, "import = [").unwrap();
+    let (ok, line) = current(&out);
+    assert!(!ok && line.starts_with("it doesn't read: "), "{line}");
+}
+
+/// The launcher imports the saves' world when `content/` isn't this
+/// openm2's import, and a failed import leaves the last one.
+#[test]
+fn the_launcher_imports_the_saves_world_from_the_client() {
+    use m2_launcher::process::Stop;
+    use m2_launcher::{CONTENT, CONTENT_IMPORTING, CONTENT_LOG, Imported, Progress};
+
+    let folder = Folder::new();
+    client(&folder);
+    let game = Path::new(env!("CARGO_BIN_EXE_openm2"));
+    let root = folder.0.join("install");
+    std::fs::create_dir_all(&root).unwrap();
+    let state = || m2_launcher::content_imported(game, &root).unwrap();
+    assert_eq!(state(), Imported::Stale("no import yet".to_owned()));
+
+    let (client, keys) = (folder.0.join("client"), folder.0.join("keys.toml"));
+    let mut said = Vec::new();
+    m2_launcher::import_content(game, &root, &client, &keys, &Stop::default(), &mut |p| {
+        said.push(p);
+    })
+    .unwrap();
+    assert_eq!(state(), Imported::Current);
+    assert!(!root.join(CONTENT_IMPORTING).exists());
+    let report = said
+        .iter()
+        .find_map(|progress| match progress {
+            Progress::Report(line) => Some(line.clone()),
+            _ => None,
+        })
+        .unwrap();
+    assert!(report.starts_with("wrote "), "{report}");
+    let log = std::fs::read_to_string(root.join(CONTENT_LOG)).unwrap();
+    assert!(log.starts_with(&report), "{log}");
+    let sources = read_content(&root.join(CONTENT));
+    assert_eq!(parse(&sources).unwrap().monsters().count(), 6);
+
+    // A failed import leaves the world as it was.
+    let missing = folder.0.join("no client here");
+    let error =
+        m2_launcher::import_content(game, &root, &missing, &keys, &Stop::default(), &mut |_| {})
+            .unwrap_err();
+    assert!(
+        format!("{error:#}").contains("importing the world from your client failed"),
+        "{error:#}"
+    );
+    assert_eq!(state(), Imported::Current);
+    assert!(!root.join(CONTENT_IMPORTING).exists());
 }
 
 #[test]

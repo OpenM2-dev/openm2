@@ -4,7 +4,7 @@
 //! tests fail. No fonts: text draws nothing, so the pixels are the same on
 //! every machine.
 
-use m2_launcher::window::{Look, Stage, load_look, new_ui, render, show};
+use m2_launcher::window::{Look, SaveRow, Stage, load_look, new_ui, render, show};
 use m2_launcher::{Log, WindowSettings};
 use m2_ui::Fonts;
 
@@ -136,4 +136,46 @@ logo = 1
     .unwrap();
     assert_eq!(load_look(&root, &log).name, "From the download");
     std::fs::remove_dir_all(&root).unwrap();
+}
+
+/// The local saves' rows, the one chosen marked in the game's accent.
+#[test]
+fn the_save_chosen_is_marked_in_the_accent() {
+    let look = Look::new(
+        &WindowSettings {
+            accent: Some([0xdf, 0xae, 0x4f]),
+            background: Some([6, 7, 9]),
+            ..WindowSettings::default()
+        },
+        None,
+    );
+    let rows = ["Lume", "Spring"].map(|name| SaveRow {
+        name: name.to_owned(),
+        detail: "new".to_owned(),
+    });
+    let stage = Stage::Saves {
+        rows: rows.to_vec(),
+        first: 0,
+        selected: Some(1),
+    };
+    let (_, pixel) = drawn(&look, &stage);
+    // The second row (from y 242), its mark at its left edge.
+    assert!(
+        near(pixel(33, 256), [0xdf, 0xae, 0x4f, 255]),
+        "mark: {:?}",
+        pixel(33, 256)
+    );
+    assert!(
+        !near(pixel(33, 226), [0xdf, 0xae, 0x4f, 255]),
+        "the first isn't chosen: {:?}",
+        pixel(33, 226)
+    );
+    // A row is a little lighter than the background; between rows, none.
+    let row = pixel(300, 226);
+    assert!(row[0] > 6 && row[0] < 40, "row: {row:?}");
+    assert!(
+        near(pixel(300, 300), [6, 7, 9, 255]),
+        "{:?}",
+        pixel(300, 300)
+    );
 }
