@@ -43,11 +43,11 @@ What openm2 does today, what comes next, and what is still unknown. When you fin
 - **Headless:** `openm2 bot`, a headless client for tests and checks. `openm2 status` checks a server.
 
 **The server (`openm2-server`)**
-- **Accounts:** sign-in through OpenID Connect providers, or, where the operator allows it, with the device's own key (no browser, no internet), with no passwords. Accounts and characters live in Postgres, or in memory for tests.
+- **Accounts:** sign-in through OpenID Connect providers, or, where the operator allows it, with the device's own key (no browser, no internet), with no passwords. Accounts and characters live in Postgres, in a save's folder (one file, for a server on the player's own machine), or in memory for tests.
 - **The world:** monsters and NPCs from a content folder. Spawns, packs, and stones that call packs. Walk masks hold for players and monsters, and moves are checked.
 - **Gameplay:** fights, deaths and levels, drops and gold, shops, skills and their effects, teachers, master training, mounts and stables, upgrades, fishing, warps, whispers and friends.
 - **Game masters:** named by the operator (by account, or the owner's device key), with `/level`, `/gold`, `/item`, `/heal`, `/speed`, `/gm on|off`, and their choice of empire.
-- **Operations:** OpenTelemetry, a Docker image and a compose file with Postgres. One world per database.
+- **Operations:** OpenTelemetry, a Docker image and a compose file with Postgres. One world per database or save. A ready line and a stop on stdin's close for a program that runs the server.
 
 **Protocol and security**
 - **The protocol:** openm2's own, versioned, generated from `crates/m2-protocol/packets/openm2.toml`, with byte-exact vectors for every message.
@@ -60,7 +60,7 @@ What openm2 does today, what comes next, and what is still unknown. When you fin
 - **`openm2 release`:** makes keys, writes, signs and verifies manifests.
 
 ## Next
-- **Local saves in the launcher:** a button that hosts a named save on the player's own machine, the player its game master. The steps left: the world kept in one file per save (no Postgres), `openm2-server` run by the launcher with its ready line and stopped when the game ends, the content imported beside the assets, the saves' window, and the server in the Windows release.
+- **Local saves in the launcher:** a button that hosts a named save on the player's own machine, the player its game master. The steps left: the launcher running `openm2-server` on a save (its ready line, stopped when the game ends), the content imported beside the assets, the saves' window, and the server in the Windows release.
   - Then LAN: a save opened to the network, its link (address and key) to copy, and a "This device" button on the login screen for friends' games.
 - **An original sample world** in the repo, under `docs/source-policy.md`, "Original content". It needs a rule that lets it through `just no-assets`.
   - The gate: `play` on our own server with only the sample world, and no Metin2 files on the machine.

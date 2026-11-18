@@ -1,18 +1,21 @@
 //! Storage: the server core's requests carried out
 //! (`docs/specs/server/storage.md`).
 //!
-//! [`Store::handle`] answers one [`StoreRequest`]. Two kinds of storage
+//! [`Store::handle`] answers one [`StoreRequest`]. Three kinds of storage
 //! answer the same requests by the same rules: [`MemoryStore`] (tests and
-//! quick runs) and [`PgStore`] (Postgres). Players sign in only with a
-//! provider: each gets an account of their own at their
-//! first sign-in, found again by the issuer and subject
-//! ([`identity_account_name`] names it). No password is kept.
+//! quick runs), [`FileStore`] (a save's folder, one file) and [`PgStore`]
+//! (Postgres). Players sign in with a provider or a device's key: each gets
+//! an account of their own at their first sign-in, found again by the
+//! issuer and subject ([`identity_account_name`] names it). No password is
+//! kept.
 
+mod file;
 mod memory;
 mod postgres;
 
 use m2_server_core::{StoreAnswer, StoreRequest};
 
+pub use file::{FileStore, LOCK_FILE, SaveError, WORLD_FILE};
 pub use memory::MemoryStore;
 pub use postgres::{OpenError, PgStore, WorldLock};
 
@@ -21,6 +24,8 @@ pub use postgres::{OpenError, PgStore, WorldLock};
 pub enum Store {
     /// In memory: lost when the server stops. For tests and quick runs.
     Memory(MemoryStore),
+    /// In a save's folder: one file, written at every change.
+    File(FileStore),
     /// In Postgres.
     Postgres(PgStore),
 }
@@ -42,6 +47,7 @@ impl Store {
     pub async fn handle(&self, request: StoreRequest) -> StoreAnswer {
         match self {
             Store::Memory(memory) => memory.handle(request).await,
+            Store::File(file) => file.handle(request).await,
             Store::Postgres(postgres) => postgres.handle(request).await,
         }
     }

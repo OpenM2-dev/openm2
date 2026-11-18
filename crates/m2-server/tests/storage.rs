@@ -1,7 +1,8 @@
-//! Storage's rules (`docs/specs/server/storage.md`), the same for both
-//! stores: in memory always, in Postgres when `OPENM2_TEST_DATABASE_URL` is
-//! set. And a character found where it was left after a restart, with a real
-//! client on a server backed by Postgres.
+//! Storage's rules (`docs/specs/server/storage.md`), the same for every
+//! store: in memory and in a save's folder always, in Postgres when
+//! `OPENM2_TEST_DATABASE_URL` is set. And a character found where it was
+//! left after a restart, with a real client on a server backed by a save or
+//! by Postgres.
 
 mod support;
 
@@ -12,7 +13,7 @@ use m2_core::{
     Stage,
 };
 use m2_net::Controller;
-use m2_server::store::{OpenError, PgStore, Store};
+use m2_server::store::{FileStore, OpenError, PgStore, SaveError, Store, WORLD_FILE};
 use m2_server_core::{
     Account, AccountId, Character, CreateRefusal, QuickSlot, StoreAnswer, StoreRequest,
     StoredFriend, StoredItem, StoredSkill,
@@ -376,6 +377,93 @@ fn storage_in_memory_follows_the_rules() {
     check_rules(&harness, &store);
 }
 
+/// An empty folder for a save, made for one test.
+fn save_folder(name: &str) -> std::path::PathBuf {
+    let dir = std::env::temp_dir().join(format!("openm2-save-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    dir
+}
+
+#[test]
+fn storage_in_a_save_follows_the_rules() {
+    let harness = Harness::new();
+    let dir = save_folder("rules");
+    let store = Store::File(FileStore::open(&dir).unwrap());
+    check_rules(&harness, &store);
+    drop(store);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_save_comes_back_the_same_when_it_is_opened_again() {
+    let harness = Harness::new();
+    let dir = save_folder("again");
+    let file = FileStore::open(&dir).unwrap();
+    check_rules(&harness, &Store::File(file.clone()));
+    let characters = harness.runtime.block_on(file.characters());
+    assert!(!characters.is_empty());
+    let accounts: std::collections::BTreeSet<u64> =
+        characters.iter().map(|(account, _)| account.0).collect();
+    let store = Store::File(file);
+    let load = |store: &Store, account: u64| {
+        harness
+            .runtime
+            .block_on(store.handle(StoreRequest::LoadCharacters {
+                account: AccountId(account),
+            }))
+    };
+    let before: Vec<StoreAnswer> = accounts.iter().map(|a| load(&store, *a)).collect();
+    drop(store);
+    assert!(dir.join(WORLD_FILE).is_file());
+
+    let again = FileStore::open(&dir).unwrap();
+    assert_eq!(harness.runtime.block_on(again.characters()), characters);
+    let again = Store::File(again);
+    let after: Vec<StoreAnswer> = accounts.iter().map(|a| load(&again, *a)).collect();
+    assert_eq!(after, before);
+    drop(again);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn one_server_at_a_time_holds_a_save() {
+    let dir = save_folder("held");
+    let first = FileStore::open(&dir).unwrap();
+    let error = FileStore::open(&dir).unwrap_err();
+    assert!(matches!(error, SaveError::Held { .. }), "{error}");
+    drop(first);
+    let again = FileStore::open(&dir).unwrap();
+    drop(again);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_damaged_or_newer_save_is_refused_and_left_as_it_is() {
+    let dir = save_folder("damaged");
+    std::fs::create_dir_all(&dir).unwrap();
+    let world = dir.join(WORLD_FILE);
+    std::fs::write(&world, "not a save").unwrap();
+    let error = FileStore::open(&dir).unwrap_err();
+    assert!(matches!(error, SaveError::Damaged { .. }), "{error}");
+    assert!(error.to_string().contains(WORLD_FILE), "{error}");
+    assert_eq!(std::fs::read_to_string(&world).unwrap(), "not a save");
+
+    std::fs::write(&world, r#"{"format": 2}"#).unwrap();
+    let error = FileStore::open(&dir).unwrap_err();
+    assert!(
+        matches!(error, SaveError::Newer { format: 2, .. }),
+        "{error}"
+    );
+
+    // A write that never finished is dropped; the save before it stands.
+    std::fs::remove_file(&world).unwrap();
+    std::fs::write(dir.join("world.json.tmp"), "half a save").unwrap();
+    let store = FileStore::open(&dir).unwrap();
+    assert!(!dir.join("world.json.tmp").exists());
+    drop(store);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
 #[test]
 fn storage_in_postgres_follows_the_rules() {
     let harness = Harness::new();
@@ -713,16 +801,12 @@ fn walk(harness: &Harness, choice: CharacterChoice, to: Option<Point>) -> Walker
     .unwrap()
 }
 
-#[test]
-fn a_character_is_where_it_was_left_after_a_restart() {
-    let mut harness = Harness::new();
-    let Some(schema) = Schema::create(&harness) else {
-        return;
-    };
-    let store = harness.postgres(&schema);
-    harness.start(store);
+/// Alice walks, the server stops, a new one starts on `store()`, and she
+/// is where she was left.
+fn where_it_was_left(harness: &mut Harness, store: impl Fn(&Harness) -> Store) {
+    harness.start(store(harness));
     let first = walk(
-        &harness,
+        harness,
         CharacterChoice::Create(
             NewCharacter::new("Alice", CharacterClass::ShamanFemale, Empire::Jinno).unwrap(),
         ),
@@ -735,12 +819,31 @@ fn a_character_is_where_it_was_left_after_a_restart() {
     assert!(first.arrived, "the walk did not arrive");
     harness.stop();
 
-    // A new server on the same database.
-    let store = harness.postgres(&schema);
+    // A new server on the same storage.
+    let store = store(harness);
     harness.start(store.clone());
-    let second = walk(&harness, CharacterChoice::Slot(0), None);
+    let second = walk(harness, CharacterChoice::Slot(0), None);
     assert_eq!(second.entered, Some((963_900, 278_500)));
     harness.stop();
     harness.runtime.block_on(store.close());
+}
+
+#[test]
+fn a_character_is_where_it_was_left_after_a_restart() {
+    let mut harness = Harness::new();
+    let Some(schema) = Schema::create(&harness) else {
+        return;
+    };
+    where_it_was_left(&mut harness, |harness| harness.postgres(&schema));
     schema.drop(&harness);
+}
+
+#[test]
+fn a_character_is_where_it_was_left_after_a_restart_on_a_save() {
+    let mut harness = Harness::new();
+    let dir = save_folder("restart");
+    where_it_was_left(&mut harness, |_| {
+        Store::File(FileStore::open(&dir).unwrap())
+    });
+    std::fs::remove_dir_all(&dir).unwrap();
 }
