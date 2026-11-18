@@ -13,7 +13,7 @@ Two stores answer the same requests by the same rules (`crates/m2-server/tests/s
 | name | the provider's id, a colon and 13 letters and digits (below); unique, compared without case |
 | empire | 1 to 3, once the account has a character; none before |
 
-- **No passwords**: every account belongs to a provider's player and is made at their first sign-in. There is no default account, no operator's command to add one, and no other way to register. An **identity** ties it to the provider: the issuer (1 to 512 bytes) and the player's subject there (1 to 255 bytes), unique together; it is found again by them only, never by name or e-mail. Its name is the provider's id, a colon and the first 13 characters of the base32 (RFC 4648, lowercase) of the SHA-256 of the issuer, a zero byte and the subject, such as `google:nixzoi2rkfeta`.
+- **No passwords**: every account belongs to a provider's player, or to a device's key on a server that takes keys, and is made at their first sign-in. There is no default account, no operator's command to add one, and no other way to register. An **identity** ties it to the provider: the issuer (1 to 512 bytes) and the player's subject there (1 to 255 bytes), unique together; it is found again by them only, never by name or e-mail. Its name is the provider's id, a colon and the first 13 characters of the base32 (RFC 4648, lowercase) of the SHA-256 of the issuer, a zero byte and the subject, such as `google:nixzoi2rkfeta`. A device's key is an identity too: the issuer `openm2:key` and the key, `ed25519:` and 64 hex digits, as the subject, under the provider id `key` (`key:…`).
 
 ## Characters
 | Field | What |

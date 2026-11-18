@@ -92,6 +92,10 @@ pub struct Config {
     pub key_lifetime: u64,
     /// The providers players may sign in with; none by default.
     pub providers: Vec<ProviderOffer>,
+    /// Whether players may sign in with their device's own key
+    /// (`docs/specs/server/session.md`, "Signing in with a device key"); off
+    /// by default.
+    pub key_sign_in: bool,
     /// Milliseconds an auth connection that asked for the providers has to
     /// sign in; meanwhile it is pinged, as its player is in a browser.
     pub sign_in_time: u64,
@@ -321,6 +325,7 @@ impl Default for Config {
             idle_timeout: 60_000,
             key_lifetime: 30_000,
             providers: Vec::new(),
+            key_sign_in: false,
             sign_in_time: 600_000,
             max_failures: 5,
             failure_window: 60_000,

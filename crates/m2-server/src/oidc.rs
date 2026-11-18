@@ -139,8 +139,8 @@ pub enum ProvidersError {
     /// More than eight providers.
     #[error("at most {MAX_PROVIDERS} providers")]
     TooMany,
-    /// No provider: nobody could sign in.
-    #[error("the file lists no provider, and players sign in only with providers")]
+    /// No provider: the file would let nobody in.
+    #[error("the file lists no provider")]
     Empty,
 }
 
@@ -194,6 +194,9 @@ pub fn parse(
             return Err(bad(
                 "an id is 1 to 16 lowercase letters, digits and hyphens",
             ));
+        }
+        if entry.id == m2_protocol::key_sign_in::PROVIDER {
+            return Err(bad("`key` is reserved for devices' keys"));
         }
         if providers.iter().any(|p| p.id == entry.id) {
             return Err(bad("two providers have this id"));

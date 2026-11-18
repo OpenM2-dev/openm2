@@ -73,6 +73,15 @@ pub fn identity_account_name(provider: &str, issuer: &str, subject: &str) -> Str
     format!("{provider}:{suffix}")
 }
 
+/// The name of the account of a device's key: as for a provider's player,
+/// with the provider `key` and the issuer `openm2:key`
+/// (`m2_protocol::key_sign_in`), the key written `ed25519:` and 64 hex
+/// digits as the subject.
+pub fn key_account_name(key: &m2_protocol::key_sign_in::PublicKey) -> String {
+    use m2_protocol::key_sign_in::{ISSUER, PROVIDER};
+    identity_account_name(PROVIDER, ISSUER, &key.to_string())
+}
+
 /// The most accounts [`game_masters`] takes.
 pub const MAX_GAME_MASTERS: usize = 64;
 

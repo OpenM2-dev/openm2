@@ -319,6 +319,7 @@ pub(crate) fn failure_text(error: &SessionError) -> String {
             LoginRefusal::ProviderUnavailable => {
                 "The server could not reach the provider. Try again later.".to_owned()
             }
+            LoginRefusal::KeyRefused => "The server did not accept this computer's key.".to_owned(),
             LoginRefusal::Other(reason) => {
                 format!("The server refused the login (reason {reason}).")
             }

@@ -37,6 +37,9 @@ pub fn run(mut args: StatusArgs) -> Result<ExitCode> {
                 .map(|provider| format!("{} ({})", provider.id, provider.name))
                 .collect();
             println!("      providers: {}", providers.join(", "));
+            if answer.key_sign_in {
+                println!("      devices' keys: yes");
+            }
         }
         Err(why) => {
             ok = false;

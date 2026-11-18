@@ -200,9 +200,13 @@ pub struct BotArgs {
     server: ServerArgs,
     /// Sign in with the server's provider of this id (`openm2-server`'s
     /// providers file): the bot prints the address to open in a browser,
-    /// and waits for it
+    /// and waits for it; `key` signs in with the device's own key
     #[arg(long, value_name = "ID")]
     provider: String,
+    /// The device's key file, for `--provider key` (default:
+    /// device-key.pem beside OPENM2_SETTINGS); made when there is none
+    #[arg(long = "device-key", value_name = "FILE")]
+    device_key: Option<PathBuf>,
     /// Character slot to play (0-3); default: the first character
     #[arg(long, conflicts_with = "create")]
     slot: Option<u8>,
@@ -836,13 +840,15 @@ pub(crate) fn print_event(now: Millis, event: &Event) {
             name,
         } => println!("{at} {server}: {} speaks protocol {protocol}", shown(name)),
         Event::Phase { server, phase } => println!("{at} {server}: phase {phase:?}"),
-        Event::SignInOptions(providers) => println!(
-            "{at} auth: {} provider(s){}",
-            providers.len(),
-            providers
+        Event::SignInOptions(offer) => println!(
+            "{at} auth: {} provider(s){}{}",
+            offer.providers.len(),
+            offer
+                .providers
                 .iter()
                 .map(|p| format!(" {} ({})", shown(&p.id), shown(&p.name)))
-                .collect::<String>()
+                .collect::<String>(),
+            if offer.key { ", and devices' keys" } else { "" }
         ),
         Event::LoggedIn => println!("{at} auth: logged in"),
         Event::CharacterList(list) => {
@@ -1314,10 +1320,18 @@ pub fn run(mut args: BotArgs) -> Result<ExitCode> {
 
     let mut config = SessionConfig::provider(&args.provider).context("--provider")?;
     config.character = character;
+    let with_key = config.signs_with_key();
     let mut session = Session::new(config);
 
     let mut capture = args.capture.as_deref().map(open_capture).transpose()?;
-    let net = args.server.net_config();
+    let mut net = args.server.net_config();
+    if with_key {
+        let settings = std::env::var_os(crate::settings::ENV).map(PathBuf::from);
+        net.device_key = Some(crate::key::load(
+            args.device_key.as_deref(),
+            settings.as_deref(),
+        )?);
+    }
     if let Some(place) = args.buys.iter().find(|place| **place >= SHOP_PLACES) {
         anyhow::bail!(
             "--buy {place}: a shop's places are 0 to {}",

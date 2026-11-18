@@ -44,9 +44,9 @@ expression: h.log
 -- Bob comes back: told of Alice in the game, and Alice sees him come
 @1000 conn#5 accepted on auth from 10.0.0.1
    -> event: conn#5: accepted on auth
-@1000 conn#5 sends Hello protocol=3 "openm2 test"
-   -> event: conn#5: openm2 test speaks protocol 3
-   -> send conn#5 Welcome protocol=3
+@1000 conn#5 sends Hello protocol=4 "openm2 test"
+   -> event: conn#5: openm2 test speaks protocol 4
+   -> send conn#5 Welcome protocol=4
 @1000 conn#5 sends StartSignIn
    -> send conn#5 SignInOptions [example] nonce="de0ea89a53f1ecf3f3d0a462fb77d2ba"
 @1000 conn#5 sends ProviderLogin example http://127.0.0.1:50000/callback
@@ -60,9 +60,9 @@ expression: h.log
    -> event: conn#5: closed: the client left
 @1000 conn#6 accepted on game from 10.0.0.1
    -> event: conn#6: accepted on game
-@1000 conn#6 sends Hello protocol=3 "openm2 test"
-   -> event: conn#6: openm2 test speaks protocol 3
-   -> send conn#6 Welcome protocol=3
+@1000 conn#6 sends Hello protocol=4 "openm2 test"
+   -> event: conn#6: openm2 test speaks protocol 4
+   -> send conn#6 Welcome protocol=4
 @1000 conn#6 sends TicketLogin example:bob f5e0… (32 bytes)
    -> event: conn#6: account 2 joined the game server
    -> store #15: load characters of 2

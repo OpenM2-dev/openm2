@@ -106,10 +106,27 @@ struct ServeArgs {
     content: Option<PathBuf>,
     /// The OpenID Connect providers players sign in with, a TOML file
     /// (docs/server.md, "Sign-in with a provider"); each client secret comes
-    /// from OPENM2_PROVIDER_<ID>_SECRET. Required: it is the only way to
-    /// sign in.
+    /// from OPENM2_PROVIDER_<ID>_SECRET. Required unless --key-sign-in is
+    /// given: there must be a way in.
     #[arg(long, env = "OPENM2_PROVIDERS", value_name = "FILE")]
     providers: Option<PathBuf>,
+    /// Let players sign in with their device's own key, which needs no
+    /// provider (docs/server.md, "Sign-in with a device key"). Anyone who
+    /// reaches the server can then make an account.
+    #[arg(
+        long,
+        env = "OPENM2_KEY_SIGN_IN",
+        value_parser = clap::builder::BoolishValueParser::new(),
+        num_args = 0..=1,
+        default_missing_value = "true",
+        default_value = "false"
+    )]
+    key_sign_in: bool,
+    /// A device's key whose account is a game master, written `ed25519:`
+    /// and 64 hex digits as `openm2 key public` prints it; needs
+    /// --key-sign-in.
+    #[arg(long, env = "OPENM2_OWNER_KEY", value_name = "KEY")]
+    owner_key: Option<String>,
     /// The accounts that may use the game masters' commands: account names
     /// separated by commas, as `/account` shows them in the game
     /// (docs/server.md, "Game masters"). Without it nobody may.
@@ -217,19 +234,34 @@ fn identity(args: &TlsArgs) -> Result<Identity> {
 
 async fn serve(args: ServeArgs) -> Result<()> {
     // An empty OPENM2_PROVIDERS counts as unset, as OPENM2_CONTENT does.
-    let Some(providers_file) = args
+    let providers_file = args
         .providers
         .as_deref()
-        .filter(|file| !file.as_os_str().is_empty())
-    else {
+        .filter(|file| !file.as_os_str().is_empty());
+    if providers_file.is_none() && !args.key_sign_in {
         bail!(
-            "set --providers (OPENM2_PROVIDERS) to a providers file: players sign in only with OpenID Connect providers (docs/server.md, \"Sign-in with a provider\")"
+            "set --providers (OPENM2_PROVIDERS) to a providers file, or --key-sign-in (OPENM2_KEY_SIGN_IN): there must be a way in (docs/server.md, \"Sign-in with a provider\" and \"Sign-in with a device key\")"
         );
-    };
-    let configs = oidc::load(providers_file)?;
-    let game_masters = m2_server::store::game_masters(&args.game_masters)
+    }
+    let configs = providers_file.map(oidc::load).transpose()?;
+    let mut game_masters = m2_server::store::game_masters(&args.game_masters)
         .map_err(|error| anyhow::anyhow!("--game-masters (OPENM2_GAME_MASTERS): {error}"))?;
+    // An empty OPENM2_OWNER_KEY counts as unset.
+    if let Some(owner) = args.owner_key.as_deref().filter(|key| !key.is_empty()) {
+        if !args.key_sign_in {
+            bail!("--owner-key (OPENM2_OWNER_KEY) needs --key-sign-in (OPENM2_KEY_SIGN_IN)");
+        }
+        let key: m2_protocol::key_sign_in::PublicKey = owner
+            .parse()
+            .map_err(|error| anyhow::anyhow!("--owner-key (OPENM2_OWNER_KEY): {error}"))?;
+        let name = m2_server::store::key_account_name(&key);
+        tracing::info!(target: "m2_server", "the owner's key is the game master {name}");
+        game_masters.insert(name);
+    }
     tracing::info!(target: "m2_server", "game masters: {}", game_masters.len());
+    if args.key_sign_in {
+        tracing::info!(target: "m2_server", "devices' keys may sign in: anyone who reaches the server can make an account");
+    }
     // An empty OPENM2_CONTENT counts as unset.
     let content = match args
         .content
@@ -246,9 +278,12 @@ async fn serve(args: ServeArgs) -> Result<()> {
             m2_content::Content::default()
         }
     };
-    let providers = Providers::discover(configs)
-        .await
-        .context("reading the providers' discovery documents")?;
+    let providers = match configs {
+        Some(configs) => Providers::discover(configs)
+            .await
+            .context("reading the providers' discovery documents")?,
+        None => Providers::none(),
+    };
     let (store, world) = if args.memory {
         (Store::memory(), None)
     } else {
@@ -268,6 +303,7 @@ async fn serve(args: ServeArgs) -> Result<()> {
         content: std::sync::Arc::new(content),
         core: m2_server_core::Config {
             game_masters,
+            key_sign_in: args.key_sign_in,
             ..m2_server_core::Config::default()
         },
         ..ServerConfig::default()

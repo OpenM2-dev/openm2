@@ -1,6 +1,6 @@
 # The client's settings, the player's servers and `openm2 status`
 
-**Code:** `crates/m2-cli/src/config.rs` (the file), `bot.rs` (`ServerArgs`: the server, for `bot`, `play` and `status`), `play.rs` (the asset folder and provider), `source.rs` (the asset folder), `servers.rs` (addresses, the player's servers file, asking and checking a server), `status.rs`, `m2_net::probe` and `m2_net::server_key`.
+**Code:** `crates/m2-cli/src/config.rs` (the file), `bot.rs` (`ServerArgs`: the server, for `bot`, `play` and `status`), `play.rs` (the asset folder and provider), `source.rs` (the asset folder), `servers.rs` (addresses, the player's servers file, asking and checking a server), `status.rs`, `key.rs` (the device's key), `m2_net::probe`, `m2_net::server_key` and `m2_net::DeviceKey`.
 
 **Checked by:**
 - the unit tests of `config.rs`, `bot.rs` and `servers.rs` (the last against openm2's own server in the process);
@@ -28,7 +28,7 @@ The rules here are openm2's own.
   | `auth_port` | the auth server's port, 1–65535 | the same |
   | `game_port` | the game server's port, 1–65535 | the same |
   | `server_key` | the pin of the server's key, `sha256:` and 64 hex digits | the same |
-  | `provider` | the provider to sign in with at once, as `--provider` | `play` |
+  | `provider` | the provider to sign in with at once, as `--provider`; `key` for the device's own key | `play` |
   | `sign_in_prompt` | what the provider shows at every sign-in, OpenID Connect's `prompt`: `login` (its sign-in again, where another account can be chosen) or `select_account` (its choice of account). None by default: a provider that remembers the player then signs them in at once, so the same account comes back every time | `bot`, `play` |
   | `assets` | the asset folder to play with ([`assets.md`](assets.md)) | `play`, `openm2-launcher` |
 
@@ -67,6 +67,13 @@ What the player chooses in the game's Settings window ([`ui.md`](ui.md), "The ga
 - **When it is written:** half a second after a change in the Settings window (a slider dragged writes it a few times, not every frame), and when the game closes; through a file beside it renamed into place, making its folder if need be. A failed write is a note; the game goes on.
 - **What wins:** `--music-volume` and `--sound-volume` set their volume for the session over the file's; the Settings window shows them, and a change there writes them too. `--mute` opens no audio device at all; the file's `mute` keeps the device open, silent, so the window can unmute.
 
+## The device's key
+An Ed25519 key of this install's own, to sign in on servers that take devices' keys ([`protocol/openm2/session.md`](protocol/openm2/session.md), "Signing in with a device key"). `--provider key` signs in with it, with no browser; the account is the key's, so another install, or a key lost, is another account.
+- **Where it is:** `--device-key FILE` (`bot`, `play`, `openm2 key public`), else `device-key.pem` beside the player's settings file (`--settings`, `OPENM2_SETTINGS`: the launcher's install folder). Without either, signing in with a key stops and says which to give.
+- **What it is:** the private key in PKCS#8 PEM (`-----BEGIN PRIVATE KEY-----`), at most 4 KiB read. It is made the first time it is needed, only where no file is: a file that is there but is not a key stops the sign-in and is never replaced. On Unix it is readable by its owner only (0600); on Windows the folder's permissions apply.
+- **What leaves it:** only its signature over one connection's nonce and TLS channel binding, and its public key. It is never printed, logged or written to a capture; `DeviceKey`'s Debug shows the public key only.
+- **`openm2 key public`** prints the public key, `ed25519:` and 64 hex digits, making the key first when there is none. An operator passes it to `openm2-server serve --owner-key` to make its account a game master ([`../server.md`](../server.md), "Sign-in with a device key").
+
 ## The player's servers
 The servers a player added on `play`'s Servers board ([`ui.md`](ui.md), "The Servers board"), besides the one `openm2.toml` names.
 
@@ -99,7 +106,7 @@ The servers a player added on `play`'s Servers board ([`ui.md`](ui.md), "The Ser
 It checks that a server is up and speaks openm2, without signing in. Scripts and deploys use it.
 - **The auth server:**
   - the same session the login screen runs to ask for the providers (`SessionConfig::sign_in_options`): TLS, `Hello`, `Welcome`, then the providers;
-  - prints `auth  HOST:PORT  NAME, protocol N`, then `providers: id (name), …`.
+  - prints `auth  HOST:PORT  NAME, protocol N`, then `providers: id (name), …`, and `devices' keys: yes` when it takes them.
 - **The game server:**
   - a TLS handshake with the trusted key and ALPN `openm2/1`, then a clean close (`m2_net::probe`);
   - prints `game  HOST:PORT  answered from ADDRESS, TLS 1.3 and openm2/1`.

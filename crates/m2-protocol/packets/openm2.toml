@@ -552,6 +552,16 @@ dir = "c2s"
 id = 43
 doc = "Reels our line in: after a bite, to catch what bit; before one, to stop fishing."
 
+[[message]]
+name = "KeyLogin"
+dir = "c2s"
+id = 44
+doc = "Signs in with this device's own key, on the auth server: the key and its signature over this connection's nonce and channel binding."
+fields = [
+  { name = "public_key", type = "[u8; 32]", doc = "The device's Ed25519 public key; the account follows from it." },
+  { name = "signature", type = "[u8; 64]", doc = "Ed25519 signature of `m2_protocol::key_sign_in::signed_message`: the nonce from SignInOptions and the connection's TLS channel binding." },
+]
+
 # ---------------------------------------------------------------------------
 # Server → client
 
@@ -598,7 +608,7 @@ dir = "s2c"
 id = 6
 doc = "The auth server or the game server refused the login."
 fields = [
-  { name = "reason", type = "u8", doc = "2 the account is in the game, 3 the server is full, 4 too many failed tries, 5 the ticket is not valid, 6 the provider did not confirm the sign-in, 7 the server could not reach the provider; 1 is reserved and never sent." },
+  { name = "reason", type = "u8", doc = "2 the account is in the game, 3 the server is full, 4 too many failed tries, 5 the ticket is not valid, 6 the provider did not confirm the sign-in, 7 the server could not reach the provider, 8 the server did not accept this device's key; 1 is reserved and never sent." },
 ]
 
 [[message]]
@@ -922,10 +932,11 @@ fields = [
 name = "SignInOptions"
 dir = "s2c"
 id = 36
-doc = "The answer to StartSignIn: the providers players may sign in with, and the nonce the ID token must carry."
+doc = "The answer to StartSignIn: the ways in (providers, a device's key) and the nonce an ID token or a key's signature must carry."
 fields = [
   { name = "providers", type = "list<Provider; 8>", doc = "The providers; empty when the server has none." },
-  { name = "nonce", type = "string<64>", doc = "Single use, for this connection only; empty when the server has no providers." },
+  { name = "nonce", type = "string<64>", doc = "Single use, for this connection only; empty when the server offers no way in." },
+  { name = "key_sign_in", type = "bool", doc = "Whether the server takes a device's own key (KeyLogin)." },
 ]
 
 [[message]]

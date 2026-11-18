@@ -1,6 +1,6 @@
 # Session
 
-How the client reaches the game on openm2's server: the two connections, versions, signing in with a provider, the ticket, the heartbeat, choosing or creating a character, entering the game and leaving. What the server checks on top is in [`server/session.md`](../../server/session.md).
+How the client reaches the game on openm2's server: the two connections, versions, signing in with a provider or a device's key, the ticket, the heartbeat, choosing or creating a character, entering the game and leaving. What the server checks on top is in [`server/session.md`](../../server/session.md).
 
 ## Connections
 - The client opens two connections, one after the other, both to the host the user configured (`NetConfig::host`):
@@ -39,7 +39,7 @@ client                          game server
 `crates/m2-cli/tests/bot_transcript.rs` plays such a session against the `openm2 bot` binary and checks every byte it sends; `crates/m2-cli/tests/own_server.rs` runs the bot on openm2's server.
 
 ## Versions
-- **Hello** is the client's first message on every connection: `protocol`, the minor version it speaks (the server speaks only 3, so a client of another version is refused), and `build`, its name and version (`openm2 0.1.0`) for the server's logs.
+- **Hello** is the client's first message on every connection: `protocol`, the minor version it speaks (the server speaks only 4, so a client of another version is refused), and `build`, its name and version (`openm2 0.1.0`) for the server's logs.
 - The server answers:
   - **Welcome** when it speaks that version: its own minor version and its name. The session goes on.
   - **Refused** otherwise: `reason`, the `oldest` and `newest` minor versions it speaks, and `text`, a line for the player. Then it closes the connection.
@@ -55,10 +55,10 @@ client                          game server
 - Hello, Welcome and Refused never change, and the major version is the TLS ALPN name ([`README.md`](README.md), "Versions").
 
 ## Signing in with a provider
-A player signs in with one of the server's OpenID Connect providers, the only way in: there are no passwords. The flow is the authorization code flow with PKCE for a native app (RFC 8252), the code relayed to the server, which exchanges it and checks the ID token.
+A player signs in with one of the server's OpenID Connect providers, or with their device's own key when the server takes keys ("Signing in with a device key"): there are no passwords. The flow is the authorization code flow with PKCE for a native app (RFC 8252), the code relayed to the server, which exchanges it and checks the ID token.
 1. On the auth server, after its Welcome, the client sends **StartSignIn**.
-2. The server answers **SignInOptions**: `providers` (each one's `id`, `name`, `authorize` endpoint and `client_id`; at most 8, in the operator's order) and `nonce`, single use and good on this connection only. A server without providers answers an empty list and an empty nonce. Asking again gives a new nonce, which replaces the old one.
-   - From the first StartSignIn of a server with providers, the auth server pings the connection as the game server does ("Heartbeat"), and closes it if it has not signed in within 10 minutes.
+2. The server answers **SignInOptions**: `providers` (each one's `id`, `name`, `authorize` endpoint and `client_id`; at most 8, in the operator's order), `nonce`, single use and good on this connection only, and `key_sign_in`, whether it takes devices' keys. A server with no way in answers an empty list, an empty nonce and `false`. Asking again gives a new nonce, which replaces the old one.
+   - From the first StartSignIn of a server with a way in, the auth server pings the connection as the game server does ("Heartbeat"), and closes it if it has not signed in within 10 minutes.
 3. The client signs in at the provider in the system's browser:
    - it opens the authorization endpoint only if it is `https`, or plain `http` on the loopback address when the game server is on the same machine;
    - it listens on `127.0.0.1` at a port the system picks;
@@ -72,6 +72,19 @@ A player signs in with one of the server's OpenID Connect providers, the only wa
 - **Refusals:** LoginRefused ("Logins"), and the connection is closed (its nonce is used up).
 - **The client holds no token:** the ID token and any access token stay on the server.
 - **Only asking:** a client may ask for the providers and leave, as `play`'s login screen does to show a button each.
+
+## Signing in with a device key
+A server may also take a device's own key (`openm2-server serve --key-sign-in`, [`../../server.md`](../../server.md)): an Ed25519 key the client made once and keeps in a file ([`../../client.md`](../../client.md), "The device's key"). The account is the key's: the message names no account, so a key reaches its own account and nobody else's. No browser opens.
+1. On the auth server, after its Welcome, the client sends **StartSignIn**, and the server answers **SignInOptions** with `key_sign_in` true and a nonce, as above.
+2. The client takes the connection's **channel binding**: 32 bytes of the TLS exporter (RFC 5705) with the label `EXPORTER-Channel-Binding` and no context, RFC 9266's `tls-exporter`. Both sides of one TLS connection get the same bytes, and no other connection gets them.
+3. It signs, with Ed25519 (RFC 8032), the bytes `openm2/1 key sign-in` and a zero byte, the nonce's length as one byte, the nonce, then the 32 bytes of the binding (`m2_protocol::key_sign_in::signed_message`).
+4. It sends **KeyLogin**: `public_key`, its 32 bytes, and `signature`, 64 bytes. Neither is secret: the signature is worth nothing on another connection or with another nonce.
+5. The server uses the nonce up, checks the signature against the nonce and its own side's binding ([`../../server/session.md`](../../server/session.md), "Signing in with a device key"), and answers **SignedIn** as for a provider: the key's account, made at its first sign-in, and a ticket. The account is named `key:` and 13 characters.
+6. The client goes on to the game server with the ticket ("Logins").
+
+- **Refusals:** LoginRefused 8 for a server that does not take keys, a KeyLogin without a nonce, or a signature that does not verify; 4 after too many failures from the address ("Logins").
+- **The client** asks for SignInOptions, and stops (`the server does not take this device's key`) when `key_sign_in` is false; it stops too when it has no key, or cannot read or sign with it.
+- **A signature taken from the wire** (a capture, a server in the middle) does not sign in elsewhere: another connection has another binding, and the nonce is used up.
 
 ## Logins
 1. **SignedIn**'s `ticket` is 32 random bytes:
@@ -92,9 +105,10 @@ A player signs in with one of the server's OpenID Connect providers, the only wa
 | 5 | the ticket is not valid | game server: a ticket not given out, already used, expired, or given for another account name |
 | 6 | the provider did not confirm the sign-in | auth server: a ProviderLogin without a nonce, for a provider the server does not have, with a redirect, verifier or code that cannot be right, or whose code or ID token the provider's checks refused ("Signing in with a provider") |
 | 7 | the server could not reach the provider | auth server: the provider did not answer, or the server checks too many sign-ins at once |
+| 8 | the server did not accept this device's key | auth server: a KeyLogin on a server that does not take keys, without a nonce, or whose signature is not the key's over the nonce and the connection's binding ("Signing in with a device key") |
 
 - **Every refusal closes the connection,** on both servers.
-- **Failures** are counted over the last 60 s per address: refused sign-ins on the auth server (not 7: the provider's trouble is not the player's), wrong tickets on the game server. A refusal for too many tries does not count again. Players behind one address share its count.
+- **Failures** are counted over the last 60 s per address: refused sign-ins on the auth server, devices' keys among them (not 7: the provider's trouble is not the player's), wrong tickets on the game server. A refusal for too many tries does not count again. Players behind one address share its count.
 - **The client** stops at any LoginRefused (`the auth server refused the login: the provider did not confirm the sign-in`) and does not try again on its own.
 - **Secrets:** the ticket, the code and the verifier are `secret` fields ([`README.md`](README.md), "Logins"). The client keeps them in `secrecy` types and never takes them from a command-line argument.
 

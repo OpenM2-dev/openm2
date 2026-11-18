@@ -28,6 +28,10 @@
 //!   loopback address, hands the authorization URL to the
 //!   [`Controller::sign_in`] (which opens a browser), and a thread of its own
 //!   waits for the browser and passes the code back to the session.
+//! - **Signing in with the device's key** ([`device_key`]): when the session
+//!   asks ([`Effect::SignWithKey`]), the driver takes the auth connection's
+//!   TLS channel binding (RFC 9266's exporter), signs it with the server's
+//!   nonce using [`NetConfig::device_key`], and hands the signature back.
 //! - Optionally every message is written to a [`Capture`] with secrets
 //!   blanked.
 //! - [`Traffic`]: the bytes on the sockets each way, TLS included.
@@ -38,6 +42,7 @@
 //! length only, never contents).
 
 pub mod capture;
+pub mod device_key;
 pub mod signin;
 pub mod tls;
 
@@ -53,6 +58,7 @@ use std::time::{Duration, Instant};
 use m2_core::{
     Command, ConnId, Effect, Event, Input, Millis, ServerKind, Session, SignInCode, SignInProvider,
 };
+use m2_protocol::key_sign_in::{BINDING_LEN, EXPORTER_LABEL};
 use m2_protocol::profile::openm2::{
     ClientMessage, MAX_CLIENT_FRAME, MAX_SERVER_FRAME, ServerMessage,
 };
@@ -63,6 +69,7 @@ use rustls::{ClientConfig, ClientConnection, HandshakeKind};
 use thiserror::Error;
 
 pub use capture::{Capture, CaptureError, Record, read_capture};
+pub use device_key::{DeviceKey, DeviceKeyError};
 pub use tls::Trust;
 
 /// Bytes read from a socket at a time.
@@ -96,6 +103,9 @@ pub struct NetConfig {
     /// What the provider is asked to show at every sign-in (OpenID
     /// Connect's `prompt`); none by default.
     pub sign_in_prompt: Option<signin::SignInPrompt>,
+    /// The device's key, for a session that signs in with it; none by
+    /// default, and then such a sign-in fails.
+    pub device_key: Option<Arc<DeviceKey>>,
 }
 
 impl NetConfig {
@@ -112,6 +122,7 @@ impl NetConfig {
             tick: Duration::from_millis(100),
             sign_in_timeout: signin::SIGN_IN_TIMEOUT,
             sign_in_prompt: None,
+            device_key: None,
         }
     }
 
@@ -390,6 +401,16 @@ impl Driver<'_> {
                             queue.push_back(Input::SignInFailed { reason });
                         }
                     }
+                    Effect::SignWithKey { conn, nonce } => {
+                        queue.push_back(match self.sign_with_key(conn, &nonce) {
+                            Ok((public_key, signature)) => Input::KeySigned {
+                                conn,
+                                public_key,
+                                signature,
+                            },
+                            Err(reason) => Input::SignInFailed { reason },
+                        });
+                    }
                     Effect::Event(event) => {
                         for command in self.controller.on_event(now, &event) {
                             queue.push_back(Input::Command(command));
@@ -424,6 +445,24 @@ impl Driver<'_> {
             })
             .map(|_| ())
             .map_err(|e| format!("cannot wait for the browser: {e}"))
+    }
+
+    /// Signs the server's nonce and the connection's TLS channel binding
+    /// with the device's key.
+    fn sign_with_key(&self, conn: ConnId, nonce: &str) -> Result<([u8; 32], [u8; 64]), String> {
+        let key = self
+            .config
+            .device_key
+            .as_ref()
+            .ok_or("this client has no device key")?;
+        let link = self.links.get(&conn).ok_or("the auth connection is gone")?;
+        let binding = link
+            .tls
+            .export_keying_material([0u8; BINDING_LEN], EXPORTER_LABEL, None)
+            .map_err(|e| format!("TLS channel binding: {e}"))?;
+        let signature = key.sign_in(nonce, &binding).map_err(|e| e.to_string())?;
+        tracing::info!(%conn, key = %key.public_key(), "signing in with the device's key");
+        Ok((*key.public_key().bytes(), signature))
     }
 
     /// Opens a connection and finishes its TLS handshake, then starts its

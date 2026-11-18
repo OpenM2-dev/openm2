@@ -403,6 +403,8 @@ pub struct Answer {
     pub name: String,
     /// How to sign in on it.
     pub providers: Vec<SignInProvider>,
+    /// Whether it takes a device's own key.
+    pub key_sign_in: bool,
 }
 
 /// Why asking a server failed.
@@ -448,6 +450,7 @@ pub fn ask(net: &NetConfig) -> Result<Answer, AskError> {
     struct Answers {
         welcome: Option<(u16, String)>,
         providers: Vec<SignInProvider>,
+        key: bool,
     }
     impl Controller for Answers {
         fn on_event(&mut self, _now: Millis, event: &Event) -> Vec<Command> {
@@ -457,7 +460,10 @@ pub fn ask(net: &NetConfig) -> Result<Answer, AskError> {
                     protocol,
                     name,
                 } => self.welcome = Some((*protocol, name.clone())),
-                Event::SignInOptions(providers) => self.providers.clone_from(providers),
+                Event::SignInOptions(offer) => {
+                    self.providers.clone_from(&offer.providers);
+                    self.key = offer.key;
+                }
                 _ => {}
             }
             Vec::new()
@@ -475,6 +481,7 @@ pub fn ask(net: &NetConfig) -> Result<Answer, AskError> {
                 protocol,
                 name,
                 providers: answers.providers,
+                key_sign_in: answers.key,
             })
         }
         Ok(_) => Err(session

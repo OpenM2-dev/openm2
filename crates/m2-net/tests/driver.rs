@@ -14,7 +14,8 @@ use std::time::Duration;
 use m2_core::{
     Command, Event, LoginRefusal, Millis, ServerKind, Session, SessionConfig, SessionError, Stage,
 };
-use m2_net::{Capture, Controller, NetConfig, Record, Traffic, Trust, read_capture};
+use m2_net::{Capture, Controller, DeviceKey, NetConfig, Record, Traffic, Trust, read_capture};
+use m2_protocol::key_sign_in::{EXPORTER_LABEL, signed_message};
 use m2_protocol::profile::openm2::{
     ClientMessage, LoginRefused, MAX_SERVER_FRAME, PROTOCOL, Provider, ProviderLogin,
     ServerMessage, SignInOptions, SignedIn, Welcome,
@@ -223,6 +224,7 @@ fn sign_in(stream: &mut Tls) -> ProviderLogin {
             client_id: "openm2".to_owned(),
         }],
         nonce: "n0nce".to_owned(),
+        key_sign_in: false,
     };
     send(stream, ServerMessage::SignInOptions(options));
     let ClientMessage::ProviderLogin(login) = receive(stream) else {
@@ -299,6 +301,105 @@ fn a_refused_sign_in_ends_the_session() {
     let code_hex: String = CODE.bytes().map(|b| format!("{b:02x}")).collect();
     assert!(!login.0.contains(&code_hex), "the code in the capture");
     assert_eq!(login.1, ["code", "verifier"]);
+}
+
+/// Runs a session that signs in with `key` against `script` as the auth
+/// server.
+fn run_with_key(key: Option<DeviceKey>, script: impl FnOnce(Tls) + Send + 'static) -> Session {
+    let (tls, pin) = tls_server(true);
+    let auth = TcpListener::bind("127.0.0.1:0").unwrap();
+    let auth_port = auth.local_addr().unwrap().port();
+    let server = serve(auth, tls, script);
+    let mut net = NetConfig::new("127.0.0.1", auth_port, 1, Trust::Pinned(pin));
+    net.device_key = key.map(Arc::new);
+    let mut session = Session::new(SessionConfig::device_key());
+    m2_net::run(&mut session, &net, &mut Recorder::default(), None).unwrap();
+    server.join().unwrap();
+    session
+}
+
+/// Offers devices' keys with the nonce `n0nce`, and takes the client's
+/// KeyLogin.
+fn key_sign_in(stream: &mut Tls) -> m2_protocol::profile::openm2::KeyLogin {
+    let ClientMessage::StartSignIn(_) = receive(stream) else {
+        panic!("StartSignIn after Welcome");
+    };
+    let options = SignInOptions {
+        providers: Vec::new(),
+        nonce: "n0nce".to_owned(),
+        key_sign_in: true,
+    };
+    send(stream, ServerMessage::SignInOptions(options));
+    let ClientMessage::KeyLogin(login) = receive(stream) else {
+        panic!("KeyLogin after SignInOptions");
+    };
+    login
+}
+
+#[test]
+fn a_device_key_signs_the_nonce_and_this_connections_binding() {
+    let key = DeviceKey::generate().unwrap();
+    let public = *key.public_key().bytes();
+    let session = run_with_key(Some(key), move |mut stream| {
+        welcome(&mut stream);
+        let login = key_sign_in(&mut stream);
+        assert_eq!(login.public_key, public);
+        // The server's own side of the connection gives the same binding.
+        let binding = stream
+            .conn
+            .export_keying_material([0u8; 32], EXPORTER_LABEL, None)
+            .unwrap();
+        let message = signed_message("n0nce", &binding).unwrap();
+        let checker = aws_lc_rs_ed25519(&login.public_key);
+        assert!(checker.verify(&message, &login.signature).is_ok());
+        // Not over another nonce, nor another connection's binding.
+        let other = signed_message("n0nce", &[0u8; 32]).unwrap();
+        assert!(checker.verify(&other, &login.signature).is_err());
+        let other = signed_message("other", &binding).unwrap();
+        assert!(checker.verify(&other, &login.signature).is_err());
+        send(
+            &mut stream,
+            ServerMessage::LoginRefused(LoginRefused { reason: 8 }),
+        );
+        assert_eq!(stream.read(&mut [0u8; 1]).unwrap(), 0);
+    });
+    assert_eq!(
+        session.error(),
+        Some(&SessionError::LoginRejected {
+            server: ServerKind::Auth,
+            reason: LoginRefusal::KeyRefused
+        })
+    );
+}
+
+fn aws_lc_rs_ed25519(key: &[u8; 32]) -> ::aws_lc_rs::signature::UnparsedPublicKey<[u8; 32]> {
+    ::aws_lc_rs::signature::UnparsedPublicKey::new(&::aws_lc_rs::signature::ED25519, *key)
+}
+
+#[test]
+fn a_client_without_a_device_key_cannot_sign_in_with_one() {
+    let session = run_with_key(None, |mut stream| {
+        welcome(&mut stream);
+        let ClientMessage::StartSignIn(_) = receive(&mut stream) else {
+            panic!("StartSignIn after Welcome");
+        };
+        let options = SignInOptions {
+            providers: Vec::new(),
+            nonce: "n0nce".to_owned(),
+            key_sign_in: true,
+        };
+        send(&mut stream, ServerMessage::SignInOptions(options));
+        // The client hangs up without a KeyLogin.
+        let mut rest = Vec::new();
+        let _ = stream.read_to_end(&mut rest);
+        assert!(rest.is_empty());
+    });
+    assert_eq!(
+        session.error(),
+        Some(&SessionError::SignIn {
+            reason: "this client has no device key".to_owned()
+        })
+    );
 }
 
 #[test]

@@ -105,7 +105,7 @@ The server talks to Postgres over TLS and checks the database's certificate and 
 - **When TLS fails,** the server stops at once and says why: the database offers no TLS, its certificate comes from an unknown authority, or it is for another name. It doesn't try again, unlike a database that isn't answering yet.
 
 ## Sign-in with a provider
-Players sign in with an OpenID Connect provider of yours, the only way in: the server keeps no passwords. Any provider that publishes discovery (`/.well-known/openid-configuration`) works: Google, Microsoft, GitLab, Keycloak, Auth0, Clerk, … `play`'s login screen shows a button per provider; `bot --provider ID` prints the address to open. A player's first sign-in makes their account, found again by the provider's issuer and their id there ([`specs/server/storage.md`](specs/server/storage.md), "Accounts"). The server does not start without a provider, even on your own machine: for development, register a provider's free development tenant (a Clerk development instance, a Google project's desktop client) or run Keycloak.
+Players sign in with an OpenID Connect provider of yours, or with their device's own key if you allow it ([Sign-in with a device key](#sign-in-with-a-device-key)): the server keeps no passwords. Any provider that publishes discovery (`/.well-known/openid-configuration`) works: Google, Microsoft, GitLab, Keycloak, Auth0, Clerk, … `play`'s login screen shows a button per provider; `bot --provider ID` prints the address to open. A player's first sign-in makes their account, found again by the provider's issuer and their id there ([`specs/server/storage.md`](specs/server/storage.md), "Accounts"). The server does not start without a way in: a provider, or devices' keys. To try a provider on your own machine, register a provider's free development tenant (a Clerk development instance, a Google project's desktop client) or run Keycloak.
 
 1. **Register openm2 at the provider** as a desktop (native, "installed") application, with the authorization code flow and PKCE:
    - the redirect URI `http://127.0.0.1/callback`: the client listens on a port the system picks, and providers that follow RFC 8252 accept any port on the loopback address (some want the port left out, some `http://localhost` registered as well);
@@ -128,6 +128,18 @@ Players sign in with an OpenID Connect provider of yours, the only way in: the s
 - **Logs** name the provider and the account by number; refusals give their reason at debug (`RUST_LOG=m2_server=debug`), never a code or a token. `openm2.sign_ins` counts sign-ins by provider and result.
 - **Account names** are the provider's id, a colon and 13 letters and digits (`google:nixzoi2rkfeta`).
 
+## Sign-in with a device key
+With `--key-sign-in` (`OPENM2_KEY_SIGN_IN=true`) players may also sign in with their device's own key: an Ed25519 key the client makes the first time and keeps beside its settings ([`specs/client.md`](specs/client.md), "The device's key"). No provider, no browser and no internet are needed, so a server on your own machine runs with nothing else:
+```sh
+openm2-server serve --memory --key-sign-in --owner-key "$(openm2 key public)"
+openm2 play --host 127.0.0.1 --server-key sha256:… --provider key --assets …
+```
+- **What the server checks** ([`specs/server/session.md`](specs/server/session.md), "Signing in with a device key"): the key's signature over the nonce it gave the connection and that connection's own TLS channel binding, so a signature seen on the wire is worth nothing anywhere else. The key names the account; the message names none.
+- **Who gets in:** anyone who reaches the server makes an account with a key of their own, so leave it off on a public server unless that is what you want. A key gives no other right.
+- **The owner:** `--owner-key ed25519:…` (`OPENM2_OWNER_KEY`), the key `openm2 key public` prints, makes that key's account a game master ([Game masters](#game-masters)). It needs `--key-sign-in`.
+- **Account names** are `key:` and 13 letters and digits; `openm2 key public` and the server agree on them (`m2_server::store::key_account_name`).
+- **With providers too:** both work at once; the providers file may not use the id `key`.
+
 ## Settings
 | Setting | Default | What |
 |---|---|---|
@@ -137,7 +149,9 @@ Players sign in with an OpenID Connect provider of yours, the only way in: the s
 | `OPENM2_TLS_CERT`, `--tls-cert`; `OPENM2_TLS_KEY`, `--tls-key` | none | your certificate chain and its key, PEM ([TLS](#tls)) |
 | `OPENM2_DATA`, `--data` | none (the Docker image: `/data`) | the server's folder: its own self-signed certificate in `tls/`, made at the first start ([TLS](#tls)) |
 | `OPENM2_PUBLISH` | `127.0.0.1` | `compose.yaml` only: the host's address the game's ports are published on; `0.0.0.0` for every address |
-| `OPENM2_PROVIDERS`, `--providers` | none: required | the providers file ([Sign-in with a provider](#sign-in-with-a-provider)); the Docker image reads `/providers.toml`, which `compose.yaml` mounts from `OPENM2_PROVIDERS_FILE` (required) |
+| `OPENM2_PROVIDERS`, `--providers` | none: required without `--key-sign-in` | the providers file ([Sign-in with a provider](#sign-in-with-a-provider)); the Docker image reads `/providers.toml`, which `compose.yaml` mounts from `OPENM2_PROVIDERS_FILE` (required) |
+| `OPENM2_KEY_SIGN_IN`, `--key-sign-in` | `false` | devices' own keys may sign in ([Sign-in with a device key](#sign-in-with-a-device-key)) |
+| `OPENM2_OWNER_KEY`, `--owner-key` | none | a device's key, `ed25519:` and 64 hex digits, whose account is a game master; needs `--key-sign-in` |
 | `OPENM2_PROVIDER_<ID>_SECRET` | none | a provider's client secret, for a confidential client; with Docker, in `./local/provider-secrets.env` |
 | `OPENM2_GAME_MASTERS`, `--game-masters` | none: nobody | the accounts that may use the game masters' commands, account names separated by commas ([Game masters](#game-masters)) |
 | `OPENM2_AUTH_PORT`, `--auth-port` | `11002` | the auth server's port |
@@ -161,7 +175,7 @@ Players of the accounts you name may set their character's level and give it gol
 | `/gm off`, `/gm on` | the mark over the character hidden, or shown again; kept with the character |
 
 1. **Find your account's name:** sign in and type `/account` in the chat. It answers `Your account: google:nixzoi2rkfeta`. It is the same on every server with the same provider, and after the database is wiped.
-2. **Name it** in `OPENM2_GAME_MASTERS` (or `--game-masters`), several separated by commas, then start the server again. The log says `game masters: 1`. A name that is not one stops the server at start, saying which.
+2. **Name it** in `OPENM2_GAME_MASTERS` (or `--game-masters`), several separated by commas, then start the server again. The log says `game masters: 1`. A name that is not one stops the server at start, saying which. On a server that takes devices' keys, `--owner-key` names a key instead ([Sign-in with a device key](#sign-in-with-a-device-key)).
 3. For anyone else these commands are unknown, as any other. Each one used is in the log: `game master account 2 on character 5: /item 11299 1`.
 
 ## What it records

@@ -5,9 +5,9 @@ expression: h.log
 -- alice's list says no empire: her next characters pick theirs
 @1000 conn#9 accepted on auth from 10.0.0.1
    -> event: conn#9: accepted on auth
-@1000 conn#9 sends Hello protocol=3 "openm2 test"
-   -> event: conn#9: openm2 test speaks protocol 3
-   -> send conn#9 Welcome protocol=3
+@1000 conn#9 sends Hello protocol=4 "openm2 test"
+   -> event: conn#9: openm2 test speaks protocol 4
+   -> send conn#9 Welcome protocol=4
 @1000 conn#9 sends StartSignIn
    -> send conn#9 SignInOptions [example] nonce="77d8b6ab9c5ec06d295a3c0e72732aec"
 @1000 conn#9 sends ProviderLogin example http://127.0.0.1:50000/callback
@@ -21,9 +21,9 @@ expression: h.log
    -> event: conn#9: closed: the client left
 @1000 conn#10 accepted on game from 10.0.0.1
    -> event: conn#10: accepted on game
-@1000 conn#10 sends Hello protocol=3 "openm2 test"
-   -> event: conn#10: openm2 test speaks protocol 3
-   -> send conn#10 Welcome protocol=3
+@1000 conn#10 sends Hello protocol=4 "openm2 test"
+   -> event: conn#10: openm2 test speaks protocol 4
+   -> send conn#10 Welcome protocol=4
 @1000 conn#10 sends TicketLogin example:alice 502a… (32 bytes)
    -> event: conn#10: account 1 joined the game server
    -> store #19: load characters of 1
@@ -52,9 +52,9 @@ expression: h.log
 -- bob's says Shinsoo: the empire he asks for is not read
 @1000 conn#11 accepted on auth from 10.0.0.1
    -> event: conn#11: accepted on auth
-@1000 conn#11 sends Hello protocol=3 "openm2 test"
-   -> event: conn#11: openm2 test speaks protocol 3
-   -> send conn#11 Welcome protocol=3
+@1000 conn#11 sends Hello protocol=4 "openm2 test"
+   -> event: conn#11: openm2 test speaks protocol 4
+   -> send conn#11 Welcome protocol=4
 @1000 conn#11 sends StartSignIn
    -> send conn#11 SignInOptions [example] nonce="86a16687a178bf69d356e928ba53845b"
 @1000 conn#11 sends ProviderLogin example http://127.0.0.1:50000/callback
@@ -68,9 +68,9 @@ expression: h.log
    -> event: conn#11: closed: the client left
 @1000 conn#12 accepted on game from 10.0.0.1
    -> event: conn#12: accepted on game
-@1000 conn#12 sends Hello protocol=3 "openm2 test"
-   -> event: conn#12: openm2 test speaks protocol 3
-   -> send conn#12 Welcome protocol=3
+@1000 conn#12 sends Hello protocol=4 "openm2 test"
+   -> event: conn#12: openm2 test speaks protocol 4
+   -> send conn#12 Welcome protocol=4
 @1000 conn#12 sends TicketLogin example:bob 6331… (32 bytes)
    -> event: conn#12: account 2 joined the game server
    -> store #25: load characters of 2

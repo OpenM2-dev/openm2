@@ -27,7 +27,8 @@ pub mod world;
 pub use session::{
     BUILD, CharacterChoice, Command, ConfigError, Effect, Event, FriendChange, Input, LoginRefusal,
     NewCharacter, Phase, Refusal, ServerKind, Session, SessionConfig, SessionError, ShopRefusal,
-    SignInCode, SignInProvider, Stage, valid_character_name, walk_duration, walk_time_percent,
+    SignInCode, SignInOffer, SignInProvider, Stage, valid_character_name, walk_duration,
+    walk_time_percent,
 };
 pub use time::{ConnId, Millis};
 pub use world::{

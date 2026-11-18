@@ -4,9 +4,9 @@ expression: h.log
 ---
 @1000 conn#1 accepted on auth from 10.0.0.1
    -> event: conn#1: accepted on auth
-@1000 conn#1 sends Hello protocol=3 "openm2 test"
-   -> event: conn#1: openm2 test speaks protocol 3
-   -> send conn#1 Welcome protocol=3
+@1000 conn#1 sends Hello protocol=4 "openm2 test"
+   -> event: conn#1: openm2 test speaks protocol 4
+   -> send conn#1 Welcome protocol=4
 @1000 conn#1 sends StartSignIn
    -> send conn#1 SignInOptions [example] nonce="f400927857aaf64114f561baacb37970"
 @1000 conn#1 sends ProviderLogin example http://127.0.0.1:50000/callback
@@ -20,9 +20,9 @@ expression: h.log
    -> event: conn#1: closed: the client left
 @1000 conn#2 accepted on game from 10.0.0.1
    -> event: conn#2: accepted on game
-@1000 conn#2 sends Hello protocol=3 "openm2 test"
-   -> event: conn#2: openm2 test speaks protocol 3
-   -> send conn#2 Welcome protocol=3
+@1000 conn#2 sends Hello protocol=4 "openm2 test"
+   -> event: conn#2: openm2 test speaks protocol 4
+   -> send conn#2 Welcome protocol=4
 @1000 conn#2 sends TicketLogin example:bob 8c79… (32 bytes)
    -> event: conn#2: account 1 joined the game server
    -> store #3: load characters of 1
@@ -50,9 +50,9 @@ expression: h.log
 -- Alice makes two characters and plays the first, next to Bob
 @1000 conn#3 accepted on auth from 10.0.0.1
    -> event: conn#3: accepted on auth
-@1000 conn#3 sends Hello protocol=3 "openm2 test"
-   -> event: conn#3: openm2 test speaks protocol 3
-   -> send conn#3 Welcome protocol=3
+@1000 conn#3 sends Hello protocol=4 "openm2 test"
+   -> event: conn#3: openm2 test speaks protocol 4
+   -> send conn#3 Welcome protocol=4
 @1000 conn#3 sends StartSignIn
    -> send conn#3 SignInOptions [example] nonce="03d78a3f20d154abd8ddfa6974eedf6b"
 @1000 conn#3 sends ProviderLogin example http://127.0.0.1:50000/callback
@@ -66,9 +66,9 @@ expression: h.log
    -> event: conn#3: closed: the client left
 @1000 conn#4 accepted on game from 10.0.0.1
    -> event: conn#4: accepted on game
-@1000 conn#4 sends Hello protocol=3 "openm2 test"
-   -> event: conn#4: openm2 test speaks protocol 3
-   -> send conn#4 Welcome protocol=3
+@1000 conn#4 sends Hello protocol=4 "openm2 test"
+   -> event: conn#4: openm2 test speaks protocol 4
+   -> send conn#4 Welcome protocol=4
 @1000 conn#4 sends TicketLogin example:alice 3784… (32 bytes)
    -> event: conn#4: account 2 joined the game server
    -> store #7: load characters of 2

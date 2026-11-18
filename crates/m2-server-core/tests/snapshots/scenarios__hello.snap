@@ -5,10 +5,10 @@ expression: h.log
 -- a client of another version is refused, with the versions this server speaks
 @1000 conn#1 accepted on auth from 10.0.0.1
    -> event: conn#1: accepted on auth
-@1000 conn#1 sends Hello protocol=4 "openm2 test"
-   -> event: conn#1: openm2 test speaks protocol 4
+@1000 conn#1 sends Hello protocol=5 "openm2 test"
+   -> event: conn#1: openm2 test speaks protocol 5
    -> event: conn#1: refused: another version of the protocol
-   -> send conn#1 Refused reason=1 versions 3-3 "This server speaks another version of openm2."
+   -> send conn#1 Refused reason=1 versions 4-4 "This server speaks another version of openm2."
    -> close conn#1
    -> event: conn#1: closed: another version of the protocol
 -- anything before Hello closes the connection
@@ -20,18 +20,18 @@ expression: h.log
 -- Hello is welcomed; a second one closes the connection
 @1000 conn#3 accepted on game from 10.0.0.1
    -> event: conn#3: accepted on game
-@1000 conn#3 sends Hello protocol=3 "openm2 test"
-   -> event: conn#3: openm2 test speaks protocol 3
-   -> send conn#3 Welcome protocol=3
-@1000 conn#3 sends Hello protocol=3 "openm2 test"
+@1000 conn#3 sends Hello protocol=4 "openm2 test"
+   -> event: conn#3: openm2 test speaks protocol 4
+   -> send conn#3 Welcome protocol=4
+@1000 conn#3 sends Hello protocol=4 "openm2 test"
    -> close conn#3
    -> event: conn#3: closed: a Hello after the Hello
 -- a build with control characters is logged without them
 @1000 conn#4 accepted on auth from 10.0.0.1
    -> event: conn#4: accepted on auth
-@1000 conn#4 sends Hello protocol=3 "evil\nline"
-   -> event: conn#4: evil?line speaks protocol 3
-   -> send conn#4 Welcome protocol=3
+@1000 conn#4 sends Hello protocol=4 "evil\nline"
+   -> event: conn#4: evil?line speaks protocol 4
+   -> send conn#4 Welcome protocol=4
 -- no Hello in 10 s closes the connection
 @1000 conn#5 accepted on game from 10.0.0.1
    -> event: conn#5: accepted on game

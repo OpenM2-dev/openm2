@@ -33,7 +33,7 @@ pub mod time;
 
 pub use config::{ClassBase, Config, ProviderOffer, Start, StateRule};
 pub use server::{Effect, Event, Input, Listener, Server, walk_duration, walk_time_percent};
-pub use sign_in::{Identity, SignIn, SignInRefusal};
+pub use sign_in::{Identity, KeySignIn, SignIn, SignInRefusal};
 pub use store::{
     Account, AccountId, Character, CreateRefusal, QuickSlot, RequestId, StoreAnswer, StoreError,
     StoreRequest, StoredFriend, StoredItem, StoredSkill,

@@ -231,6 +231,10 @@ pub struct PlayArgs {
     /// (to open it elsewhere, or on a machine without one)
     #[arg(long)]
     no_browser: bool,
+    /// The device's key file, for `--provider key` (default:
+    /// device-key.pem beside the settings file); made when there is none
+    #[arg(long = "device-key", value_name = "FILE")]
+    device_key: Option<PathBuf>,
     /// Character slot to play (0-3), without the select screen
     #[arg(long)]
     slot: Option<u8>,
@@ -527,10 +531,16 @@ impl Connection {
     /// `login`, from 1, which names its capture.
     fn start(
         args: &PlayArgs,
-        net_config: NetConfig,
+        mut net_config: NetConfig,
         config: SessionConfig,
         login: u32,
     ) -> Result<Self> {
+        if config.signs_with_key() {
+            net_config.device_key = Some(crate::key::load(
+                args.device_key.as_deref(),
+                args.settings.as_deref(),
+            )?);
+        }
         let path = args
             .capture
             .as_deref()

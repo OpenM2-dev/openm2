@@ -4,25 +4,25 @@ expression: h.log
 ---
 @1000 conn#1 accepted on game from 10.0.0.1
    -> event: conn#1: accepted on game
-@1000 conn#1 sends Hello protocol=3 "openm2 test"
-   -> event: conn#1: openm2 test speaks protocol 3
-   -> send conn#1 Welcome protocol=3
+@1000 conn#1 sends Hello protocol=4 "openm2 test"
+   -> event: conn#1: openm2 test speaks protocol 4
+   -> send conn#1 Welcome protocol=4
 @1000 conn#2 accepted on game from 10.0.0.1
    -> event: conn#2: accepted on game
-@1000 conn#2 sends Hello protocol=3 "openm2 test"
-   -> event: conn#2: openm2 test speaks protocol 3
-   -> send conn#2 Welcome protocol=3
+@1000 conn#2 sends Hello protocol=4 "openm2 test"
+   -> event: conn#2: openm2 test speaks protocol 4
+   -> send conn#2 Welcome protocol=4
 -- a third connection from the same address is refused, and told why
 @1000 conn#3 accepted on game from 10.0.0.1
    -> event: conn#3: refused: too many connections
-   -> send conn#3 Refused reason=3 versions 3-3 "Too many connections from your address."
+   -> send conn#3 Refused reason=3 versions 4-4 "Too many connections from your address."
    -> close conn#3
 -- another address is fine
 @1000 conn#4 accepted on game from 10.0.0.2
    -> event: conn#4: accepted on game
-@1000 conn#4 sends Hello protocol=3 "openm2 test"
-   -> event: conn#4: openm2 test speaks protocol 3
-   -> send conn#4 Welcome protocol=3
+@1000 conn#4 sends Hello protocol=4 "openm2 test"
+   -> event: conn#4: openm2 test speaks protocol 4
+   -> send conn#4 Welcome protocol=4
 -- a client that answers pings stays; silent ones go after 60 s
 @6000 tick
    -> send conn#1 Ping

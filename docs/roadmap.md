@@ -43,10 +43,10 @@ What openm2 does today, what comes next, and what is still unknown. When you fin
 - **Headless:** `openm2 bot`, a headless client for tests and checks. `openm2 status` checks a server.
 
 **The server (`openm2-server`)**
-- **Accounts:** sign-in only through OpenID Connect providers, with no passwords. Accounts and characters live in Postgres, or in memory for tests.
+- **Accounts:** sign-in through OpenID Connect providers, or, where the operator allows it, with the device's own key (no browser, no internet), with no passwords. Accounts and characters live in Postgres, or in memory for tests.
 - **The world:** monsters and NPCs from a content folder. Spawns, packs, and stones that call packs. Walk masks hold for players and monsters, and moves are checked.
 - **Gameplay:** fights, deaths and levels, drops and gold, shops, skills and their effects, teachers, master training, mounts and stables, upgrades, fishing, warps, whispers and friends.
-- **Game masters:** named by the operator, with `/level`, `/gold`, `/item`, `/heal`, `/speed`, `/gm on|off`, and their choice of empire.
+- **Game masters:** named by the operator (by account, or the owner's device key), with `/level`, `/gold`, `/item`, `/heal`, `/speed`, `/gm on|off`, and their choice of empire.
 - **Operations:** OpenTelemetry, a Docker image and a compose file with Postgres. One world per database.
 
 **Protocol and security**
@@ -60,6 +60,8 @@ What openm2 does today, what comes next, and what is still unknown. When you fin
 - **`openm2 release`:** makes keys, writes, signs and verifies manifests.
 
 ## Next
+- **Local saves in the launcher:** a button that hosts a named save on the player's own machine, the player its game master. The steps left: the world kept in one file per save (no Postgres), `openm2-server` run by the launcher with its ready line and stopped when the game ends, the content imported beside the assets, the saves' window, and the server in the Windows release.
+  - Then LAN: a save opened to the network, its link (address and key) to copy, and a "This device" button on the login screen for friends' games.
 - **An original sample world** in the repo, under `docs/source-policy.md`, "Original content". It needs a rule that lets it through `just no-assets`.
   - The gate: `play` on our own server with only the sample world, and no Metin2 files on the machine.
 - **A WebGPU build.**
@@ -87,6 +89,8 @@ What openm2 does today, what comes next, and what is still unknown. When you fin
   - What unit `CloudSpeed` is in, and what `CloudColor` does.
   - Whether the fog covers the sky.
   - openm2's choices are in `render.md`, "Maps: the sky".
+- **One device key everywhere:** a device's key names its account on every server that takes keys, so two such servers can tell it is the same player. A key per server (derived from the server's key) would not, but a new server key would then mean a new account.
+- **Servers open to devices' keys:** anyone who reaches one makes accounts, as many as they like. A cap on accounts, or a list of the keys allowed, may be wanted before such a server is opened to more than friends.
 - **Linking a provider to an account:** a provider's first sign-in makes a new account. Adding a second provider to it would need the player signed in with both at once, never by e-mail.
 - **Names in other codepages:** the import decodes names with codepage 1252 only. Other locales' names keep their ASCII and get `?` for the rest. A full decoder (for example `encoding_rs`) is a new dependency, partly under BSD-3, which is a licence decision.
 - **Item names in other codepages:** `play` shows an asset folder's names, which are UTF-8. The protocol carries UTF-8, so names from the server show as they are. Only the import's decoding is limited (see "Names in other codepages").

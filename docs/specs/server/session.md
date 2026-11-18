@@ -31,10 +31,10 @@ On every connection ([`../protocol/openm2/session.md`](../protocol/openm2/sessio
 
 ## Logging in
 ### Signing in with a provider (auth server)
-The only way in: there are no passwords and no local accounts (openm2; [`../protocol/openm2/session.md`](../protocol/openm2/session.md), "Signing in with a provider"; `docs/server.md`, "Sign-in with a provider"). `openm2-server serve` does not start without a provider.
-- **StartSignIn**, after Hello and before a login only: SignInOptions {the providers, in the operator's order, at most 8; a nonce: 16 bytes from the tickets' ChaCha20, in hex}. Without providers, an empty list and an empty nonce. A newer StartSignIn replaces the nonce. With providers, the connection is pinged every 5 s from the first one, and closed if it has not signed in 10 minutes after it.
-- **ProviderLogin**, after Hello and before a login only. The nonce is used up, whatever follows. Refused at once (LoginRefused **6**, the connection closed, a failure of the address) without a nonce, for a provider the server does not have, or unless the redirect is `http://127.0.0.1:<port>/callback` (the port 1 to 65535, no leading zero), the verifier 43 to 128 of `A–Z a–z 0–9 - . _ ~` (RFC 7636) and the code 1 to 4,096 printable ASCII characters (RFC 6749).
-- **Throttling** (openm2): after 5 failures in a minute from one address, every ProviderLogin from it gets LoginRefused **4** unchecked, the connection closed, until the minute is over. Players behind one address share its count.
+There are no passwords (openm2; [`../protocol/openm2/session.md`](../protocol/openm2/session.md), "Signing in with a provider"; `docs/server.md`, "Sign-in with a provider"). Players sign in with a provider, or with a device's key when the operator allows it ("Signing in with a device key" below). `openm2-server serve` does not start without a way in.
+- **StartSignIn**, after Hello and before a login only: SignInOptions {the providers, in the operator's order, at most 8; a nonce: 16 bytes from the tickets' ChaCha20, in hex; whether devices' keys are taken (`Config::key_sign_in`)}. With no way in, an empty list, an empty nonce and false. A newer StartSignIn replaces the nonce. With a way in, the connection is pinged every 5 s from the first one, and closed if it has not signed in 10 minutes after it.
+- **ProviderLogin**, after Hello and before a login only. The nonce is used up, whatever follows. Refused at once (LoginRefused **6**, the connection closed, a failure of the address) without a nonce, for a provider the server does not have (never `key`, reserved for devices' keys), or unless the redirect is `http://127.0.0.1:<port>/callback` (the port 1 to 65535, no leading zero), the verifier 43 to 128 of `A–Z a–z 0–9 - . _ ~` (RFC 7636) and the code 1 to 4,096 printable ASCII characters (RFC 6749).
+- **Throttling** (openm2): after 5 failures in a minute from one address, every ProviderLogin and KeyLogin from it gets LoginRefused **4** unchecked, the connection closed, until the minute is over. Players behind one address share its count.
 - **The edge checks it** (`m2_server::oidc`), off the core's task:
   - it exchanges the code at the provider's token endpoint: the code, the redirect, the client id, the verifier and the client secret if the provider has one (`client_secret_post`);
   - the ID token must be signed with RS256 or ES256 by one of the provider's keys, the algorithm taken from the key (no `none`, no HMAC); name a key (`kid`) unless the provider has one key of that algorithm; have `iss` exactly the configured issuer, the client id in `aud` (and `azp` the client id when `aud` has several or `azp` is there), `exp` not past and `iat` not ahead of now by more than 60 s, `nonce` the connection's, and `sub` of 1 to 255 bytes;
@@ -48,6 +48,17 @@ The only way in: there are no passwords and no local accounts (openm2; [`../prot
   - Storage failing closes the connection.
 - LoginRefused **1** is reserved and never sent.
 - **Logs and metrics:** a sign-in is logged as `account N signed in with ID`; refusals with their reason, and the edge's reason at debug, never the code, the verifier or a token; `openm2.sign_ins` counts them by provider and result.
+
+### Signing in with a device key (auth server)
+openm2's own design ([`../protocol/openm2/session.md`](../protocol/openm2/session.md), "Signing in with a device key"), off unless the operator turns it on (`--key-sign-in`, `OPENM2_KEY_SIGN_IN`; [`../../server.md`](../../server.md), "Sign-in with a device key").
+- **KeyLogin**, after Hello and before a login only, as ProviderLogin. The nonce is used up, whatever follows. Refused at once (LoginRefused **8**, the connection closed, a failure of the address) when the server does not take keys or no nonce was given out; after 5 failures in a minute from the address, **4** unchecked.
+- **The edge checks it** (`m2_server::key_sign_in`): the TLS exporter of the connection the KeyLogin came on (RFC 9266's `tls-exporter`, 32 bytes, taken once its handshake is done) and the nonce make the signed bytes; the signature must be the key's over them (Ed25519, aws-lc-rs). A connection without the binding, a signature of another connection or nonce, a key that is not one: refused.
+- **Answers:**
+  - SignedIn {the account's name, a ticket}, as for a provider: storage finds the account by the issuer `openm2:key` and the key, written `ed25519:` and 64 hex digits, as the subject, or makes it ([`storage.md`](storage.md), "Accounts"). Its name is `key:` and 13 characters. KeyLogin names no account: a key reaches its own and nobody else's.
+  - LoginRefused **8**: the signature did not verify (a failure of the address), or could not be checked (not one).
+  - LoginRefused **2**: the account is on the game server, as for a provider.
+- **Who may:** anyone who reaches the auth server makes an account with a key of their own; a key gives no other right. A game master is still only an account the operator names (`--game-masters`, or `--owner-key`: "Game masters").
+- **Logs and metrics:** `account N signed in with key`; `openm2.sign_ins` counts them under the provider `key`. The public key and the signature are not secrets; the device's private key never reaches the server.
 
 ### Ticket (game server)
 - TicketLogin, after Hello only.
@@ -135,7 +146,7 @@ openm2's own rules ([`../protocol/openm2/friends.md`](../protocol/openm2/friends
 
 ### Game masters
 openm2's own design (QCX has commands of its own for its operators).
-- **Who:** the accounts the operator names in the server's setting (`--game-masters`, `OPENM2_GAME_MASTERS`: account names separated by commas, as `/account` shows them; [`../../server.md`](../../server.md), "Game masters"), compared without case; nobody without it. The server knows a connection's account from the ticket it gave out, never from what the client says. A name is the provider's id and a hash of the player's issuer and subject (`storage.md`, "Accounts"), so it stays the same when the database is wiped and made again; an account's number does not.
+- **Who:** the accounts the operator names in the server's setting (`--game-masters`, `OPENM2_GAME_MASTERS`: account names separated by commas, as `/account` shows them; [`../../server.md`](../../server.md), "Game masters"), compared without case, and the account of the owner's device key (`--owner-key`, `OPENM2_OWNER_KEY`: the key as `openm2 key public` prints it, with `--key-sign-in`); nobody without them. The server knows a connection's account from the ticket it gave out, never from what the client says. A name is the provider's id and a hash of the player's issuer and subject (`storage.md`, "Accounts"), so it stays the same when the database is wiped and made again; an account's number does not.
 - **The commands**, talk lines like the others; each answers with an info line, and a wrong use changes nothing:
   - `/level N`: the character's level becomes N, from 1 to the highest (one past the last of `levels.toml`, else `Config::max_level`, 99). Each level gained gives the status and skill points of a level-up; going down takes none back. Its experience starts again from 0 and its health and mana are filled; it gets PointsChanged, and it and the players that see it get its EntityInfo, as after a level-up, and before it EntityEffect of a level gained when the level went up. `Level N.`
   - `/gold N`: N more gold, 1 to `Config::max_gold` (2,000,000,000), the whole at most that too, else `You cannot carry more gold.` PointsChanged; `N gold.`
@@ -156,7 +167,7 @@ openm2's own design (QCX has commands of its own for its operators).
 
 ### Messages out of turn
 - Every game message before the game closes the connection: SetTarget, Hit, the item and quickslot messages, DropGold, Talk, the shop messages, UseSkill, RaiseSkill, RaiseStatus, Restart ([`world.md`](world.md)), SendWhisper, AskFriend, AnswerFriend and RemoveFriend (above), RideMount and TrainMount ([`world.md`](world.md), "Mounts"), GiveItem, UseItemOnItem and Upgrade ([`world.md`](world.md), "Upgrades").
-- Any message out of turn closes the connection: a sign-in on the game server, a ticket on the auth server, a selection while a character is being created, a move before entering (openm2: QCX checks no phases).
+- Any message out of turn closes the connection: a sign-in on the game server (StartSignIn, ProviderLogin, KeyLogin), a second sign-in while one is checked or after the ticket, a ticket on the auth server, a selection while a character is being created, a move before entering (openm2: QCX checks no phases).
 
 ## Leaving
 - When a connection closes (the client left, the network failed, a rule above, or the server stopping), a character in game is saved (where it is, its play time and points, [`storage.md`](storage.md)), every player that saw it gets EntityRemove (QCX), and the monsters fighting it give it up.

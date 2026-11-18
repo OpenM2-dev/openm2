@@ -85,6 +85,7 @@ pub fn sign_in(answer: ServerMessage) -> Vec<Step> {
             client_id: "openm2".to_owned(),
         }],
         nonce: "n0nce".to_owned(),
+        key_sign_in: false,
     };
     vec![
         c2s("StartSignIn", ClientMessage::StartSignIn(StartSignIn)),

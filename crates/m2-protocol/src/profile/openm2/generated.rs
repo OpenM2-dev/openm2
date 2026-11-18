@@ -215,6 +215,11 @@ pub const CLIENT_MESSAGES: &[MessageSpec] = &[
         id: 43,
         secrets: &[],
     },
+    MessageSpec {
+        name: "KeyLogin",
+        id: 44,
+        secrets: &[],
+    },
 ];
 
 /// The messages the server sends in the `openm2` profile, by id.
@@ -2211,6 +2216,37 @@ impl Message for ReelIn {
     const NAME: &'static str = "ReelIn";
 }
 
+/// Signs in with this device's own key, on the auth server: the key and its signature over this connection's nonce and channel binding.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeyLogin {
+    /// The device's Ed25519 public key; the account follows from it.
+    pub public_key: [u8; 32],
+    /// Ed25519 signature of `m2_protocol::key_sign_in::signed_message`: the nonce from SignInOptions and the connection's TLS channel binding.
+    pub signature: [u8; 64],
+}
+
+impl Decode for KeyLogin {
+    fn decode(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
+        Ok(Self {
+            public_key: Decode::decode(r)?,
+            signature: Decode::decode(r)?,
+        })
+    }
+}
+
+impl Encode for KeyLogin {
+    fn encode(&self, w: &mut Writer) -> Result<(), EncodeError> {
+        self.public_key.encode(w)?;
+        self.signature.encode(w)?;
+        Ok(())
+    }
+}
+
+impl Message for KeyLogin {
+    const ID: u16 = 44;
+    const NAME: &'static str = "KeyLogin";
+}
+
 /// The server speaks the client's protocol: the session goes on.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Welcome {
@@ -2332,7 +2368,7 @@ impl Message for Phase {
 /// The auth server or the game server refused the login.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LoginRefused {
-    /// 2 the account is in the game, 3 the server is full, 4 too many failed tries, 5 the ticket is not valid, 6 the provider did not confirm the sign-in, 7 the server could not reach the provider; 1 is reserved and never sent.
+    /// 2 the account is in the game, 3 the server is full, 4 too many failed tries, 5 the ticket is not valid, 6 the provider did not confirm the sign-in, 7 the server could not reach the provider, 8 the server did not accept this device's key; 1 is reserved and never sent.
     pub reason: u8,
 }
 
@@ -3363,13 +3399,15 @@ impl Message for SkillGroup {
     const NAME: &'static str = "SkillGroup";
 }
 
-/// The answer to StartSignIn: the providers players may sign in with, and the nonce the ID token must carry.
+/// The answer to StartSignIn: the ways in (providers, a device's key) and the nonce an ID token or a key's signature must carry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SignInOptions {
     /// The providers; empty when the server has none.
     pub providers: Vec<Provider>,
-    /// Single use, for this connection only; empty when the server has no providers.
+    /// Single use, for this connection only; empty when the server offers no way in.
     pub nonce: String,
+    /// Whether the server takes a device's own key (KeyLogin).
+    pub key_sign_in: bool,
 }
 
 impl Decode for SignInOptions {
@@ -3377,6 +3415,7 @@ impl Decode for SignInOptions {
         Ok(Self {
             providers: r.list(8, Decode::decode)?,
             nonce: r.string(64)?,
+            key_sign_in: Decode::decode(r)?,
         })
     }
 }
@@ -3385,6 +3424,7 @@ impl Encode for SignInOptions {
     fn encode(&self, w: &mut Writer) -> Result<(), EncodeError> {
         w.list(&self.providers, 8, |w, x| x.encode(w))?;
         w.string(&self.nonce, 64)?;
+        self.key_sign_in.encode(w)?;
         Ok(())
     }
 }
@@ -4257,6 +4297,8 @@ pub enum ClientMessage {
     Cast(Cast),
     /// Reels our line in: after a bite, to catch what bit; before one, to stop fishing.
     ReelIn(ReelIn),
+    /// Signs in with this device's own key, on the auth server: the key and its signature over this connection's nonce and channel binding.
+    KeyLogin(KeyLogin),
 }
 
 impl ClientMessage {
@@ -4306,6 +4348,7 @@ impl ClientMessage {
             41 => Upgrade::from_bytes(bytes).map(Self::Upgrade),
             42 => Cast::from_bytes(bytes).map(Self::Cast),
             43 => ReelIn::from_bytes(bytes).map(Self::ReelIn),
+            44 => KeyLogin::from_bytes(bytes).map(Self::KeyLogin),
             id => Err(DecodeError::UnknownId { id }),
         }
     }
@@ -4355,6 +4398,7 @@ impl ClientMessage {
             Self::Upgrade(m) => m.to_bytes(),
             Self::Cast(m) => m.to_bytes(),
             Self::ReelIn(m) => m.to_bytes(),
+            Self::KeyLogin(m) => m.to_bytes(),
         }
     }
 
@@ -4403,6 +4447,7 @@ impl ClientMessage {
             Self::Upgrade(_) => Upgrade::ID,
             Self::Cast(_) => Cast::ID,
             Self::ReelIn(_) => ReelIn::ID,
+            Self::KeyLogin(_) => KeyLogin::ID,
         }
     }
 
@@ -4451,6 +4496,7 @@ impl ClientMessage {
             Self::Upgrade(_) => Upgrade::NAME,
             Self::Cast(_) => Cast::NAME,
             Self::ReelIn(_) => ReelIn::NAME,
+            Self::KeyLogin(_) => KeyLogin::NAME,
         }
     }
 
@@ -4499,6 +4545,7 @@ impl ClientMessage {
             Self::Upgrade(m) => Self::Upgrade(m.clone()),
             Self::Cast(m) => Self::Cast(m.clone()),
             Self::ReelIn(m) => Self::ReelIn(m.clone()),
+            Self::KeyLogin(m) => Self::KeyLogin(m.clone()),
         }
     }
 }
@@ -4576,7 +4623,7 @@ pub enum ServerMessage {
     Skills(Skills),
     /// Our character's skill group.
     SkillGroup(SkillGroup),
-    /// The answer to StartSignIn: the providers players may sign in with, and the nonce the ID token must carry.
+    /// The answer to StartSignIn: the ways in (providers, a device's key) and the nonce an ID token or a key's signature must carry.
     SignInOptions(SignInOptions),
     /// The auth server accepted a provider's sign-in: the account and a ticket for the game server.
     SignedIn(SignedIn),

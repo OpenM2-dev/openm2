@@ -24,6 +24,7 @@ mod ground;
 mod inspect;
 mod interface;
 mod inventory;
+mod key;
 mod map_folder;
 mod maps;
 mod mapview;
@@ -100,6 +101,12 @@ enum Command {
     /// Whether a server is up: its version and providers, and the game
     /// server's TLS handshake (exit code 0 when both answer)
     Status(status::StatusArgs),
+    /// This device's own key, which signs in on servers that take devices'
+    /// keys (`--provider key`)
+    Key {
+        #[command(subcommand)]
+        command: key::KeyCommand,
+    },
     /// Update channels: make a key, write and sign a version's manifest,
     /// check a signed one
     Release {
@@ -244,6 +251,7 @@ fn run(cli: Cli) -> Result<ExitCode> {
         Command::Bot(args) => return bot::run(args),
         Command::Play(args) => return play::run(args),
         Command::Status(args) => return status::run(args),
+        Command::Key { command } => return key::key(command),
         Command::Release { command } => return release::release(command),
         Command::Pack { command } => return files::pack(command),
         Command::Vfs { command } => return files::vfs(command),

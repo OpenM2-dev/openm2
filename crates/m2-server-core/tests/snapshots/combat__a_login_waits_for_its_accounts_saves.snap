@@ -5,9 +5,9 @@ expression: h.log
 -- Alice logs in again before her save lands: her characters wait for it
 @3400 conn#3 accepted on auth from 10.0.0.1
    -> event: conn#3: accepted on auth
-@3400 conn#3 sends Hello protocol=3 "openm2 test"
-   -> event: conn#3: openm2 test speaks protocol 3
-   -> send conn#3 Welcome protocol=3
+@3400 conn#3 sends Hello protocol=4 "openm2 test"
+   -> event: conn#3: openm2 test speaks protocol 4
+   -> send conn#3 Welcome protocol=4
 @3400 conn#3 sends StartSignIn
    -> send conn#3 SignInOptions [example] nonce="03d78a3f20d154abd8ddfa6974eedf6b"
 @3400 conn#3 sends ProviderLogin example http://127.0.0.1:50000/callback
@@ -21,9 +21,9 @@ expression: h.log
    -> event: conn#3: closed: the client left
 @3400 conn#4 accepted on game from 10.0.0.1
    -> event: conn#4: accepted on game
-@3400 conn#4 sends Hello protocol=3 "openm2 test"
-   -> event: conn#4: openm2 test speaks protocol 3
-   -> send conn#4 Welcome protocol=3
+@3400 conn#4 sends Hello protocol=4 "openm2 test"
+   -> event: conn#4: openm2 test speaks protocol 4
+   -> send conn#4 Welcome protocol=4
 @3400 conn#4 sends TicketLogin example:alice 3784… (32 bytes)
    -> event: conn#4: account 1 joined the game server
 -- the save lands

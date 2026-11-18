@@ -11,7 +11,7 @@ pub use generated::*;
 /// The minor version of the protocol this build speaks: the client sends it
 /// in `Hello`, the server answers with its own in `Welcome`. The major
 /// version is the TLS ALPN name.
-pub const PROTOCOL: u16 = 3;
+pub const PROTOCOL: u16 = 4;
 
 /// The longest frame a client sends, in bytes; servers refuse longer ones.
 /// The biggest client message, a provider's sign-in with the longest code,
