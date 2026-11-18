@@ -91,6 +91,7 @@ crates/
     src/store/migrations/  the database's migrations, numbered SQL files (never changed once released)
   m2-update/     updates without I/O: a channel's manifests, their Ed25519 signatures, paths that can't leave the install folder, the checks, the plan of what to reuse and the requests that fetch the rest; bundles of small files
   m2-launcher/   `openm2-launcher`: a channel's signed manifest, files and bundles over HTTPS, 8 requests at once, the install folder's versions (app/, previous/, staging/) and their swap, the launcher's own update, the player's client folder and keys, the client's import into `imported/`, then `openm2 play`; its window (`src/window/`, `ui/`: the layout and the flat-colour skin)
+branding/        the project's logo (the README's banner, the launcher's, the setup's icon and pictures), not under the code's licence; made outside the repo, never edited here (its README)
 Dockerfile, compose.yaml, deploy/   the server's image, the server with Postgres (and a collector for telemetry; an empty content folder; licenses/ the terms the image carries)
 xtask/           codegen and the checks behind `just` (Rust, not shell scripts)
 docs/
@@ -156,7 +157,7 @@ Use the `add-format-parser` skill (`.claude/skills/add-format-parser/SKILL.md`).
 ## Never do
 - Commit, push, or rewrite git history (see Git rules below).
 - Copy code, structs, header lists or comments from leaked Metin2 sources or tools derived from them. Facts only, in your own words (`docs/source-policy.md`).
-- Add game files, archive keys, dumped proto data, content or assets imported from a client (`openm2 content import` and `assets import` mark them), or screenshots of real game assets to the repo. Write screenshots to `local/` (gitignored). `just no-assets` catches the obvious cases, picture files included; the rule covers all of them.
+- Add game files, archive keys, dumped proto data, content or assets imported from a client (`openm2 content import` and `assets import` mark them), or screenshots of real game assets to the repo. Write screenshots to `local/` (gitignored). `just no-assets` catches the obvious cases, picture files included; the rule covers all of them. The one folder of pictures is `branding/`, the project's logo, which the human adds (`branding/README.md`).
 - Connect to official servers, or write code meant for them or for any server but openm2's own.
 - Put Metin2 data into our own server, its database seeds or its tests, or make it accept the original client (`docs/source-policy.md`, "Our own server").
 - Hand-edit generated files.

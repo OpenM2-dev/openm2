@@ -1,0 +1,10 @@
+# How the launcher's window looks, as one of the version's files
+# (docs/specs/update.md, "A version's window.toml"): installs whose
+# launcher.toml has no [window] get the look with their next update.
+# release.yml puts it and openm2-banner.png (branding/README.md) into the
+# version's folder.
+format = 1
+name = "openm2"
+picture = "openm2-banner.png"
+accent = "#dfae4f"
+background = "#060709"

@@ -3,7 +3,8 @@
 ; for the player alone and with no administrator, into a folder the launcher
 ; can update in place. release.yml compiles it with Inno Setup 6 from the
 ; zip's folder, then tries it: a silent install, its files, a silent
-; uninstall.
+; uninstall. Its icon and pictures are the project's logo, from branding/
+; (branding/README.md: not under the code's licence).
 ;
 ;   ISCC /DVersion=X.Y.Z /DSource=<the zip's folder> /O<out> deploy/windows/setup.iss
 
@@ -13,6 +14,9 @@
 #ifndef Source
   #error Pass the folder of the version's files and launcher.toml: /DSource=<folder>
 #endif
+
+; From the script's own folder.
+#define Brand "..\..\branding"
 
 [Setup]
 ; Never change it: Windows finds an install to upgrade or remove by it.
@@ -34,8 +38,11 @@ ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
 OutputBaseFilename=openm2-setup
 UninstallDisplayName=openm2
-UninstallDisplayIcon={app}\openm2-launcher.exe
-WizardStyle=modern
+UninstallDisplayIcon={app}\openm2.ico
+SetupIconFile={#Brand}\openm2.ico
+WizardStyle=modern dark
+WizardImageFile={#Brand}\setup-wizard.png
+WizardSmallImageFile={#Brand}\setup-small.png
 Compression=lzma2/max
 SolidCompression=yes
 
@@ -49,10 +56,12 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 ; The programs, the licences, the third-party notices, the README and
 ; launcher.toml: what the zip holds.
 Source: "{#Source}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; The shortcuts' icon: the programs have none of their own.
+Source: "{#Brand}\openm2.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{autoprograms}\openm2"; Filename: "{app}\openm2-launcher.exe"
-Name: "{autodesktop}\openm2"; Filename: "{app}\openm2-launcher.exe"; Tasks: desktopicon
+Name: "{autoprograms}\openm2"; Filename: "{app}\openm2-launcher.exe"; IconFilename: "{app}\openm2.ico"
+Name: "{autodesktop}\openm2"; Filename: "{app}\openm2-launcher.exe"; IconFilename: "{app}\openm2.ico"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\openm2-launcher.exe"; Description: "{cm:LaunchProgram,openm2}"; Flags: nowait postinstall skipifsilent

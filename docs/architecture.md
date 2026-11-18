@@ -205,6 +205,7 @@ Why openm2 is built the way it is, and the main alternative each choice turned d
 
 ### Sources and assets
 - **Written from scratch; players bring their own client.** The repo holds no code, game files, proto dumps, archive keys or images made from real assets (`docs/source-policy.md`, `just no-assets`). Players point openm2 at their own client and keys, converted on their machine. *Turned down:* building on the leaked sources, as most community projects do, which no open-source project can ship. The current official client (`.ecpk` archives) is out of scope: its format is undocumented and many files need keys its servers send.
+- **The project's logo is in `branding/`, outside the code's licence.** The README's banner, the launcher's window and the setup's icon and pictures use it; `branding/README.md` says what each file is and that builds and forks others ship use their own name and logo. `just no-assets` lets `.png` files through there only. *Turned down:* the logo under MIT or Apache-2.0 (anyone could ship it as theirs), and fetching it from another site when a release is built (the release would depend on that site).
 - **Test data is synthetic.** Every parser has a writer; tests build their data with it and openm2's own test keys. Tests that need a real client read `OPENM2_CLIENT_DIR` (or an import of it, `OPENM2_ASSETS_DIR`) and skip without it.
 
 ### Engine and rendering

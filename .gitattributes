@@ -9,3 +9,4 @@ docs/specs/protocol/*/messages.md text eol=lf linguist-generated=true
 # Binary fixtures (byte transcripts, synthetic archives) and images.
 fixtures/**/*.bin binary
 *.png binary
+*.ico binary

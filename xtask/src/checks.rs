@@ -163,6 +163,10 @@ const IMPORT_MARKER: &[u8] = b"# openm2 content import";
 /// committed.
 const ASSETS_MARKER: &[u8] = b"# openm2 assets import";
 
+/// The project's own logo (`branding/README.md`): the one folder whose
+/// pictures, `.png` files directly in it, may be committed.
+const BRANDING: &str = "branding/";
+
 const MAX_FILE_BYTES: u64 = 1024 * 1024;
 const MAX_FIXTURE_BYTES: u64 = 64 * 1024;
 
@@ -193,7 +197,11 @@ pub fn no_assets() -> Result<()> {
         let extension = lower.rsplit_once('.').map(|(_, ext)| ext).unwrap_or("");
         let file_name = lower.rsplit('/').next().unwrap_or(&lower);
 
-        if ASSET_EXTENSIONS.contains(&extension) {
+        let own_logo = extension == "png"
+            && file
+                .strip_prefix(BRANDING)
+                .is_some_and(|name| !name.contains('/'));
+        if ASSET_EXTENSIONS.contains(&extension) && !own_logo {
             problems.push(format!(
                 "{file}: game client file or picture type `.{extension}`"
             ));
