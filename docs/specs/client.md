@@ -31,7 +31,7 @@ The rules here are openm2's own.
   | `provider` | the provider to sign in with at once, as `--provider`; `key` for the device's own key | `play` |
   | `sign_in_prompt` | what the provider shows at every sign-in, OpenID Connect's `prompt`: `login` (its sign-in again, where another account can be chosen) or `select_account` (its choice of account). None by default: a provider that remembers the player then signs them in at once, so the same account comes back every time | `bot`, `play` |
   | `assets` | the asset folder to play with ([`assets.md`](assets.md)) | `play`, `openm2-launcher` |
-  | `logo` | the game's own logo: a PNG of at most 8 MiB, which the login screen shows in place of the client's ([`ui.md`](ui.md), "Login"); one that doesn't read is noted on stderr, and the client's shows. Builds of 0.19.1 and before refuse the key | `play` |
+  | `logo` | the game's own logo: a PNG of at most 8 MiB, which the login screen shows in place of the client's ([`ui.md`](ui.md), "Login"); one that doesn't read is noted on stderr, and the client's shows. Builds before 0.20.0 refuse the key | `play` |
 
 - **Relative paths** (`assets`, `logo`) start from the settings file's folder.
 - **No client folder or keys file:** `play` reads only asset folders, so a file naming `client` or `keys` is refused as an unknown key. `openm2 assets import` converts a client into an asset folder; the launcher does it for players.
