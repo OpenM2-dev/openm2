@@ -14,7 +14,9 @@
   <a href="https://github.com/OpenM2-dev/openm2/releases/latest/download/openm2-setup.exe"><b>Download for Windows</b></a> ·
   <a href="#run-your-own-server">Run a server</a> ·
   <a href="#documentation">Docs</a> ·
-  <a href="docs/roadmap.md">Roadmap</a>
+  <a href="docs/roadmap.md">Roadmap</a> ·
+  <a href="https://discord.gg/ZFzyGby7xd">Discord</a> ·
+  <a href="https://openm2.net">openm2.net</a>
 </p>
 
 openm2 is a game engine of its own: a 3D client, a server that decides what happens in the world, and a protocol designed with them, all written from scratch in Rust. Client and server talk over TLS 1.3, players sign in without passwords, and the world is plain files you can edit.
@@ -135,6 +137,8 @@ count = 5
 | [Source policy](docs/source-policy.md) | What may enter the repo |
 
 ## Contributing
+
+Found a bug, or have an idea? Open an [issue](https://github.com/OpenM2-dev/openm2/issues), or talk to us on [Discord](https://discord.gg/ZFzyGby7xd). Testers are as welcome as code.
 
 openm2 is built to be maintained mostly by coding agents: small crates with one job each, fast deterministic tests, and one command, `just check`, that says whether a change is good. Start with [AGENTS.md](AGENTS.md), which has the rules and every command, and [docs/building.md](docs/building.md).
 
