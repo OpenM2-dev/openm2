@@ -43,6 +43,8 @@ url.workspace = true
 [dev-dependencies]
 base64.workspace = true
 m2-core.workspace = true
+# The launcher's own way of hosting a local save, run on this server.
+m2-launcher.workspace = true
 m2-net.workspace = true
 
 [lints]

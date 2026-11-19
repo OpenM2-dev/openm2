@@ -17,7 +17,12 @@ use m2_protocol::profile::openm2::{
 };
 use m2_server_core::{AccountId, Config, ConnId, Event, Input, Listener, SignInRefusal};
 use proptest::prelude::*;
-use support::{Harness, PROVIDER, account_of, identity};
+use support::{Harness, PROVIDER, account_of, identity, key_identity};
+
+/// The device key of user `user`.
+fn user_key(user: usize) -> [u8; 32] {
+    [u8::try_from(user).unwrap_or(0) + 1; 32]
+}
 
 /// The provider's players.
 const USERS: [&str; 3] = ["alice", "bob", "carol"];
@@ -58,6 +63,11 @@ enum Action {
     /// The edge answers the oldest sign-in waiting: the provider confirmed
     /// that user, or refused.
     Answer(usize, bool),
+    /// StartSignIn and KeyLogin, the check left to [`Action::KeyAnswer`].
+    KeySignIn(usize),
+    /// The edge answers the oldest key waiting: that user's key verified,
+    /// or not.
+    KeyAnswer(usize, bool),
     /// The last ticket given out, or a wrong one.
     Ticket(usize, usize, bool),
     Empire(usize, u8),
@@ -132,6 +142,8 @@ fn action() -> impl Strategy<Value = Action> {
             .prop_map(|(c, p)| Action::Hello(c, p)),
         (0..6usize).prop_map(Action::SignIn),
         (0..3usize, any::<bool>()).prop_map(|(u, ok)| Action::Answer(u, ok)),
+        (0..6usize).prop_map(Action::KeySignIn),
+        (0..3usize, any::<bool>()).prop_map(|(u, ok)| Action::KeyAnswer(u, ok)),
         (0..6usize, 0..3usize, any::<bool>()).prop_map(|(c, u, ok)| Action::Ticket(c, u, ok)),
         (0..6usize, 0..5u8).prop_map(|(c, e)| Action::Empire(c, e)),
         (
@@ -910,7 +922,12 @@ proptest! {
 
     #[test]
     fn random_sessions_never_panic_or_mix_accounts(actions in proptest::collection::vec(action(), 1..80)) {
-        session(Harness::new(), &Content::default(), actions)?;
+        // Devices' keys too; the server with monsters below takes none.
+        let config = Config {
+            key_sign_in: true,
+            ..Config::default()
+        };
+        session(Harness::with_config(config), &Content::default(), actions)?;
     }
 
     #[test]
@@ -997,8 +1014,21 @@ fn run(h: &mut Harness, conns: &mut Vec<ConnId>, action: Action) {
             }
             return;
         }
+        Action::KeyAnswer(user, ok) => {
+            if !h.key_sign_ins.is_empty() {
+                let (request, _) = h.key_sign_ins.remove(0);
+                let result = if *ok {
+                    Ok(key_identity(user_key(*user)))
+                } else {
+                    Err(SignInRefusal::Refused)
+                };
+                h.step(Input::SignInChecked { request, result });
+            }
+            return;
+        }
         Action::Hello(c, _)
         | Action::SignIn(c)
+        | Action::KeySignIn(c)
         | Action::Ticket(c, ..)
         | Action::Empire(c, _)
         | Action::Create(c, ..)
@@ -1049,6 +1079,10 @@ fn run(h: &mut Harness, conns: &mut Vec<ConnId>, action: Action) {
         Action::SignIn(_) => {
             h.start_sign_in(conn);
             h.provider_login(conn, PROVIDER, "the-code");
+        }
+        Action::KeySignIn(c) => {
+            h.start_sign_in(conn);
+            h.key_login(conn, user_key(c % USERS.len()));
         }
         Action::Ticket(_, user, issued) => {
             let ticket = issued
@@ -1140,6 +1174,7 @@ fn run(h: &mut Harness, conns: &mut Vec<ConnId>, action: Action) {
         | Action::Play(_)
         | Action::Wait(_)
         | Action::Answer(..)
+        | Action::KeyAnswer(..)
         | Action::Tick => {}
     }
 }

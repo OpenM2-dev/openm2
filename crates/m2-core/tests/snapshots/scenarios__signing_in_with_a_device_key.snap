@@ -1,0 +1,29 @@
+---
+source: crates/m2-core/tests/scenarios.rs
+expression: s.log
+---
+@0ms Start
+    -> Connect { conn: ConnId(1), server: Auth }
+@5ms Connected(ConnId(1))
+    -> Send { conn: ConnId(1), message: Hello(Hello { protocol: 4, build: "openm2 test" }) }
+@6ms Message(ConnId(1), Welcome(Welcome { protocol: 4, server: "openm2-server test" }))
+    -> Event(Welcomed { server: Auth, protocol: 4, name: "openm2-server test" })
+    -> Send { conn: ConnId(1), message: StartSignIn(StartSignIn) }
+@7ms Message(ConnId(1), SignInOptions(SignInOptions { providers: [], nonce: "n0nce", key_sign_in: true }))
+    -> Event(SignInOptions(SignInOffer { providers: [], key: true }))
+    -> SignWithKey { conn: ConnId(1), nonce: "n0nce" }
+@8ms KeySigned { conn: ConnId(2), public_key: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], signature: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2] }
+    -> Event(Ignored { what: "KeySigned", why: "not waiting for this connection's key" })
+@9ms KeySigned { conn: ConnId(1), public_key: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], signature: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2] }
+    -> Send { conn: ConnId(1), message: KeyLogin(KeyLogin { public_key: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], signature: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2] }) }
+@10ms KeySigned { conn: ConnId(1), public_key: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], signature: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2] }
+    -> Event(Ignored { what: "KeySigned", why: "not waiting for this connection's key" })
+@11ms Message(ConnId(1), SignedIn(SignedIn { account: "key:abc", ticket: <redacted> }))
+    -> Event(LoggedIn)
+    -> Disconnect { conn: ConnId(1) }
+    -> Connect { conn: ConnId(2), server: Game }
+@15ms Connected(ConnId(2))
+    -> Send { conn: ConnId(2), message: Hello(Hello { protocol: 4, build: "openm2 test" }) }
+@16ms Message(ConnId(2), Welcome(Welcome { protocol: 4, server: "openm2-server test" }))
+    -> Event(Welcomed { server: Game, protocol: 4, name: "openm2-server test" })
+    -> Send { conn: ConnId(2), message: TicketLogin(TicketLogin { username: "key:abc", ticket: <redacted> }) }

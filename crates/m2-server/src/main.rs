@@ -8,7 +8,7 @@ use anyhow::{Context as _, Result, bail};
 use clap::{Parser, Subcommand};
 use m2_server::content::{LoadError, listing, load_dir, summary};
 use m2_server::oidc::{self, Providers};
-use m2_server::store::{OpenError, PgStore, Store, WorldLock};
+use m2_server::store::{FileStore, OpenError, PgStore, Store, WorldLock};
 use m2_server::tls::{CERT_FILE, Identity, KEY_FILE};
 use m2_server::{ServerConfig, runtime, start, telemetry};
 use secrecy::SecretString;
@@ -30,8 +30,9 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     /// Run the server until Ctrl+C or SIGTERM. Players sign in with the
-    /// providers of --providers. Storage is Postgres (OPENM2_DATABASE_URL),
-    /// migrated at start, unless --memory.
+    /// providers of --providers, or their devices' keys (--key-sign-in).
+    /// Storage is Postgres (OPENM2_DATABASE_URL), migrated at start, unless
+    /// --memory or --save.
     Serve(ServeArgs),
     /// Apply the database's migrations (OPENM2_DATABASE_URL) and exit.
     Migrate,
@@ -98,18 +99,49 @@ struct ServeArgs {
     game_port: u16,
     /// Keep accounts and characters in memory instead of Postgres:
     /// everything is lost when the server stops.
-    #[arg(long)]
+    #[arg(long, conflicts_with = "save")]
     memory: bool,
+    /// Keep accounts and characters in a save's folder instead of Postgres:
+    /// one file, world.json, written at every change, for a server on your
+    /// own machine (docs/server.md, "Saves"). The folder is also the
+    /// server's --data unless --data or --tls-cert is given.
+    #[arg(long, env = "OPENM2_SAVE", value_name = "DIR")]
+    save: Option<PathBuf>,
+    /// Once both servers listen, print one line on stdout: `ready auth=PORT
+    /// game=PORT key=sha256:…`, for the program that started the server.
+    #[arg(long)]
+    ready_line: bool,
+    /// Stop, saving everyone, when stdin closes as well as on Ctrl+C: for a
+    /// server started by another program, which closes it to stop it.
+    #[arg(long)]
+    until_stdin_closes: bool,
     /// The content folder: maps, monsters, items and where monsters live
     /// (docs/server.md, "Content"). Without it the world is empty.
     #[arg(long, env = "OPENM2_CONTENT", value_name = "DIR")]
     content: Option<PathBuf>,
     /// The OpenID Connect providers players sign in with, a TOML file
     /// (docs/server.md, "Sign-in with a provider"); each client secret comes
-    /// from OPENM2_PROVIDER_<ID>_SECRET. Required: it is the only way to
-    /// sign in.
+    /// from OPENM2_PROVIDER_<ID>_SECRET. Required unless --key-sign-in is
+    /// given: there must be a way in.
     #[arg(long, env = "OPENM2_PROVIDERS", value_name = "FILE")]
     providers: Option<PathBuf>,
+    /// Let players sign in with their device's own key, which needs no
+    /// provider (docs/server.md, "Sign-in with a device key"). Anyone who
+    /// reaches the server can then make an account.
+    #[arg(
+        long,
+        env = "OPENM2_KEY_SIGN_IN",
+        value_parser = clap::builder::BoolishValueParser::new(),
+        num_args = 0..=1,
+        default_missing_value = "true",
+        default_value = "false"
+    )]
+    key_sign_in: bool,
+    /// A device's key whose account is a game master, written `ed25519:`
+    /// and 64 hex digits as `openm2 key public` prints it; needs
+    /// --key-sign-in.
+    #[arg(long, env = "OPENM2_OWNER_KEY", value_name = "KEY")]
+    owner_key: Option<String>,
     /// The accounts that may use the game masters' commands: account names
     /// separated by commas, as `/account` shows them in the game
     /// (docs/server.md, "Game masters"). Without it nobody may.
@@ -217,19 +249,34 @@ fn identity(args: &TlsArgs) -> Result<Identity> {
 
 async fn serve(args: ServeArgs) -> Result<()> {
     // An empty OPENM2_PROVIDERS counts as unset, as OPENM2_CONTENT does.
-    let Some(providers_file) = args
+    let providers_file = args
         .providers
         .as_deref()
-        .filter(|file| !file.as_os_str().is_empty())
-    else {
+        .filter(|file| !file.as_os_str().is_empty());
+    if providers_file.is_none() && !args.key_sign_in {
         bail!(
-            "set --providers (OPENM2_PROVIDERS) to a providers file: players sign in only with OpenID Connect providers (docs/server.md, \"Sign-in with a provider\")"
+            "set --providers (OPENM2_PROVIDERS) to a providers file, or --key-sign-in (OPENM2_KEY_SIGN_IN): there must be a way in (docs/server.md, \"Sign-in with a provider\" and \"Sign-in with a device key\")"
         );
-    };
-    let configs = oidc::load(providers_file)?;
-    let game_masters = m2_server::store::game_masters(&args.game_masters)
+    }
+    let configs = providers_file.map(oidc::load).transpose()?;
+    let mut game_masters = m2_server::store::game_masters(&args.game_masters)
         .map_err(|error| anyhow::anyhow!("--game-masters (OPENM2_GAME_MASTERS): {error}"))?;
+    // An empty OPENM2_OWNER_KEY counts as unset.
+    if let Some(owner) = args.owner_key.as_deref().filter(|key| !key.is_empty()) {
+        if !args.key_sign_in {
+            bail!("--owner-key (OPENM2_OWNER_KEY) needs --key-sign-in (OPENM2_KEY_SIGN_IN)");
+        }
+        let key: m2_protocol::key_sign_in::PublicKey = owner
+            .parse()
+            .map_err(|error| anyhow::anyhow!("--owner-key (OPENM2_OWNER_KEY): {error}"))?;
+        let name = m2_server::store::key_account_name(&key);
+        tracing::info!(target: "m2_server", "the owner's key is the game master {name}");
+        game_masters.insert(name);
+    }
     tracing::info!(target: "m2_server", "game masters: {}", game_masters.len());
+    if args.key_sign_in {
+        tracing::info!(target: "m2_server", "devices' keys may sign in: anyone who reaches the server can make an account");
+    }
     // An empty OPENM2_CONTENT counts as unset.
     let content = match args
         .content
@@ -246,10 +293,32 @@ async fn serve(args: ServeArgs) -> Result<()> {
             m2_content::Content::default()
         }
     };
-    let providers = Providers::discover(configs)
-        .await
-        .context("reading the providers' discovery documents")?;
-    let (store, world) = if args.memory {
+    let providers = match configs {
+        Some(configs) => Providers::discover(configs)
+            .await
+            .context("reading the providers' discovery documents")?,
+        None => Providers::none(),
+    };
+    // An empty OPENM2_SAVE counts as unset.
+    let save = args
+        .save
+        .as_deref()
+        .filter(|dir| !dir.as_os_str().is_empty());
+    let mut tls = args.tls;
+    if let Some(dir) = save {
+        let own = |path: &Option<PathBuf>| path.as_ref().is_some_and(|p| !p.as_os_str().is_empty());
+        if !own(&tls.tls_cert) && !own(&tls.data) {
+            tls.data = Some(dir.to_owned());
+        }
+    }
+    // Watched before the store is opened, so a parent that is gone already
+    // stops the server.
+    let stdin = args.until_stdin_closes.then(stdin_closed).transpose()?;
+    let (store, world) = if let Some(dir) = save {
+        let file = FileStore::open(dir)?;
+        tracing::info!(target: "m2_server", "the save: {}", dir.display());
+        (Store::File(file), None)
+    } else if args.memory {
         (Store::memory(), None)
     } else {
         let store = postgres().await?;
@@ -263,17 +332,37 @@ async fn serve(args: ServeArgs) -> Result<()> {
         listen: args.listen,
         auth_port: args.auth_port,
         game_port: args.game_port,
-        tls: Some(identity(&args.tls)?),
+        tls: Some(identity(&tls)?),
         providers,
         content: std::sync::Arc::new(content),
         core: m2_server_core::Config {
             game_masters,
+            key_sign_in: args.key_sign_in,
             ..m2_server_core::Config::default()
         },
         ..ServerConfig::default()
     };
     let running = start(config, store).await.context("starting the server")?;
-    stop_signal().await.context("waiting for Ctrl+C")?;
+    if args.ready_line {
+        use std::io::Write as _;
+        let mut out = std::io::stdout().lock();
+        writeln!(
+            out,
+            "ready auth={} game={} key={}",
+            running.auth_port(),
+            running.game_port(),
+            running.server_key()
+        )
+        .and_then(|()| out.flush())
+        .context("writing the ready line")?;
+    }
+    match stdin {
+        Some(stdin) => tokio::select! {
+            result = stop_signal() => result.context("waiting for Ctrl+C")?,
+            _ = stdin => tracing::info!(target: "m2_server", "stdin closed"),
+        },
+        None => stop_signal().await.context("waiting for Ctrl+C")?,
+    }
     tracing::info!(target: "m2_server", "stopping: saving every character");
     running.stop().await;
     if let Some(world) = world {
@@ -378,6 +467,23 @@ fn load_content(dir: &Path) -> Result<m2_content::Content> {
 }
 
 /// Ctrl+C, or SIGTERM where there is one (`docker stop`).
+/// Done when stdin closes (or fails): a thread of its own reads it to the
+/// end, as a blocking read must not hold up the runtime.
+fn stdin_closed() -> Result<tokio::sync::oneshot::Receiver<()>> {
+    use std::io::Read as _;
+    let (done, closed) = tokio::sync::oneshot::channel();
+    std::thread::Builder::new()
+        .name("openm2-server stdin".to_owned())
+        .spawn(move || {
+            let mut stdin = std::io::stdin().lock();
+            let mut buffer = [0u8; 256];
+            while matches!(stdin.read(&mut buffer), Ok(n) if n > 0) {}
+            let _ = done.send(());
+        })
+        .context("watching stdin")?;
+    Ok(closed)
+}
+
 async fn stop_signal() -> std::io::Result<()> {
     #[cfg(unix)]
     {

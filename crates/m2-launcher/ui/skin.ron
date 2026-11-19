@@ -17,5 +17,8 @@
         "field": Colour((0, 0, 0, 110)),
         // Behind errors and logs.
         "well": Colour((0, 0, 0, 70)),
+        // A local save's row, and the mark of the one chosen: the accent.
+        "row": Button(normal: "", hover: "", down: "", text_colour: (232, 234, 238, 255), fallback: (255, 255, 255, 14)),
+        "mark": Colour((61, 123, 217, 255)),
     },
 )

@@ -938,8 +938,8 @@ fn a_refused_connection_says_why() {
     s.input(5, Input::Connected(AUTH));
     let refused = Refused {
         reason: 1,
-        oldest: 4,
-        newest: 5,
+        oldest: 5,
+        newest: 6,
         text: "Please update openm2.".to_owned(),
     };
     let effects = s.message(6, AUTH, ServerMessage::Refused(refused));
@@ -950,15 +950,15 @@ fn a_refused_connection_says_why() {
         &SessionError::Refused {
             server: ServerKind::Auth,
             refusal: Refusal::Version {
-                oldest: 4,
-                newest: 5
+                oldest: 5,
+                newest: 6
             },
             text: "Please update openm2.".to_owned(),
         }
     );
     assert_eq!(
         error.to_string(),
-        "the auth server refused the connection: it speaks protocol versions 4 to 5, this client 3 (Please update openm2.)"
+        "the auth server refused the connection: it speaks protocol versions 5 to 6, this client 4 (Please update openm2.)"
     );
     for (reason, shown) in [
         (2, "it is full"),
@@ -1004,7 +1004,8 @@ fn a_bad_ticket_ends_the_session() {
             7,
             "the server could not reach the provider; try again later",
         ),
-        (8, "reason 8"),
+        (8, "the server did not accept this device's key"),
+        (9, "reason 9"),
     ] {
         assert_eq!(LoginRefusal::from_wire(reason).to_string(), shown);
     }
@@ -2529,6 +2530,16 @@ fn options(nonce: &str) -> ServerMessage {
             client_id: "openm2".to_owned(),
         }],
         nonce: nonce.to_owned(),
+        key_sign_in: false,
+    })
+}
+
+/// A server that takes devices' keys and has no providers.
+fn key_options(nonce: &str) -> ServerMessage {
+    ServerMessage::SignInOptions(msg::SignInOptions {
+        providers: Vec::new(),
+        nonce: nonce.to_owned(),
+        key_sign_in: true,
     })
 }
 
@@ -2688,12 +2699,13 @@ fn asking_for_the_options_only_logs_out() {
     );
     let effects = s.message(7, AUTH, options(""));
     let reported = effects.iter().find_map(|effect| match effect {
-        Effect::Event(Event::SignInOptions(providers)) => Some(providers.clone()),
+        Effect::Event(Event::SignInOptions(offer)) => Some(offer.clone()),
         _ => None,
     });
-    let providers = reported.unwrap();
-    assert_eq!(providers.len(), 1);
-    assert_eq!(providers[0].name, "Example ID");
+    let offer = reported.unwrap();
+    assert_eq!(offer.providers.len(), 1);
+    assert_eq!(offer.providers[0].name, "Example ID");
+    assert!(!offer.key);
     assert_eq!(s.session.stage(), Stage::LoggedOut);
     assert!(s.session.is_finished());
 }
@@ -2713,6 +2725,151 @@ fn codes_out_of_turn_are_ignored() {
     s.input(5, Input::Connected(AUTH));
     s.welcome(6, AUTH);
     assert!(sent(&s.input(7, Input::SignInCode(code()))).is_empty());
+}
+
+// ---------------------------------------------------------------------------
+// Signing in with a device key (session.md, "Signing in with a device key")
+
+#[test]
+fn signing_in_with_a_device_key() {
+    let mut config = SessionConfig::provider("key").unwrap();
+    config.build = BUILD.to_owned();
+    assert!(config.signs_with_key());
+    assert_eq!(config.provider_id(), Some("key"));
+    let mut s = Script::new(config);
+    s.input(0, Input::Start);
+    s.input(5, Input::Connected(AUTH));
+    s.welcome(6, AUTH);
+
+    let effects = s.message(7, AUTH, key_options("n0nce"));
+    assert_eq!(s.session.stage(), Stage::SigningIn);
+    let sign = effects.iter().find_map(|effect| match effect {
+        Effect::SignWithKey { conn, nonce } => Some((*conn, nonce.clone())),
+        _ => None,
+    });
+    assert_eq!(sign, Some((AUTH, "n0nce".to_owned())));
+
+    // A signature for another connection is dropped.
+    let other = Input::KeySigned {
+        conn: GAME,
+        public_key: [1; 32],
+        signature: [2; 64],
+    };
+    assert!(sent(&s.input(8, other)).is_empty());
+    let signed = Input::KeySigned {
+        conn: AUTH,
+        public_key: [1; 32],
+        signature: [2; 64],
+    };
+    let effects = s.input(9, signed.clone());
+    assert_eq!(
+        sent(&effects),
+        [ClientMessage::KeyLogin(msg::KeyLogin {
+            public_key: [1; 32],
+            signature: [2; 64],
+        })]
+    );
+    // Not twice.
+    assert!(sent(&s.input(10, signed)).is_empty());
+
+    let signed_in = msg::SignedIn {
+        account: "key:abc".to_owned(),
+        ticket: ticket(),
+    };
+    s.message(11, AUTH, ServerMessage::SignedIn(signed_in));
+    s.input(15, Input::Connected(GAME));
+    let effects = s.welcome(16, GAME);
+    assert_eq!(
+        sent(&effects),
+        [ClientMessage::TicketLogin(TicketLogin {
+            username: "key:abc".to_owned(),
+            ticket: ticket(),
+        })]
+    );
+    insta::assert_snapshot!(s.log);
+}
+
+#[test]
+fn a_server_that_does_not_take_keys_ends_a_key_sign_in() {
+    let mut s = Script::new(SessionConfig::device_key());
+    s.input(0, Input::Start);
+    s.input(5, Input::Connected(AUTH));
+    s.welcome(6, AUTH);
+    let effects = s.message(7, AUTH, options("n0nce"));
+    assert!(
+        !effects
+            .iter()
+            .any(|effect| matches!(effect, Effect::SignWithKey { .. }))
+    );
+    assert_eq!(s.session.stage(), Stage::Failed);
+    assert_eq!(
+        s.session.error(),
+        Some(&SessionError::NoKeySignIn {
+            offered: vec!["example".to_owned()]
+        })
+    );
+}
+
+#[test]
+fn a_device_key_that_cannot_sign_ends_the_sign_in() {
+    let mut s = Script::new(SessionConfig::device_key());
+    s.input(0, Input::Start);
+    s.input(5, Input::Connected(AUTH));
+    s.welcome(6, AUTH);
+    s.message(7, AUTH, key_options("n0nce"));
+    let reason = "no key file".to_owned();
+    s.input(8, Input::SignInFailed { reason });
+    assert_eq!(s.session.stage(), Stage::Failed);
+    assert_eq!(
+        s.session.error(),
+        Some(&SessionError::SignIn {
+            reason: "no key file".to_owned()
+        })
+    );
+}
+
+#[test]
+fn a_refused_key_is_reason_8() {
+    let mut s = Script::new(SessionConfig::device_key());
+    s.input(0, Input::Start);
+    s.input(5, Input::Connected(AUTH));
+    s.welcome(6, AUTH);
+    s.message(7, AUTH, key_options("n0nce"));
+    let signed = Input::KeySigned {
+        conn: AUTH,
+        public_key: [1; 32],
+        signature: [2; 64],
+    };
+    s.input(8, signed);
+    let refused = ServerMessage::LoginRefused(msg::LoginRefused { reason: 8 });
+    s.message(9, AUTH, refused);
+    let error = s.session.error().unwrap();
+    assert_eq!(
+        error,
+        &SessionError::LoginRejected {
+            server: m2_core::ServerKind::Auth,
+            reason: LoginRefusal::KeyRefused,
+        }
+    );
+    assert_eq!(
+        error.to_string(),
+        "the auth server refused the login: the server did not accept this device's key"
+    );
+}
+
+#[test]
+fn a_provider_sign_in_ignores_a_key() {
+    let mut s = Script::new(config());
+    s.input(0, Input::Start);
+    s.input(5, Input::Connected(AUTH));
+    s.welcome(6, AUTH);
+    s.message(7, AUTH, options("n0nce"));
+    let signed = Input::KeySigned {
+        conn: AUTH,
+        public_key: [1; 32],
+        signature: [2; 64],
+    };
+    assert!(sent(&s.input(8, signed)).is_empty());
 }
 
 #[test]

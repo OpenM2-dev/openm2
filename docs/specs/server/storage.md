@@ -2,8 +2,9 @@
 
 What openm2's server stores and what it asks of storage. The core never waits on storage: it asks with a request (`m2_server_core::StoreRequest`) and goes on with the answer when it comes back (`StoreAnswer`), so a slow database never holds up other players.
 
-Two stores answer the same requests by the same rules (`crates/m2-server/tests/storage.rs` checks both):
+Three stores answer the same requests by the same rules (`crates/m2-server/tests/storage.rs` checks them all):
 - **Postgres** (`m2_server::store::PgStore`): what `openm2-server serve` uses, at `OPENM2_DATABASE_URL`. [Below](#postgres): the schema and the migrations.
+- **A save's folder** (`FileStore`, `serve --save DIR`): one file, written at every change, for a server on the player's own machine. [Below](#in-a-save-folder).
 - **In memory** (`MemoryStore`, `serve --memory`): lost when the server stops. For the tests (which then need no database) and quick tries.
 
 ## Accounts
@@ -13,7 +14,7 @@ Two stores answer the same requests by the same rules (`crates/m2-server/tests/s
 | name | the provider's id, a colon and 13 letters and digits (below); unique, compared without case |
 | empire | 1 to 3, once the account has a character; none before |
 
-- **No passwords**: every account belongs to a provider's player and is made at their first sign-in. There is no default account, no operator's command to add one, and no other way to register. An **identity** ties it to the provider: the issuer (1 to 512 bytes) and the player's subject there (1 to 255 bytes), unique together; it is found again by them only, never by name or e-mail. Its name is the provider's id, a colon and the first 13 characters of the base32 (RFC 4648, lowercase) of the SHA-256 of the issuer, a zero byte and the subject, such as `google:nixzoi2rkfeta`.
+- **No passwords**: every account belongs to a provider's player, or to a device's key on a server that takes keys, and is made at their first sign-in. There is no default account, no operator's command to add one, and no other way to register. An **identity** ties it to the provider: the issuer (1 to 512 bytes) and the player's subject there (1 to 255 bytes), unique together; it is found again by them only, never by name or e-mail. Its name is the provider's id, a colon and the first 13 characters of the base32 (RFC 4648, lowercase) of the SHA-256 of the issuer, a zero byte and the subject, such as `google:nixzoi2rkfeta`. A device's key is an identity too: the issuer `openm2:key` and the key, `ed25519:` and 64 hex digits, as the subject, under the provider id `key` (`key:…`).
 
 ## Characters
 | Field | What |
@@ -58,6 +59,33 @@ Two stores answer the same requests by the same rules (`crates/m2-server/tests/s
 ## Friends
 openm2's own. A friendship is between two characters, both ways: one record, the lower character number first, so it can never be half. It goes with either character. It is written on its own (AddFriendship, RemoveFriendship) when the players make or end it, never by a save; a character's friends come with it when its account's characters load.
 - **No item in two places** (openm2): a character's items are written only with the character, so storage never holds half a save; and a player who drops something is saved at once ([`world.md`](world.md), "The ground"), so the item has left its storage before anyone can pick it up and be saved with it.
+
+## In a save folder
+openm2's own: a world on the player's own machine needs no database (`docs/server.md`, "Saves").
+- **The folder** holds `world.json` (the save), `world.lock` (held while a server runs on it) and, as the server's data folder, `tls/` ([`../../server.md`](../../server.md), "TLS"). `serve --save` makes the folder if there is none, and an empty world without `world.json`.
+- **One server at a time:** the server holds `world.lock` (the system's file lock) from opening the save to its end; a second one on the same folder stops at start (`another openm2-server holds the save …`). The system lets go of the lock when the server ends, even when it crashes.
+- **`world.json`** is JSON, at most 64 MiB:
+  ```json
+  {
+    "format": 1,
+    "next_account": 1, "next_character": 1,
+    "accounts": [{"id": 1, "name": "key:abcdefghijklm", "empire": 3}],
+    "identities": [{"issuer": "openm2:key", "subject": "ed25519:…", "account": 1}],
+    "characters": [{"account": 1, "id": 1, "slot": 0, "name": "Hero", "class": 0, "level": 1,
+      "st": 6, "ht": 4, "dx": 3, "iq": 3, "x": 963400, "y": 278200, "empire": 3, "playtime": 0,
+      "hp": 100, "sp": 50, "exp": 0, "gold": 0, "stat_points": 0, "skill_points": 0, "saves": 0,
+      "items": [{"slot": 0, "vnum": 27001, "count": 5, "sockets": [0, 0, 0]}],
+      "quickslots": [{"index": 0, "kind": 1, "position": 0}],
+      "skill_group": 0, "skills": [{"skill": 1, "level": 1, "next_read": 0}], "read_bonus": 0,
+      "mount_level": 0, "mount_stamina": 0, "mount_skill_points": 0, "incognito": false}],
+    "friendships": [[1, 2]]
+  }
+  ```
+  The fields are the ones above ("Accounts", "Characters"), a friendship its two characters, the lower number first. `next_account` and `next_character` are the last numbers given out.
+- **Read at start, and checked** as a database's constraints would: the format (a newer one is refused as newer, an older or missing one as damaged), no unknown field, numbers given out at most up to `next_…`, accounts' and characters' names unique without case, a character's name, slot, class, empire, skill group, read bonus, items (a number and a count in a place of their own), quickslots (0 to 31, each once) and skills (learned once, 1 to 40), identities and friendships naming what is there. A save that breaks a rule is refused with its path and the first rule broken, and left as it is.
+- **Every change is written before it is answered:** the whole save goes to `world.json.tmp`, is synced to the disk, then renamed over `world.json` (on Windows tried again for half a second while another program holds the file), and on Unix the folder is synced too. So the file is always one whole save, this one or the one before; a `world.json.tmp` found at start is a write that never finished, and is deleted. A request that changes nothing (a sign-in of an account that is there, a load, an older save) writes nothing.
+- **A failed write changes nothing:** the request answers an error (a creation "unavailable"), what the server holds stays what is on disk, and the error is logged.
+- **Requests run one at a time**, each with its write: plenty for one machine's players.
 
 ## Postgres
 - **Tables** (`crates/m2-server/src/store/migrations/`): `accounts` and `characters` with the fields above, plus `created_at` on both and `saved_at` on characters. Migration 0002 added health, mana, experience, gold, the points and the save count; characters from before it got the largest health and mana a column holds, which the server brings down to their maxima when they enter, so they enter with both full. Migration 0003 added `items` (character, place, number, count; one row a place) and `quickslots` (character, place, kind, position), deleted with their character. Migration 0004 added `skill_group` to characters (0 for those from before it) and `skills` (character, skill, level; one row a skill learned), deleted with their character. Migration 0005 made `password_hash` optional and added `identities` (issuer, subject, account; the issuer and subject the primary key), deleted with their account. Migration 0006 deleted every account without an identity, its characters, items, quickslots and skills with it, and dropped `password_hash`. Migration 0007 added `next_read` to skills and `read_bonus` to characters, 0 for those from before it. Names are unique through indexes on `lower(name)` (`accounts_name_key`, `characters_name_key`); a character's slot through `(account_id, slot)` (`characters_slot_key`). Checks keep every number in the range the core uses (a slot 0 to 3, a class 0 to 7, stats 0 to 255, …). Deleting an account deletes its characters. Migration 0008 added `friendships` (`first_id`, `second_id`, `created_at`; the pair the primary key, `first_id < second_id`, each side deleted with its character; an index on `second_id`). Migration 0009 added `mount_level` (0 to 255), `mount_stamina` (0 to 65,535) and `mount_skill_points` (0 to 255) to characters, 0 for those from before it, written by a newer save like the skill group. Migration 0010 added `incognito` to characters (a game master's character whose mark doesn't show, `/gm off`), false for those from before it, saved with the character's row. Migration 0011 let quickslots be 0 to 31 (four pages of eight), the check named `quickslots_place_check` as before; those saved before stay where they were, on the first page. Migration 0012 added `socket0`, `socket1` and `socket2` to items (0 to 4,294,967,295), 0 for those from before it.

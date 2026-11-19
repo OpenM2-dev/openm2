@@ -48,7 +48,8 @@ exceptions = [
   # covers only its own files, used unchanged.
   { allow = ["MPL-2.0"], crate = "triple_buffer" },
   # Mozilla's list of certificate authorities, which the server checks its
-  # database's TLS against: its text ships in the image.
+  # database's TLS against: its text ships in the image, and in the Windows
+  # release's notices, which carries the server for local saves.
   { allow = ["CDLA-Permissive-2.0"], crate = "webpki-roots" },
   # The system's clipboard on Windows, under arboard: the
   # Boost licence, as permissive as MIT, which asks for nothing in a

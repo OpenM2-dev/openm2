@@ -9,6 +9,7 @@ openm2's protocol: messages, encoding and decoding, frames. **No I/O**: nothing 
 - `src/codec.rs`: `Reader`/`Writer`, `Decode`/`Encode`, varints, strings, blobs, lists, options, errors.
 - `src/message.rs`: the `Message` trait (`from_bytes` / `to_bytes`: a varint id, then the fields), `MessageSpec` (a row of the generated `CLIENT_MESSAGES`/`SERVER_MESSAGES` tables, with its secret fields) and `Direction`.
 - `src/tls.rs`: what TLS needs from the protocol: `ALPN` (`openm2/1`, the major version) and `KeyPin`, a server key's pin (`sha256:` and 64 hex digits; parsed and printed here, hashed by the edges).
+- `src/key_sign_in.rs`: what a device's key signs to sign in (`signed_message`: a label, the nonce, the TLS channel binding), the exporter's label, the reserved provider id `key` and issuer `openm2:key`, and `PublicKey` (`ed25519:` and 64 hex digits). The signing and checking are the edges' (`m2-net`, `m2-server`).
 - `src/wire.rs`: the frame layer. `Deframer` cuts a stream into messages (a varint length, then the message) and refuses frames over its maximum; `wire::frame` frames a message.
 - `tests/openm2_vectors.rs`: byte-exact vectors, one or more per message; tables, refusals, frames, round trips and random input.
 - Specs: `docs/specs/protocol/openm2/` (README: encoding, frames, versions, size; the generated `messages.md`; behaviour by topic).

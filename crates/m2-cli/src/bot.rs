@@ -136,16 +136,26 @@ impl ServerArgs {
     /// and what the provider shows at a sign-in.
     /// Returns the file's settings, for the rest of the command.
     pub fn resolve(&mut self) -> Result<ClientConfig> {
-        let config = ClientConfig::load(self.config.as_deref())?;
+        let config = self.for_flags(ClientConfig::load(self.config.as_deref())?);
         self.apply(&config)?;
         Ok(config)
+    }
+
+    /// The settings file as it goes with the flags: a `--host` naming
+    /// another server than the file's takes nothing of the file's server,
+    /// whose name, ports and key aren't its own.
+    fn for_flags(&self, config: ClientConfig) -> ClientConfig {
+        match (&self.host_arg, &config.host) {
+            (Some(flag), Some(file)) if !flag.eq_ignore_ascii_case(file) => config.without_server(),
+            _ => config,
+        }
     }
 
     /// As [`ServerArgs::resolve`], for `play`, whose login screen lists the
     /// player's own servers too: without a host anywhere there is no game's
     /// server, `host` stays empty and the second value is false.
     pub fn resolve_for_list(&mut self) -> Result<(ClientConfig, bool)> {
-        let config = ClientConfig::load(self.config.as_deref())?;
+        let config = self.for_flags(ClientConfig::load(self.config.as_deref())?);
         let named = self.host_arg.is_some() || config.host.is_some();
         if named {
             self.apply(&config)?;
@@ -200,9 +210,13 @@ pub struct BotArgs {
     server: ServerArgs,
     /// Sign in with the server's provider of this id (`openm2-server`'s
     /// providers file): the bot prints the address to open in a browser,
-    /// and waits for it
+    /// and waits for it; `key` signs in with the device's own key
     #[arg(long, value_name = "ID")]
     provider: String,
+    /// The device's key file, for `--provider key` (default:
+    /// device-key.pem beside OPENM2_SETTINGS); made when there is none
+    #[arg(long = "device-key", value_name = "FILE")]
+    device_key: Option<PathBuf>,
     /// Character slot to play (0-3); default: the first character
     #[arg(long, conflicts_with = "create")]
     slot: Option<u8>,
@@ -836,13 +850,15 @@ pub(crate) fn print_event(now: Millis, event: &Event) {
             name,
         } => println!("{at} {server}: {} speaks protocol {protocol}", shown(name)),
         Event::Phase { server, phase } => println!("{at} {server}: phase {phase:?}"),
-        Event::SignInOptions(providers) => println!(
-            "{at} auth: {} provider(s){}",
-            providers.len(),
-            providers
+        Event::SignInOptions(offer) => println!(
+            "{at} auth: {} provider(s){}{}",
+            offer.providers.len(),
+            offer
+                .providers
                 .iter()
                 .map(|p| format!(" {} ({})", shown(&p.id), shown(&p.name)))
-                .collect::<String>()
+                .collect::<String>(),
+            if offer.key { ", and devices' keys" } else { "" }
         ),
         Event::LoggedIn => println!("{at} auth: logged in"),
         Event::CharacterList(list) => {
@@ -1314,10 +1330,18 @@ pub fn run(mut args: BotArgs) -> Result<ExitCode> {
 
     let mut config = SessionConfig::provider(&args.provider).context("--provider")?;
     config.character = character;
+    let with_key = config.signs_with_key();
     let mut session = Session::new(config);
 
     let mut capture = args.capture.as_deref().map(open_capture).transpose()?;
-    let net = args.server.net_config();
+    let mut net = args.server.net_config();
+    if with_key {
+        let settings = std::env::var_os(crate::settings::ENV).map(PathBuf::from);
+        net.device_key = Some(crate::key::load(
+            args.device_key.as_deref(),
+            settings.as_deref(),
+        )?);
+    }
     if let Some(place) = args.buys.iter().find(|place| **place >= SHOP_PLACES) {
         anyhow::bail!(
             "--buy {place}: a shop's places are 0 to {}",
@@ -1418,7 +1442,8 @@ mod tests {
     /// The server's settings from `args` over `config`.
     fn server(args: &[&str], config: &ClientConfig) -> Result<ServerArgs> {
         let mut cli = Cli::try_parse_from(std::iter::once("openm2").chain(args.iter().copied()))?;
-        cli.server.apply(config)?;
+        let config = cli.server.for_flags(config.clone());
+        cli.server.apply(&config)?;
         Ok(cli.server)
     }
 
@@ -1465,6 +1490,23 @@ mod tests {
             (flags.host.as_str(), flags.auth_port, flags.game_port),
             ("127.0.0.1", 1, 2)
         );
+
+        // Another server than the file's takes nothing of the file's server:
+        // not its ports, not its key (a local save the launcher runs).
+        let other = server(&["--host", "127.0.0.1"], &config).unwrap();
+        assert_eq!(
+            (other.host.as_str(), other.auth_port, other.game_port),
+            ("127.0.0.1", AUTH_PORT, GAME_PORT)
+        );
+        assert_eq!(other.server_key, None);
+        assert_eq!(
+            other.net_config().sign_in_prompt,
+            Some(m2_net::signin::SignInPrompt::Login),
+            "what the provider shows is the player's, for every server"
+        );
+        // The file's own server, by its host in any case, takes it all.
+        let same = server(&["--host", "PLAY.example.net"], &config).unwrap();
+        assert_eq!((same.auth_port, same.server_key), (21002, Some(pin)));
 
         let defaults = server(&["--host", "127.0.0.1"], &ClientConfig::default()).unwrap();
         assert_eq!(

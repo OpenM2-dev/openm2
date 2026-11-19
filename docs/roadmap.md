@@ -43,23 +43,28 @@ What openm2 does today, what comes next, and what is still unknown. When you fin
 - **Headless:** `openm2 bot`, a headless client for tests and checks. `openm2 status` checks a server.
 
 **The server (`openm2-server`)**
-- **Accounts:** sign-in only through OpenID Connect providers, with no passwords. Accounts and characters live in Postgres, or in memory for tests.
+- **Accounts:** sign-in through OpenID Connect providers, or, where the operator allows it, with the device's own key (no browser, no internet), with no passwords. Accounts and characters live in Postgres, in a save's folder (one file, for a server on the player's own machine), or in memory for tests.
 - **The world:** monsters and NPCs from a content folder. Spawns, packs, and stones that call packs. Walk masks hold for players and monsters, and moves are checked.
 - **Gameplay:** fights, deaths and levels, drops and gold, shops, skills and their effects, teachers, master training, mounts and stables, upgrades, fishing, warps, whispers and friends.
-- **Game masters:** named by the operator, with `/level`, `/gold`, `/item`, `/heal`, `/speed`, `/gm on|off`, and their choice of empire.
-- **Operations:** OpenTelemetry, a Docker image and a compose file with Postgres. One world per database.
+- **Game masters:** named by the operator (by account, or the owner's device key), with `/level`, `/gold`, `/item`, `/heal`, `/speed`, `/gm on|off`, and their choice of empire.
+- **Operations:** OpenTelemetry, a Docker image and a compose file with Postgres. One world per database or save. A ready line and a stop on stdin's close for a program that runs the server.
 
 **Protocol and security**
 - **The protocol:** openm2's own, versioned, generated from `crates/m2-protocol/packets/openm2.toml`, with byte-exact vectors for every message.
 - **Transport:** TLS 1.3 with ALPN `openm2/1`. Servers are trusted by their certificate or by a pinned key. Logins use single-use 32-byte tickets.
 
 **Releases and updates**
-- **Releases:** a tag publishes the server's image to GHCR, and the Windows client with `openm2-launcher` to a GitHub Release, with third-party notices.
+- **Releases:** a tag publishes the server's image to GHCR, and the Windows client with `openm2-launcher` and `openm2-server` to a GitHub Release, with third-party notices. Its Servers board starts with the project's own server, `play.openm2.net`.
 - **`openm2-launcher`:** a window that keeps an install up to date from a channel's signed manifests and bundles. It imports the player's client once (Browse buttons for the folder and the keys file on Windows), imports it again when a version reads clients differently, then starts the game.
+- **Local saves:** the launcher asks Singleplayer or Multiplayer; Singleplayer lists named worlds on the player's own machine, and Play runs the release's own `openm2-server` on one (the world imported from the player's client, no internet, no account), signs in with the device's key, the player its game master, and stops the server when the game ends. The login board's This device signs in again after a logout.
 - **The release updates itself:** `openm2-setup.exe` installs it for the player alone (or the zip, unzipped anywhere), and its launcher follows the latest GitHub release, a flat channel of the programs only, signed with openm2's own key.
 - **`openm2 release`:** makes keys, writes, signs and verifies manifests.
 
 ## Next
+- **The project's server on this release:** the Windows release pins `play.openm2.net`, and installs join it once it runs this release's server (protocol 4); until then its row says `no answer` or `another version`.
+- **openm2's logo on the login screen:** `openm2.toml`'s `logo` shows a game's own logo in place of the client's. The Windows release can name the project's once `branding/` has the wordmark on transparency, cut close (the banner's dark background draws as a box over the login screen's pattern); then the release carries that file and an `openm2.toml` naming it.
+- **Local saves on the LAN:** a save opened to the network (bound beyond `127.0.0.1`, its ports kept in `save.toml`), its link (address and key) to copy for friends' Servers boards, and a cap on the accounts devices' keys make there.
+- **Local saves on a real Windows install:** the first release with the server, played from the setup's install: a new save, a game, the launcher closed and opened again, the character still there.
 - **An original sample world** in the repo, under `docs/source-policy.md`, "Original content". It needs a rule that lets it through `just no-assets`.
   - The gate: `play` on our own server with only the sample world, and no Metin2 files on the machine.
 - **A WebGPU build.**
@@ -87,6 +92,11 @@ What openm2 does today, what comes next, and what is still unknown. When you fin
   - What unit `CloudSpeed` is in, and what `CloudColor` does.
   - Whether the fog covers the sky.
   - openm2's choices are in `render.md`, "Maps: the sky".
+- **One device key everywhere:** a device's key names its account on every server that takes keys, so two such servers can tell it is the same player. A key per server (derived from the server's key) would not, but a new server key would then mean a new account.
+- **Servers open to devices' keys:** anyone who reaches one makes accounts, as many as they like. A cap on accounts, or a list of the keys allowed, may be wanted before such a server is opened to more than friends.
+- **Local saves' world is bare:** the imported content has no drops, shops, starting items, packs or levels unless the player writes them into `content/` (which the next import replaces). The original sample world would fill it; until then a save is mostly for walking, fighting and trying game master commands.
+- **Deleting and renaming saves:** not in the launcher yet; the player deletes or renames a save's folder (its name is its folder's). Renaming one while its server runs fails, as the server holds its lock.
+- **The uninstaller keeps the saves and the device's key:** a new install finds them, but they stay on disk after an uninstall. Asking at uninstall may be wanted.
 - **Linking a provider to an account:** a provider's first sign-in makes a new account. Adding a second provider to it would need the player signed in with both at once, never by e-mail.
 - **Names in other codepages:** the import decodes names with codepage 1252 only. Other locales' names keep their ASCII and get `?` for the rest. A full decoder (for example `encoding_rs`) is a new dependency, partly under BSD-3, which is a licence decision.
 - **Item names in other codepages:** `play` shows an asset folder's names, which are UTF-8. The protocol carries UTF-8, so names from the server show as they are. Only the import's decoding is limited (see "Names in other codepages").

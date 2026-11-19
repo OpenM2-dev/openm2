@@ -63,7 +63,7 @@ use self::shops::OpenShop;
 use self::skills::{Buff, Cast};
 use self::walk::Walk;
 use crate::config::Config;
-use crate::sign_in::{Identity, SignIn, SignInRefusal};
+use crate::sign_in::{Identity, KeySignIn, SignIn, SignInRefusal};
 use crate::store::{Account, AccountId, Character, RequestId, StoreAnswer, StoreRequest};
 use crate::time::{ConnId, Millis};
 
@@ -121,7 +121,8 @@ pub enum Input {
         /// The answer.
         answer: StoreAnswer,
     },
-    /// The edge checked a provider's sign-in ([`Effect::CheckSignIn`]).
+    /// The edge checked a provider's sign-in ([`Effect::CheckSignIn`]) or a
+    /// device's key ([`Effect::CheckKeySignIn`]).
     SignInChecked {
         /// The request's number.
         request: RequestId,
@@ -168,6 +169,14 @@ pub enum Effect {
         request: RequestId,
         /// What to check.
         sign_in: SignIn,
+    },
+    /// Check a device's signature against its connection's TLS channel
+    /// binding; the answer comes back as [`Input::SignInChecked`].
+    CheckKeySignIn {
+        /// The request's number.
+        request: RequestId,
+        /// What to check.
+        sign_in: KeySignIn,
     },
     /// Something to log or count. Events name accounts and characters by
     /// number only: never tickets, providers' codes or chat.
@@ -584,9 +593,9 @@ impl fmt::Display for Event {
 enum Stage {
     /// Waiting for the client's Hello.
     Hello,
-    /// Auth: waiting for StartSignIn and ProviderLogin.
+    /// Auth: waiting for StartSignIn, and ProviderLogin or KeyLogin.
     Login,
-    /// Auth: the provider's sign-in is being checked.
+    /// Auth: the provider's sign-in or the device's key is being checked.
     Checking,
     /// Auth: the ticket went out; the client closes next.
     LoggedIn,
@@ -696,7 +705,7 @@ struct Conn {
     /// When an auth connection that asked for the providers must have
     /// signed in.
     sign_in_by: Option<Millis>,
-    /// The provider of the sign-in being checked.
+    /// The provider of the sign-in being checked (`key` for a device's key).
     provider: Option<String>,
     account: Option<Account>,
     characters: Vec<Character>,
@@ -1019,6 +1028,7 @@ impl Server {
             ClientMessage::ReelIn(_) => self.reel_in(now, conn),
             ClientMessage::StartSignIn(_) => self.start_sign_in(now, conn),
             ClientMessage::ProviderLogin(login) => self.provider_login(now, conn, login),
+            ClientMessage::KeyLogin(login) => self.key_login(now, conn, login),
         }
     }
 
@@ -1296,6 +1306,17 @@ impl Server {
             state.waiting = Some(request);
         }
         self.out.push(Effect::CheckSignIn { request, sign_in });
+    }
+
+    /// Asks the edge to check a device's key for `conn`.
+    fn check_key_sign_in(&mut self, conn: ConnId, sign_in: KeySignIn) {
+        self.next_request += 1;
+        let request = RequestId(self.next_request);
+        self.requests.insert(request, Waiter::Conn(conn));
+        if let Some(state) = self.conns.get_mut(&conn) {
+            state.waiting = Some(request);
+        }
+        self.out.push(Effect::CheckKeySignIn { request, sign_in });
     }
 
     fn stage(&self, conn: ConnId) -> Option<Stage> {

@@ -15,16 +15,16 @@ use m2_protocol::profile::openm2::{
     EntityDied, EntityEffect, EntityInfo, EntityMount, EntityMove, EntityRemove, EntitySkills,
     EntitySpawn, EntityUpdate, Fishing, Flight, Friend, FriendAsked, FriendChanged, FriendNotice,
     Friends, GameTime, GiveItem, GroundItemAdd, GroundItemRemove, Hello, Hit, ItemBonus, ItemBoost,
-    ItemBoosts, ItemOwnership, ItemSet, LearnSkillGroup, LeaveGame, LoginRefused, MAX_CLIENT_FRAME,
-    MAX_SERVER_FRAME, MainCharacter, MountCost, MountOffer, MountState, MoveItem, MoveRefused,
-    Phase, PickUp, Ping, PointValue, Points, PointsChanged, Pong, Projectile, Provider,
-    ProviderLogin, QuickSlotCleared, QuickSlotSet, QuickSlotsSwapped, RaiseSkill, RaiseStatus,
-    ReelIn, Refused, RemoveFriend, Restart, RideMount, RunSpeed, SERVER_MESSAGES, SelectCharacter,
-    SendChat, SendWhisper, ServerMessage, SetQuickSlot, SetTarget, ShopBuy, ShopClose, ShopGood,
-    ShopOpened, ShopRefused, ShopSell, SignInOptions, SignedIn, SkillGroup, SkillState, Skills,
-    StableOpened, StartSignIn, SwapQuickSlots, Talk, TargetHealth, TeacherOpened, TicketLogin,
-    TrainMount, Upgrade, UpgradeCost, UpgradeOffer, UseItem, UseItemOnItem, UseItemOnSkill,
-    UseSkill, Welcome, Whisper, WhisperRefused,
+    ItemBoosts, ItemOwnership, ItemSet, KeyLogin, LearnSkillGroup, LeaveGame, LoginRefused,
+    MAX_CLIENT_FRAME, MAX_SERVER_FRAME, MainCharacter, MountCost, MountOffer, MountState, MoveItem,
+    MoveRefused, Phase, PickUp, Ping, PointValue, Points, PointsChanged, Pong, Projectile,
+    Provider, ProviderLogin, QuickSlotCleared, QuickSlotSet, QuickSlotsSwapped, RaiseSkill,
+    RaiseStatus, ReelIn, Refused, RemoveFriend, Restart, RideMount, RunSpeed, SERVER_MESSAGES,
+    SelectCharacter, SendChat, SendWhisper, ServerMessage, SetQuickSlot, SetTarget, ShopBuy,
+    ShopClose, ShopGood, ShopOpened, ShopRefused, ShopSell, SignInOptions, SignedIn, SkillGroup,
+    SkillState, Skills, StableOpened, StartSignIn, SwapQuickSlots, Talk, TargetHealth,
+    TeacherOpened, TicketLogin, TrainMount, Upgrade, UpgradeCost, UpgradeOffer, UseItem,
+    UseItemOnItem, UseItemOnSkill, UseSkill, Welcome, Whisper, WhisperRefused,
 };
 use m2_protocol::wire::{Deframer, WireError, frame};
 use m2_protocol::{DecodeError, EncodeError};
@@ -745,6 +745,14 @@ fn login_refused() {
         ServerMessage::LoginRefused(LoginRefused { reason: 6 }),
         &wire,
     );
+    check_s2c(
+        ServerMessage::LoginRefused(LoginRefused { reason: 8 }),
+        &[
+            0x02, // frame length = 2
+            0x06, // id = 6
+            0x08, // reason = 8 (the server did not accept this device's key)
+        ],
+    );
 }
 
 #[test]
@@ -1305,7 +1313,7 @@ fn skill_group() {
 #[test]
 fn sign_in_options() {
     let wire = concat(&[
-        &[0x72],       // frame length = 114
+        &[0x73],       // frame length = 115
         &[0x24],       // id = 36
         &[0x01, 0x00], // providers: 1
         &[0x06, 0x00], //   id: 6 bytes
@@ -1318,6 +1326,7 @@ fn sign_in_options() {
         b"openm2-client",
         &[0x20, 0x00], // nonce: 32 bytes
         b"0123456789abcdef0123456789abcdef",
+        &[0x01], // key_sign_in = true
     ]);
     let options = SignInOptions {
         providers: vec![Provider {
@@ -1327,22 +1336,40 @@ fn sign_in_options() {
             client_id: "openm2-client".into(),
         }],
         nonce: "0123456789abcdef0123456789abcdef".into(),
+        key_sign_in: true,
     };
     check_s2c(ServerMessage::SignInOptions(options), &wire);
-    // A server without providers.
+    // A server without a way in.
     let none = SignInOptions {
         providers: Vec::new(),
         nonce: String::new(),
+        key_sign_in: false,
     };
     check_s2c(
         ServerMessage::SignInOptions(none),
         &[
-            0x05, // frame length = 5
+            0x06, // frame length = 6
             0x24, // id = 36
             0x00, 0x00, // providers: 0
             0x00, 0x00, // nonce = ""
+            0x00, // key_sign_in = false
         ],
     );
+    // A server that takes only devices' keys.
+    let keys = SignInOptions {
+        providers: Vec::new(),
+        nonce: "0123456789abcdef0123456789abcdef".into(),
+        key_sign_in: true,
+    };
+    let wire = concat(&[
+        &[0x26],       // frame length = 38
+        &[0x24],       // id = 36
+        &[0x00, 0x00], // providers: 0
+        &[0x20, 0x00], // nonce: 32 bytes
+        b"0123456789abcdef0123456789abcdef",
+        &[0x01], // key_sign_in = true
+    ]);
+    check_s2c(ServerMessage::SignInOptions(keys), &wire);
 }
 
 #[test]
@@ -1746,6 +1773,26 @@ fn reel_in() {
 }
 
 #[test]
+fn key_login() {
+    let public_key: [u8; 32] = std::array::from_fn(|i| i as u8);
+    let signature: [u8; 64] = std::array::from_fn(|i| 0x40 + i as u8);
+    let wire = concat(&[
+        &[0x61],     // frame length = 97
+        &[0x2C],     // id = 44
+        &public_key, // public_key: 32 bytes, 0x00 to 0x1F
+        &signature,  // signature: 64 bytes, 0x40 to 0x7F
+    ]);
+    assert_eq!(wire.len(), 98);
+    check_c2s(
+        ClientMessage::KeyLogin(KeyLogin {
+            public_key,
+            signature,
+        }),
+        &wire,
+    );
+}
+
+#[test]
 fn fishing() {
     let wire = [
         0x0E, // frame length = 14
@@ -1848,7 +1895,7 @@ fn ids_skip_only_the_retired_ones_and_the_hello_never_moves() {
     // c2s 3 and s2c 5 are reserved: no message has them.
     assert_eq!(
         ids(CLIENT_MESSAGES),
-        (1..=43).filter(|id| *id != 3).collect::<Vec<_>>()
+        (1..=44).filter(|id| *id != 3).collect::<Vec<_>>()
     );
     assert_eq!(
         ids(SERVER_MESSAGES),
@@ -2306,10 +2353,11 @@ fn server_message() -> impl Strategy<Value = ServerMessage> {
         ),
         (
             proptest::collection::vec((text(16), text(64), text(512), text(256)), 0..=8),
-            text(64)
+            text(64),
+            any::<bool>()
         )
             .prop_map(
-                |(providers, nonce)| ServerMessage::SignInOptions(SignInOptions {
+                |(providers, nonce, key_sign_in)| ServerMessage::SignInOptions(SignInOptions {
                     providers: providers
                         .into_iter()
                         .map(|(id, name, authorize, client_id)| Provider {
@@ -2320,6 +2368,7 @@ fn server_message() -> impl Strategy<Value = ServerMessage> {
                         })
                         .collect(),
                     nonce,
+                    key_sign_in,
                 })
             ),
         (text(64), proptest::collection::vec(any::<u8>(), 0..=32))
@@ -2544,6 +2593,14 @@ fn client_message() -> impl Strategy<Value = ClientMessage> {
             .prop_map(|(slot, onto)| ClientMessage::UseItemOnItem(UseItemOnItem { slot, onto })),
         any::<u16>().prop_map(|angle| ClientMessage::Cast(Cast { angle })),
         Just(ClientMessage::ReelIn(ReelIn)),
+        (
+            any::<[u8; 32]>(),
+            proptest::collection::vec(any::<u8>(), 64)
+        )
+            .prop_map(|(public_key, signature)| ClientMessage::KeyLogin(KeyLogin {
+                public_key,
+                signature: signature.try_into().unwrap_or([0; 64]),
+            })),
         (
             proptest::option::of(any::<u32>()),
             proptest::option::of(any::<u16>()),

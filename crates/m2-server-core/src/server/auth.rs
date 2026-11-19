@@ -1,15 +1,18 @@
-//! Providers' sign-ins on the auth server, and tickets on the game server
-//! (`docs/specs/server/session.md`, "Signing in" and "Tickets").
+//! Providers' and devices' keys' sign-ins on the auth server, and tickets
+//! on the game server (`docs/specs/server/session.md`, "Signing in",
+//! "Signing in with a device key" and "Tickets").
 
 use std::net::IpAddr;
 
+use m2_protocol::key_sign_in::PROVIDER as KEY_PROVIDER;
 use m2_protocol::profile::openm2::{
-    LoginRefused, Provider, ProviderLogin, ServerMessage, SignInOptions, SignedIn, TicketLogin,
+    KeyLogin, LoginRefused, Provider, ProviderLogin, ServerMessage, SignInOptions, SignedIn,
+    TicketLogin,
 };
 use secrecy::{ExposeSecret as _, SecretBox, SecretString};
 
 use super::{Event, IssuedTicket, Listener, Server, Stage, TICKET_LEN, Waiter};
-use crate::sign_in::{Identity, SignIn, SignInRefusal};
+use crate::sign_in::{Identity, KeySignIn, SignIn, SignInRefusal};
 use crate::store::{Account, RequestId, StoreError, StoreRequest};
 use crate::time::{ConnId, Millis};
 
@@ -31,6 +34,7 @@ const TOO_MANY: u8 = 4;
 const BAD_TICKET: u8 = 5;
 const PROVIDER_REFUSED: u8 = 6;
 const PROVIDER_UNAVAILABLE: u8 = 7;
+const KEY_REFUSED: u8 = 8;
 
 /// True for a provider id: 1 to 16 lowercase ASCII letters, digits and
 /// hyphens.
@@ -126,10 +130,11 @@ impl Server {
         }
     }
 
-    /// StartSignIn: the providers and, when there are any, a nonce for this
-    /// connection, which replaces any earlier one. From then on the
-    /// connection is pinged, and it must sign in within
-    /// [`crate::Config::sign_in_time`] of its first StartSignIn.
+    /// StartSignIn: the providers, whether devices' keys are taken and,
+    /// when there is any way in, a nonce for this connection, which
+    /// replaces any earlier one. From then on the connection is pinged, and
+    /// it must sign in within [`crate::Config::sign_in_time`] of its first
+    /// StartSignIn.
     pub(super) fn start_sign_in(&mut self, now: Millis, conn: ConnId) {
         let Some(state) = self.conns.get(&conn) else {
             return;
@@ -150,23 +155,27 @@ impl Server {
                 client_id: offer.client_id.clone(),
             })
             .collect();
-        let nonce = if providers.is_empty() {
-            String::new()
-        } else {
+        let key_sign_in = self.config.key_sign_in;
+        let way_in = !providers.is_empty() || key_sign_in;
+        let nonce = if way_in {
             self.random_nonce()
+        } else {
+            String::new()
         };
         let (ping_every, sign_in_time) = (self.config.ping_every, self.config.sign_in_time);
         if let Some(state) = self.conns.get_mut(&conn)
-            && !providers.is_empty()
+            && way_in
         {
             state.nonce = Some(nonce.clone());
             state.next_ping.get_or_insert(now.plus(ping_every));
             state.sign_in_by.get_or_insert(now.plus(sign_in_time));
         }
-        self.send(
-            conn,
-            ServerMessage::SignInOptions(SignInOptions { providers, nonce }),
-        );
+        let options = SignInOptions {
+            providers,
+            nonce,
+            key_sign_in,
+        };
+        self.send(conn, ServerMessage::SignInOptions(options));
     }
 
     /// ProviderLogin: refused at once when the address failed too often,
@@ -195,7 +204,8 @@ impl Server {
         } = login;
         let code = SecretString::from(code);
         let verifier = SecretString::from(verifier);
-        let known = self.config.providers.iter().any(|p| p.id == provider);
+        let known =
+            provider != KEY_PROVIDER && self.config.providers.iter().any(|p| p.id == provider);
         let Some(nonce) = nonce.filter(|_| {
             known
                 && valid_redirect(&redirect)
@@ -222,6 +232,51 @@ impl Server {
                 code,
                 verifier,
                 redirect,
+                nonce,
+            },
+        );
+    }
+
+    /// KeyLogin: refused at once when the address failed too often, when the
+    /// server does not take devices' keys or when no nonce was given out;
+    /// otherwise handed to the edge, which checks the signature against the
+    /// nonce and the connection's TLS channel binding. The nonce is used up
+    /// either way. The message names no account: the key's own is found or
+    /// made, nobody else's.
+    pub(super) fn key_login(&mut self, now: Millis, conn: ConnId, login: KeyLogin) {
+        let Some(state) = self.conns.get_mut(&conn) else {
+            return;
+        };
+        if state.listener != Listener::Auth || state.stage != Stage::Login {
+            self.close(now, conn, "a sign-in out of turn");
+            return;
+        }
+        let peer = state.peer;
+        let nonce = state.nonce.take();
+        if self.failed_too_often(now, peer) {
+            self.refuse_sign_in(now, conn, TOO_MANY, "too many failed logins");
+            return;
+        }
+        let Some(nonce) = nonce.filter(|_| self.config.key_sign_in) else {
+            self.count_failure(now, peer);
+            let why = "a device's key the server does not take";
+            self.refuse_sign_in(now, conn, KEY_REFUSED, why);
+            return;
+        };
+        if let Some(state) = self.conns.get_mut(&conn) {
+            state.stage = Stage::Checking;
+            state.provider = Some(KEY_PROVIDER.to_owned());
+        }
+        let KeyLogin {
+            public_key,
+            signature,
+        } = login;
+        self.check_key_sign_in(
+            conn,
+            KeySignIn {
+                conn,
+                public_key,
+                signature,
                 nonce,
             },
         );
@@ -257,10 +312,19 @@ impl Server {
                 };
                 self.request(conn, what);
             }
+            Err(SignInRefusal::Refused) if provider == KEY_PROVIDER => {
+                self.count_failure(now, peer);
+                let why = "the device's signature did not verify";
+                self.refuse_sign_in(now, conn, KEY_REFUSED, why);
+            }
             Err(SignInRefusal::Refused) => {
                 self.count_failure(now, peer);
                 let why = "the provider did not confirm the sign-in";
                 self.refuse_sign_in(now, conn, PROVIDER_REFUSED, why);
+            }
+            Err(SignInRefusal::Unavailable) if provider == KEY_PROVIDER => {
+                let why = "the device's key could not be checked";
+                self.refuse_sign_in(now, conn, KEY_REFUSED, why);
             }
             Err(SignInRefusal::Unavailable) => {
                 let why = "the provider could not be reached";

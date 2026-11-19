@@ -2,7 +2,8 @@
 //! (`docs/specs/update.md`, "What the launcher does"): `m2-launcher`'s own
 //! functions with this `openm2` as the game, on a synthetic client. The
 //! launcher's choices around them (a version with its own files, a game
-//! that doesn't import) are tested in `m2-launcher`.
+//! that doesn't import) are tested in `m2-launcher`. And the device's key a
+//! local save's server makes its game master ("Local saves").
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -10,7 +11,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use m2_formats::{ArchiveWriter, EntryKind, Keys};
 use m2_launcher::process::Stop;
-use m2_launcher::{IMPORT_LOG, IMPORTED, IMPORTING, Imported, Install, Progress};
+use m2_launcher::{CONTENT, IMPORT_LOG, IMPORTED, IMPORTING, Imported, Install, Progress};
 
 /// A folder for one test, deleted after it.
 struct Dir(PathBuf);
@@ -81,6 +82,8 @@ fn the_launcher_imports_the_client_and_again_when_the_import_changes() {
     fs::write(&keys, "").unwrap();
     let state = || m2_launcher::imported(game(), &root).unwrap();
     assert_eq!(state(), Imported::Stale("no import yet".to_owned()));
+    // The saves' world, from the client before: imported again after.
+    fs::create_dir_all(root.join(CONTENT)).unwrap();
 
     let mut said = Vec::new();
     m2_launcher::import(
@@ -105,6 +108,10 @@ fn the_launcher_imports_the_client_and_again_when_the_import_changes() {
     assert!(report.is_some() && report < check, "{said:?}");
     assert_eq!(state(), Imported::Current);
     assert!(!root.join(IMPORTING).exists());
+    assert!(
+        !root.join(CONTENT).exists(),
+        "the saves' world goes with it"
+    );
     let log = fs::read_to_string(root.join(IMPORT_LOG)).unwrap();
     assert!(log.starts_with("imported 0 actors"), "{log}");
     assert!(
@@ -155,4 +162,17 @@ fn the_launcher_imports_the_client_and_again_when_the_import_changes() {
     drop(Install::open(&root).unwrap());
     assert!(!root.join(IMPORTING).exists());
     assert_eq!(state(), Imported::Current);
+}
+
+/// The device's key is made beside the install folder's `settings.toml`
+/// the first time, and the same one comes back after.
+#[test]
+fn a_local_saves_owner_is_this_devices_key() {
+    let dir = Dir::new("owner");
+    let root = dir.0.join("install");
+    fs::create_dir_all(&root).unwrap();
+    let key = m2_launcher::host::owner_key(game(), &root).unwrap();
+    assert!(key.starts_with("ed25519:") && key.len() == 8 + 64, "{key}");
+    assert!(root.join("device-key.pem").is_file());
+    assert_eq!(m2_launcher::host::owner_key(game(), &root).unwrap(), key);
 }

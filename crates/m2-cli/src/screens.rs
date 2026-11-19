@@ -53,6 +53,11 @@ const MINIMAP: &str = "@minimap";
 /// The atlas's picture.
 const ATLAS_PICTURE: ImageId = ImageId(u32::MAX - 2);
 const ATLAS: &str = "@atlas";
+/// The game's own logo on the login screen: its number, its name in
+/// `login.ron`, and the room it is fitted into there.
+const LOGO_PICTURE: ImageId = ImageId(u32::MAX - 3);
+const LOGO: &str = "@logo";
+const LOGO_ROOM: (f32, f32) = (560.0, 170.0);
 
 /// Classes on the create screen, with their male and female values.
 const CLASSES: [(&str, CharacterClass, CharacterClass); 4] = [
@@ -319,6 +324,7 @@ pub(crate) fn failure_text(error: &SessionError) -> String {
             LoginRefusal::ProviderUnavailable => {
                 "The server could not reach the provider. Try again later.".to_owned()
             }
+            LoginRefusal::KeyRefused => "The server did not accept this computer's key.".to_owned(),
             LoginRefusal::Other(reason) => {
                 format!("The server refused the login (reason {reason}).")
             }
@@ -394,6 +400,8 @@ pub(crate) struct PlayInterface {
     picking: bool,
     /// The minimap's zoom step, an index into [`ZOOMS`].
     minimap_zoom: usize,
+    /// The game's own logo, shown in place of the client's.
+    logo: Option<RgbaImage>,
     actions: Vec<Action>,
 }
 
@@ -438,6 +446,7 @@ impl PlayInterface {
             servers: ServerList::new(),
             picking: true,
             minimap_zoom: START_ZOOM,
+            logo: None,
             actions: Vec::new(),
         };
         interface.go(Screen::Login);
@@ -454,9 +463,35 @@ impl PlayInterface {
         files: &Files<'_>,
         filter: UiFilter,
     ) -> anyhow::Result<()> {
-        let interface = GpuInterface::new(gpu, format, &mut self.ui, Some(files), filter)?;
+        let mut interface = GpuInterface::new(gpu, format, &mut self.ui, Some(files), filter)?;
+        if let Some(logo) = &self.logo {
+            interface.set_image(gpu, LOGO_PICTURE, logo)?;
+        }
         self.gpu = Some(interface);
         Ok(())
+    }
+
+    /// Shows `logo`, the game's own (the settings file's `logo`), on the
+    /// login screen in place of the client's: as large as fits the
+    /// client's logo's room, its sides kept, centred there. Before
+    /// [`Self::attach`], which uploads it.
+    pub fn set_logo(&mut self, logo: RgbaImage) {
+        let (w, h) = (logo.width() as f32, logo.height() as f32);
+        let fit = (LOGO_ROOM.0 / w).min(LOGO_ROOM.1 / h);
+        let size = ((w * fit).round().max(1.0), (h * fit).round().max(1.0));
+        self.ui
+            .set_size(ids::LOGO_OWN, (Length::Px(size.0), Length::Px(size.1)));
+        self.ui.set_visible(ids::LOGO_OWN, true);
+        self.ui.set_visible(ids::LOGO_CLIENT, false);
+        self.ui.set_sprite(
+            LOGO,
+            Sprite {
+                image: LOGO_PICTURE,
+                uv: Rect::new(0.0, 0.0, 1.0, 1.0),
+                size: (w, h),
+            },
+        );
+        self.logo = Some(logo);
     }
 
     /// The screen shown.
@@ -1477,8 +1512,12 @@ impl PlayInterface {
                     self.actions.push(Action::Back);
                 }
                 self.busy = true;
-                self.ui
-                    .set_text(ids::LOGIN_STATUS, "Opening your browser...");
+                let status = if config.signs_with_key() {
+                    "Signing in..."
+                } else {
+                    "Opening your browser..."
+                };
+                self.ui.set_text(ids::LOGIN_STATUS, status);
                 self.ui.set_text(ids::LOGIN_QUIT, "Cancel");
                 self.actions.push(Action::LogIn(config));
             }
@@ -1748,6 +1787,33 @@ mod tests {
     }
 
     #[test]
+    fn the_games_own_logo_takes_the_clients_place() {
+        let mut interface = interface();
+        let shown = |interface: &PlayInterface| {
+            (
+                interface.ui.is_visible(ids::LOGO_CLIENT),
+                interface.ui.is_visible(ids::LOGO_OWN),
+            )
+        };
+        assert_eq!(shown(&interface), (true, false));
+        // Twice as wide as high: as high as the room, centred across it.
+        let logo = RgbaImage::from_pixels(400, 200, vec![255; 400 * 200 * 4]).unwrap();
+        interface.set_logo(logo);
+        assert_eq!(shown(&interface), (false, true));
+        interface.ui.layout(1280.0, 800.0);
+        let room = interface.ui.rect(ids::LOGO).unwrap();
+        let logo = interface.ui.rect(ids::LOGO_OWN).unwrap();
+        assert_eq!((logo.w, logo.h), (340.0, 170.0));
+        assert_eq!((logo.x - room.x, logo.y - room.y), (110.0, 0.0));
+        // Very wide: as wide as the room.
+        let wide = RgbaImage::from_pixels(1120, 70, vec![255; 1120 * 70 * 4]).unwrap();
+        interface.set_logo(wide);
+        interface.ui.layout(1280.0, 800.0);
+        let logo = interface.ui.rect(ids::LOGO_OWN).unwrap();
+        assert_eq!((logo.w, logo.h), (560.0, 35.0));
+    }
+
+    #[test]
     fn the_layouts_have_every_id_the_screens_use() {
         let mut interface = interface();
         for id in ids::ALL {
@@ -1861,6 +1927,19 @@ mod tests {
             [Action::Back]
         ));
         interface.follow(Progress::Offline, &World::default());
+        // A device's key opens no browser.
+        interface.set_providers(vec![provider("key", "This device")]);
+        interface.clicked(ids::PROVIDER_BUTTONS[0]);
+        let actions = interface.take_actions();
+        let [Action::LogIn(config)] = actions.as_slice() else {
+            panic!("{actions:?}");
+        };
+        assert!(config.signs_with_key());
+        assert_eq!(interface.ui.text(ids::LOGIN_STATUS), Some("Signing in..."));
+        interface.clicked(ids::LOGIN_QUIT);
+        interface.take_actions();
+        interface.follow(Progress::Offline, &World::default());
+        interface.set_providers(vec![provider("example", "Example ID")]);
         // A failure brings the screen back with the reason.
         let refused = SessionError::LoginRejected {
             server: m2_core::ServerKind::Auth,

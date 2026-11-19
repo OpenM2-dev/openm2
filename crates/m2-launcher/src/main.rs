@@ -2,7 +2,8 @@
 //! player's client folder and keys file the first time and imports the
 //! client (unless the version plays with its own asset folder), then
 //! starts `openm2 play` (`docs/specs/update.md`, "What the launcher
-//! does"). In a window of its own, or on the console with
+//! does"), or a local save with its own server ("Local saves", in the
+//! window only). In a window of its own, or on the console with
 //! `--no-window` and `--update-only`.
 
 // Release builds open no console: the window is the launcher. Debug builds
@@ -19,7 +20,7 @@ use anyhow::{Context, Result, bail};
 use clap::{Parser, ValueEnum};
 use m2_launcher::flow::{self, Plan, Wanted};
 use m2_launcher::process::{Stop, tail};
-use m2_launcher::window::{self, Ended, Stage, same_folder};
+use m2_launcher::window::{self, Ended, SaveRow, Stage, same_folder};
 use m2_launcher::{
     CLIENT_FILE, ClientSettings, ConsoleProgress, Http, IMPORT_LOG, IMPORTED, Install,
     LAUNCHER_FILE, LauncherSettings, Log, Outcome, Progress, Stream, counted, launcher_name,
@@ -93,6 +94,10 @@ enum Shown {
     Ready,
     Failed,
     GameFailed,
+    Saves,
+    NewSave,
+    Hosting,
+    SaveFailed,
 }
 
 fn main() -> ExitCode {
@@ -187,8 +192,14 @@ fn screenshot(args: &Args, root: &Path, out: &Path) -> Result<ExitCode> {
         .map_err(|_| anyhow::anyhow!("loading the system's fonts"))?;
     let mut ui = window::new_ui(&look, fonts)?;
     let stage = sample(args.show);
-    if let Shown::Ask = args.show {
-        ui.set_text("launcher.client", r"C:\Games\Client");
+    match args.show {
+        Shown::Ask => {
+            ui.set_text("launcher.client", r"C:\Games\Client");
+        }
+        Shown::NewSave => {
+            ui.set_text("launcher.save.name", "Winter trip");
+        }
+        _ => {}
     }
     window::show(&mut ui, &stage, &look);
     let (png, adapter) = window::render(&mut ui, &look, args.ui_scale, args.software)?;
@@ -219,6 +230,36 @@ fn sample(shown: Shown) -> Stage {
         Shown::Ready => Stage::Ready {
             version: Some(format!("{}+abc1234", env!("CARGO_PKG_VERSION"))),
             notes: Vec::new(),
+            saves: true,
+        },
+        Shown::Saves => Stage::Saves {
+            rows: [
+                ("Lume", "last played 2026-11-18"),
+                ("Spring in Chunjo", "last played 2026-11-02"),
+                ("Bosses to test", "last played 2026-10-27"),
+                ("Ținutul Nordului", "last played 2026-09-30"),
+                ("Fresh start", "new"),
+            ]
+            .map(|(name, detail)| SaveRow {
+                name: name.to_owned(),
+                detail: detail.to_owned(),
+            })
+            .to_vec(),
+            first: 0,
+            selected: Some(0),
+        },
+        Shown::NewSave => Stage::Naming { problem: None },
+        Shown::Hosting => Stage::Hosting {
+            step: "Making the world from your client (no import yet)".to_owned(),
+            line: "reading the maps' attributes".to_owned(),
+            seconds: 12,
+        },
+        Shown::SaveFailed => Stage::SaveFailed {
+            what: "The save's server didn't start".to_owned(),
+            why: vec![
+                "the server stopped before it was ready (exit code: 1)".to_owned(),
+                "openm2-server: another openm2-server holds the save C:\\Games\\openm2\\saves\\Lume".to_owned(),
+            ],
         },
         Shown::Failed => Stage::Failed {
             what: "The update failed".to_owned(),

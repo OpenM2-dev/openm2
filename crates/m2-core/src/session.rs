@@ -9,6 +9,7 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 
+use m2_protocol::key_sign_in::PROVIDER as KEY_PROVIDER;
 use m2_protocol::profile::openm2::{self as msg, ClientMessage, PROTOCOL, ServerMessage};
 use secrecy::{ExposeSecret, SecretSlice, SecretString};
 use thiserror::Error;
@@ -254,13 +255,26 @@ pub enum CharacterChoice {
     Ask,
 }
 
-/// How a session logs in: only ever through a provider.
+/// How a session logs in: through a provider, or with the device's own key.
 #[derive(Debug)]
 enum Credentials {
     /// A provider of the server's, by id: the player signs in in a browser.
     Provider(String),
+    /// The device's own key: the caller signs the nonce and the
+    /// connection's channel binding (`session.md`, "Signing in with a device
+    /// key").
+    Key,
     /// None: the session asks for the providers, reports them and logs out.
     Options,
+}
+
+/// The ways in an auth server offers ([`Event::SignInOptions`]).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct SignInOffer {
+    /// Its providers.
+    pub providers: Vec<SignInProvider>,
+    /// Whether it takes a device's own key.
+    pub key: bool,
 }
 
 /// An OpenID Connect provider a server offers (`session.md`, "Signing in
@@ -332,7 +346,8 @@ impl SessionConfig {
     /// Signs in with the server's provider `id`: the session asks the auth
     /// server for its providers, then hands [`Effect::SignIn`] to the
     /// caller, which opens the browser and comes back with
-    /// [`Input::SignInCode`].
+    /// [`Input::SignInCode`]. The reserved id `key`
+    /// (`m2_protocol::key_sign_in::PROVIDER`) is [`SessionConfig::device_key`].
     pub fn provider(id: &str) -> Result<Self, ConfigError> {
         let valid = (1..=PROVIDER_MAX).contains(&id.len())
             && id
@@ -341,7 +356,17 @@ impl SessionConfig {
         if !valid {
             return Err(ConfigError::Provider);
         }
+        if id == KEY_PROVIDER {
+            return Ok(Self::device_key());
+        }
         Ok(Self::with(Credentials::Provider(id.to_owned())))
+    }
+
+    /// Signs in with the device's own key: the session asks the auth server
+    /// whether it takes keys, then hands [`Effect::SignWithKey`] to the
+    /// caller, which signs and comes back with [`Input::KeySigned`].
+    pub fn device_key() -> Self {
+        Self::with(Credentials::Key)
     }
 
     /// Only asks the auth server for its providers: the session reports
@@ -358,12 +383,18 @@ impl SessionConfig {
         }
     }
 
-    /// The provider of a sign-in.
+    /// The provider of a sign-in; `key` for the device's own key.
     pub fn provider_id(&self) -> Option<&str> {
         match &self.credentials {
             Credentials::Provider(id) => Some(id),
+            Credentials::Key => Some(KEY_PROVIDER),
             Credentials::Options => None,
         }
+    }
+
+    /// Whether the session signs in with the device's own key.
+    pub fn signs_with_key(&self) -> bool {
+        matches!(self.credentials, Credentials::Key)
     }
 }
 
@@ -429,6 +460,8 @@ pub enum LoginRefusal {
     ProviderRefused,
     /// 7: the server could not reach the provider.
     ProviderUnavailable,
+    /// 8: the server did not accept this device's key.
+    KeyRefused,
     /// Any other value, the reserved 1 among them.
     Other(u8),
 }
@@ -443,6 +476,7 @@ impl LoginRefusal {
             5 => LoginRefusal::BadTicket,
             6 => LoginRefusal::ProviderRefused,
             7 => LoginRefusal::ProviderUnavailable,
+            8 => LoginRefusal::KeyRefused,
             other => LoginRefusal::Other(other),
         }
     }
@@ -461,6 +495,7 @@ impl fmt::Display for LoginRefusal {
             LoginRefusal::ProviderUnavailable => {
                 f.write_str("the server could not reach the provider; try again later")
             }
+            LoginRefusal::KeyRefused => f.write_str("the server did not accept this device's key"),
             LoginRefusal::Other(reason) => write!(f, "reason {reason}"),
         }
     }
@@ -503,8 +538,18 @@ pub enum SessionError {
         /// The ids the server offers.
         offered: Vec<String>,
     },
-    /// Signing in at the provider failed on this side: the browser, the
-    /// redirect, the provider's error.
+    /// The server does not take a device's own key.
+    #[error("the server does not take this device's key{}", if offered.is_empty() {
+        String::new()
+    } else {
+        format!(" (it offers {})", offered.join(", "))
+    })]
+    NoKeySignIn {
+        /// The ids of the providers the server offers.
+        offered: Vec<String>,
+    },
+    /// Signing in failed on this side: the browser, the redirect, the
+    /// provider's error, or the device's key.
     #[error("the sign-in failed: {reason}")]
     SignIn {
         /// What happened.
@@ -579,10 +624,10 @@ pub enum Event {
         /// The new phase.
         phase: Phase,
     },
-    /// The auth server sent its providers (asked for by a provider's
-    /// sign-in, or by [`SessionConfig::sign_in_options`]).
-    SignInOptions(Vec<SignInProvider>),
-    /// The auth server accepted the provider's sign-in.
+    /// The auth server sent its ways in (asked for by a sign-in, or by
+    /// [`SessionConfig::sign_in_options`]).
+    SignInOptions(SignInOffer),
+    /// The auth server accepted the sign-in.
     LoggedIn,
     /// The game server sent the character list (non-empty slots only).
     CharacterList(Vec<CharacterSummary>),
@@ -912,6 +957,16 @@ pub enum Effect {
         /// The nonce for the authorization request.
         nonce: String,
     },
+    /// Sign in with the device's own key: sign
+    /// `m2_protocol::key_sign_in::signed_message` of this nonce and the
+    /// connection's TLS channel binding, and report the key and the
+    /// signature with [`Input::KeySigned`] (or [`Input::SignInFailed`]).
+    SignWithKey {
+        /// The auth connection whose channel binding the signature covers.
+        conn: ConnId,
+        /// The nonce the server gave.
+        nonce: String,
+    },
     /// Report an event.
     Event(Event),
 }
@@ -1214,7 +1269,17 @@ pub enum Input {
     Command(Command),
     /// The provider's redirect came back with a code ([`Effect::SignIn`]).
     SignInCode(SignInCode),
-    /// Signing in at the provider failed ([`Effect::SignIn`]).
+    /// The device's key signed the nonce ([`Effect::SignWithKey`]).
+    KeySigned {
+        /// The connection it signed for.
+        conn: ConnId,
+        /// The device's Ed25519 public key.
+        public_key: [u8; 32],
+        /// The signature.
+        signature: [u8; 64],
+    },
+    /// Signing in at the provider, or with the device's key, failed
+    /// ([`Effect::SignIn`], [`Effect::SignWithKey`]).
     SignInFailed {
         /// What happened, for the error message.
         reason: String,
@@ -1308,6 +1373,11 @@ impl Session {
             Input::Message(conn, message) => self.on_message(now, conn, message, &mut out),
             Input::Command(command) => self.on_command(now, command, &mut out),
             Input::SignInCode(code) => self.on_sign_in_code(code, &mut out),
+            Input::KeySigned {
+                conn,
+                public_key,
+                signature,
+            } => self.on_key_signed(conn, public_key, signature, &mut out),
             Input::SignInFailed { reason } => {
                 if self.stage == Stage::SigningIn {
                     self.fail(SessionError::SignIn { reason }, &mut out);
@@ -2821,8 +2891,8 @@ impl Session {
         }
     }
 
-    /// The auth server's providers: a sign-in goes on with its provider; a
-    /// session that only asked logs out.
+    /// The auth server's ways in: a sign-in goes on with its provider or
+    /// the device's key; a session that only asked logs out.
     fn on_sign_in_options(
         &mut self,
         server: ServerKind,
@@ -2841,12 +2911,29 @@ impl Session {
             .into_iter()
             .map(SignInProvider::from)
             .collect();
-        out.push(Effect::Event(Event::SignInOptions(providers.clone())));
+        let offer = SignInOffer {
+            providers: providers.clone(),
+            key: options.key_sign_in,
+        };
+        out.push(Effect::Event(Event::SignInOptions(offer)));
         match &self.config.credentials {
             Credentials::Options => {
                 self.disconnect_current(out);
                 self.stage = Stage::LoggedOut;
                 out.push(Effect::Event(Event::LoggedOut));
+            }
+            Credentials::Key => {
+                let link = self.link.as_ref().map(|link| link.id);
+                let (true, Some(conn)) = (options.key_sign_in, link) else {
+                    let offered = providers.into_iter().map(|p| p.id).collect();
+                    self.fail(SessionError::NoKeySignIn { offered }, out);
+                    return;
+                };
+                self.stage = Stage::SigningIn;
+                out.push(Effect::SignWithKey {
+                    conn,
+                    nonce: options.nonce,
+                });
             }
             Credentials::Provider(id) => {
                 let Some(provider) = providers.iter().find(|p| &p.id == id).cloned() else {
@@ -2862,6 +2949,35 @@ impl Session {
                 });
             }
         }
+    }
+
+    /// The device's signature: sent to the auth server, which checks it
+    /// against the nonce and this connection's channel binding. A signature
+    /// for another connection is dropped.
+    fn on_key_signed(
+        &mut self,
+        conn: ConnId,
+        public_key: [u8; 32],
+        signature: [u8; 64],
+        out: &mut Vec<Effect>,
+    ) {
+        if !matches!(self.config.credentials, Credentials::Key) {
+            out.push(ignored("KeySigned", "not signing in with a key"));
+            return;
+        }
+        if self.stage != Stage::SigningIn || self.link.as_ref().map(|link| link.id) != Some(conn) {
+            out.push(ignored(
+                "KeySigned",
+                "not waiting for this connection's key",
+            ));
+            return;
+        }
+        let login = msg::KeyLogin {
+            public_key,
+            signature,
+        };
+        self.stage = Stage::Auth;
+        self.send(ClientMessage::KeyLogin(login), out);
     }
 
     /// The provider's code: relayed to the auth server, which exchanges it.

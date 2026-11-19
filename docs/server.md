@@ -105,7 +105,7 @@ The server talks to Postgres over TLS and checks the database's certificate and 
 - **When TLS fails,** the server stops at once and says why: the database offers no TLS, its certificate comes from an unknown authority, or it is for another name. It doesn't try again, unlike a database that isn't answering yet.
 
 ## Sign-in with a provider
-Players sign in with an OpenID Connect provider of yours, the only way in: the server keeps no passwords. Any provider that publishes discovery (`/.well-known/openid-configuration`) works: Google, Microsoft, GitLab, Keycloak, Auth0, Clerk, … `play`'s login screen shows a button per provider; `bot --provider ID` prints the address to open. A player's first sign-in makes their account, found again by the provider's issuer and their id there ([`specs/server/storage.md`](specs/server/storage.md), "Accounts"). The server does not start without a provider, even on your own machine: for development, register a provider's free development tenant (a Clerk development instance, a Google project's desktop client) or run Keycloak.
+Players sign in with an OpenID Connect provider of yours, or with their device's own key if you allow it ([Sign-in with a device key](#sign-in-with-a-device-key)): the server keeps no passwords. Any provider that publishes discovery (`/.well-known/openid-configuration`) works: Google, Microsoft, GitLab, Keycloak, Auth0, Clerk, … `play`'s login screen shows a button per provider; `bot --provider ID` prints the address to open. A player's first sign-in makes their account, found again by the provider's issuer and their id there ([`specs/server/storage.md`](specs/server/storage.md), "Accounts"). The server does not start without a way in: a provider, or devices' keys. To try a provider on your own machine, register a provider's free development tenant (a Clerk development instance, a Google project's desktop client) or run Keycloak.
 
 1. **Register openm2 at the provider** as a desktop (native, "installed") application, with the authorization code flow and PKCE:
    - the redirect URI `http://127.0.0.1/callback`: the client listens on a port the system picks, and providers that follow RFC 8252 accept any port on the loopback address (some want the port left out, some `http://localhost` registered as well);
@@ -128,16 +128,47 @@ Players sign in with an OpenID Connect provider of yours, the only way in: the s
 - **Logs** name the provider and the account by number; refusals give their reason at debug (`RUST_LOG=m2_server=debug`), never a code or a token. `openm2.sign_ins` counts sign-ins by provider and result.
 - **Account names** are the provider's id, a colon and 13 letters and digits (`google:nixzoi2rkfeta`).
 
+## Sign-in with a device key
+With `--key-sign-in` (`OPENM2_KEY_SIGN_IN=true`) players may also sign in with their device's own key: an Ed25519 key the client makes the first time and keeps beside its settings ([`specs/client.md`](specs/client.md), "The device's key"). No provider, no browser and no internet are needed, so a server on your own machine runs with nothing else:
+```sh
+openm2-server serve --memory --key-sign-in --owner-key "$(openm2 key public)"
+openm2 play --host 127.0.0.1 --server-key sha256:… --provider key --assets …
+```
+- **What the server checks** ([`specs/server/session.md`](specs/server/session.md), "Signing in with a device key"): the key's signature over the nonce it gave the connection and that connection's own TLS channel binding, so a signature seen on the wire is worth nothing anywhere else. The key names the account; the message names none.
+- **Who gets in:** anyone who reaches the server makes an account with a key of their own, so leave it off on a public server unless that is what you want. A key gives no other right.
+- **The owner:** `--owner-key ed25519:…` (`OPENM2_OWNER_KEY`), the key `openm2 key public` prints, makes that key's account a game master ([Game masters](#game-masters)). It needs `--key-sign-in`.
+- **Account names** are `key:` and 13 letters and digits; `openm2 key public` and the server agree on them (`m2_server::store::key_account_name`).
+- **With providers too:** both work at once; the providers file may not use the id `key`.
+
+## Saves
+A world on your own machine, without a database: `--save DIR` keeps accounts and characters in one file, `DIR/world.json`, written at every change ([`specs/server/storage.md`](specs/server/storage.md), "In a save folder"). The folder is also the server's data folder, so its key (`DIR/tls/`) stays the same from one start to the next, unless `--data` or `--tls-cert` says otherwise.
+```sh
+openm2-server serve --save local/saves/mine --key-sign-in --owner-key "$(openm2 key public)"
+```
+- **One server at a time** holds a save; a second one on the same folder stops at start, saying so.
+- **A save is your data:** copy the folder to keep it, or to move it to another machine. A `world.json` that is damaged, or written by a newer server, is refused and left as it is.
+- **With Postgres too?** No: `--save` and `--memory` each replace the database, and only one store is used.
+
+## Run by another program
+A program that starts the server for its player (the launcher for a local save, [`specs/update.md`](specs/update.md), "Local saves"; a script) wants to know when it is ready and to stop it cleanly:
+- **`--ready-line`:** once both servers listen, the server writes one line on stdout, then nothing more there (its logs go to stderr): `ready auth=PORT game=PORT key=sha256:…`, the ports it listens on (useful with `--auth-port 0 --game-port 0`, which take free ones) and the pin of its key, for the client's `--server-key`.
+- **`--until-stdin-closes`:** the server stops, saving everyone, when its stdin closes, as well as on Ctrl+C. A program that holds the server's stdin and closes it (or ends, even by crashing) stops it. Off by default: `docker run` without `-i` gives a closed stdin, which would stop the server at once.
+- **The exit code** is 0 after a clean stop, else 1 with the reason on stderr.
+
 ## Settings
 | Setting | Default | What |
 |---|---|---|
-| `OPENM2_DATABASE_URL` | none (required without `--memory`) | the Postgres URL; it holds the database's password, so it is only ever read from the environment and never printed. Its `sslmode` is `verify-full` unless it names another ([The database's TLS](#the-databases-tls)) |
+| `OPENM2_DATABASE_URL` | none (required without `--memory` or `--save`) | the Postgres URL; it holds the database's password, so it is only ever read from the environment and never printed. Its `sslmode` is `verify-full` unless it names another ([The database's TLS](#the-databases-tls)) |
 | `OPENM2_CONTENT`, `--content` | none: an empty world | the content folder ([Content](#content)); the Docker image reads `/content`, which `compose.yaml` mounts from `OPENM2_CONTENT_DIR` (default `deploy/empty-content`, an empty world) |
 | `OPENM2_LISTEN`, `--listen` | `127.0.0.1` | the address both listeners bind, `0.0.0.0` for every address (the Docker image sets `0.0.0.0` inside the container) |
 | `OPENM2_TLS_CERT`, `--tls-cert`; `OPENM2_TLS_KEY`, `--tls-key` | none | your certificate chain and its key, PEM ([TLS](#tls)) |
-| `OPENM2_DATA`, `--data` | none (the Docker image: `/data`) | the server's folder: its own self-signed certificate in `tls/`, made at the first start ([TLS](#tls)) |
+| `OPENM2_DATA`, `--data` | none (the Docker image: `/data`); a save's folder with `--save` | the server's folder: its own self-signed certificate in `tls/`, made at the first start ([TLS](#tls)) |
+| `OPENM2_SAVE`, `--save` | none | a save's folder: accounts and characters in `world.json` instead of Postgres ([Saves](#saves)) |
+| `--ready-line`, `--until-stdin-closes` | off | for a program that runs the server ([Run by another program](#run-by-another-program)) |
 | `OPENM2_PUBLISH` | `127.0.0.1` | `compose.yaml` only: the host's address the game's ports are published on; `0.0.0.0` for every address |
-| `OPENM2_PROVIDERS`, `--providers` | none: required | the providers file ([Sign-in with a provider](#sign-in-with-a-provider)); the Docker image reads `/providers.toml`, which `compose.yaml` mounts from `OPENM2_PROVIDERS_FILE` (required) |
+| `OPENM2_PROVIDERS`, `--providers` | none: required without `--key-sign-in` | the providers file ([Sign-in with a provider](#sign-in-with-a-provider)); the Docker image reads `/providers.toml`, which `compose.yaml` mounts from `OPENM2_PROVIDERS_FILE` (required) |
+| `OPENM2_KEY_SIGN_IN`, `--key-sign-in` | `false` | devices' own keys may sign in ([Sign-in with a device key](#sign-in-with-a-device-key)) |
+| `OPENM2_OWNER_KEY`, `--owner-key` | none | a device's key, `ed25519:` and 64 hex digits, whose account is a game master; needs `--key-sign-in` |
 | `OPENM2_PROVIDER_<ID>_SECRET` | none | a provider's client secret, for a confidential client; with Docker, in `./local/provider-secrets.env` |
 | `OPENM2_GAME_MASTERS`, `--game-masters` | none: nobody | the accounts that may use the game masters' commands, account names separated by commas ([Game masters](#game-masters)) |
 | `OPENM2_AUTH_PORT`, `--auth-port` | `11002` | the auth server's port |
@@ -161,7 +192,7 @@ Players of the accounts you name may set their character's level and give it gol
 | `/gm off`, `/gm on` | the mark over the character hidden, or shown again; kept with the character |
 
 1. **Find your account's name:** sign in and type `/account` in the chat. It answers `Your account: google:nixzoi2rkfeta`. It is the same on every server with the same provider, and after the database is wiped.
-2. **Name it** in `OPENM2_GAME_MASTERS` (or `--game-masters`), several separated by commas, then start the server again. The log says `game masters: 1`. A name that is not one stops the server at start, saying which.
+2. **Name it** in `OPENM2_GAME_MASTERS` (or `--game-masters`), several separated by commas, then start the server again. The log says `game masters: 1`. A name that is not one stops the server at start, saying which. On a server that takes devices' keys, `--owner-key` names a key instead ([Sign-in with a device key](#sign-in-with-a-device-key)).
 3. For anyone else these commands are unknown, as any other. Each one used is in the log: `game master account 2 on character 5: /item 11299 1`.
 
 ## What it records
@@ -204,6 +235,6 @@ So a small VPS holds both with room to spare; players' load is not measured yet.
 ## Tests
 - `cargo test -p m2-content`: the content format: every rule, written files read back, random folders.
 - `cargo test -p m2-server-core`: the session's and the world's rules, the fights, the items, the shops and the skills, one snapshot per scenario, and random sessions (with monsters, fights, items, shops and skills too); every player signs in through the provider's messages, the test answering for the edge's checks.
-- `cargo test -p m2-server`: real clients (`m2-core` and `m2-net`, as the bot uses them) against the running server, each signing in with the fake provider as a player the test names, one of them watching monsters stroll, one refused when the provider's token is for another client; TLS from outside (`tls.rs`: plaintext, no or another ALPN name, a handshake that never comes, too many handshakes from one address); the certificate in a data folder; providers' sign-ins against a fake provider made at test time (`oidc.rs`: the exchange, a token for another connection or client, a code used twice, keys that change, a provider that names another issuer or is down; `clients.rs`: a player signing in twice), and the ID token's checks with tokens built by hand (`alg: none`, HMAC with the RSA key, wrong claims, unknown keys); storage's rules on both stores, identities too; a character found where it was left after a restart; TLS to the database (`postgres_tls.rs`: through a stand-in with the test's own authority, verified, and refused for an unknown authority, another name or no TLS). The Postgres tests run when `OPENM2_TEST_DATABASE_URL` is set (each makes its own schema and drops it) and are skipped otherwise; CI runs them on Linux against a Postgres service.
+- `cargo test -p m2-server`: real clients (`m2-core` and `m2-net`, as the bot uses them) against the running server, each signing in with the fake provider as a player the test names, one of them watching monsters stroll, one refused when the provider's token is for another client; TLS from outside (`tls.rs`: plaintext, no or another ALPN name, a handshake that never comes, too many handshakes from one address); the certificate in a data folder; providers' sign-ins against a fake provider made at test time (`oidc.rs`: the exchange, a token for another connection or client, a code used twice, keys that change, a provider that names another issuer or is down; `clients.rs`: a player signing in twice), and the ID token's checks with tokens built by hand (`alg: none`, HMAC with the RSA key, wrong claims, unknown keys); storage's rules on every store, identities too, and a save read back, held by one server and refused when damaged or newer; a character found where it was left after a restart, on a save and on Postgres; devices' keys (`keys.rs`); the binary run as another program would (`serve.rs`: a save, the ready line, stopped by closing stdin, started again); TLS to the database (`postgres_tls.rs`: through a stand-in with the test's own authority, verified, and refused for an unknown authority, another name or no TLS). The Postgres tests run when `OPENM2_TEST_DATABASE_URL` is set (each makes its own schema and drops it) and are skipped otherwise; CI runs them on Linux against a Postgres service.
 - `cargo test -p m2-cli --test own_server`: the `openm2 bot` binary on our server, signing in with the fake provider (the test plays the browser) (the messages of entering in the session spec's order), the bot seeing monsters stroll, killing one (`--fight`), dying and restarting (`--restart`), wearing, dropping and picking up items and gold (`--use`, `--drop`, `--drop-gold`, `--pick-up`), shopping (`--shop`, `--buy`, `--sell`), using a skill (`--skill-up`, `--skill`), signing in twice to one account, another player to another, and a refused sign-in, and all of it but the restart in one run, with its bytes on the wire checked and its game connection resuming the TLS session; `--test content`: the import on a synthetic client.
 - CI also builds the Docker image, starts it and has it make its certificate in `/data` (`tls key`).

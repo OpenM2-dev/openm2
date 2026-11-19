@@ -15,6 +15,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
+use m2_protocol::key_sign_in::{BINDING_LEN, EXPORTER_LABEL};
 use m2_protocol::profile::openm2::{
     ClientMessage, MAX_CLIENT_FRAME, MAX_SERVER_FRAME, ServerMessage,
 };
@@ -33,6 +34,7 @@ use tokio_rustls::TlsAcceptor;
 use tokio_rustls::server::TlsStream;
 use tracing::Instrument as _;
 
+use crate::key_sign_in;
 use crate::oidc::Providers;
 use crate::store::Store;
 use crate::telemetry::Metrics;
@@ -295,6 +297,9 @@ enum Message {
         listener: Listener,
         peer: IpAddr,
         stream: Box<Stream>,
+        /// The connection's TLS channel binding (RFC 9266), which a
+        /// device's key signs.
+        binding: Option<[u8; BINDING_LEN]>,
     },
     Received(ConnId, ClientMessage),
     Closed(ConnId, String),
@@ -306,6 +311,8 @@ enum Message {
 struct Handle {
     writer: mpsc::Sender<Vec<u8>>,
     reader: AbortHandle,
+    /// Its TLS channel binding, for a device's key's signature.
+    binding: Option<[u8; BINDING_LEN]>,
 }
 
 /// The core task's state.
@@ -439,12 +446,16 @@ async fn handshake(
     let resumed = state.handshake_kind() == Some(HandshakeKind::Resumed);
     edge.metrics
         .handshake(if resumed { "resumed" } else { "full" });
+    let binding = state
+        .export_keying_material([0u8; BINDING_LEN], EXPORTER_LABEL, None)
+        .ok();
     let conn = ConnId(edge.numbers.fetch_add(1, Ordering::Relaxed) + 1);
     let message = Message::Accepted {
         conn,
         listener: kind,
         peer: peer.ip(),
         stream: Box::new(stream),
+        binding,
     };
     let _ = inputs.send(message).await;
 }
@@ -461,13 +472,19 @@ impl Core {
                 listener,
                 peer,
                 stream,
+                binding,
             } => {
                 let (read, write) = tokio::io::split(*stream);
                 let (writer, queue) = mpsc::channel(WRITE_QUEUE);
                 tokio::spawn(write_loop(write, queue));
                 let reader =
                     tokio::spawn(read_loop(conn, read, self.inputs.clone())).abort_handle();
-                self.conns.insert(conn, Handle { writer, reader });
+                let handle = Handle {
+                    writer,
+                    reader,
+                    binding,
+                };
+                self.conns.insert(conn, handle);
                 self.step(Input::Accepted {
                     conn,
                     listener,
@@ -564,6 +581,19 @@ impl Core {
                     }
                     .instrument(span),
                 );
+                None
+            }
+            Effect::CheckKeySignIn { request, sign_in } => {
+                // One signature to verify: cheap enough to do here, against
+                // the binding of the connection it came on.
+                let binding = self.conns.get(&sign_in.conn).and_then(|conn| conn.binding);
+                let result = key_sign_in::check(&sign_in, binding.as_ref());
+                self.metrics
+                    .sign_in(m2_protocol::key_sign_in::PROVIDER.to_owned(), &result);
+                let inputs = self.inputs.clone();
+                self.tasks.spawn(async move {
+                    let _ = inputs.send(Message::SignInChecked(request, result)).await;
+                });
                 None
             }
             Effect::Event(event) => {

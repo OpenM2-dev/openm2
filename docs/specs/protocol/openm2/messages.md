@@ -52,6 +52,7 @@ A message is its id, a LEB128 varint, then its fields in order; on the wire each
 | 41 | Upgrade | Upgrades the item an UpgradeOffer showed, at a smith or with a scroll, at its costs. |
 | 42 | Cast | Casts our fishing pole's line toward the water that way. |
 | 43 | ReelIn | Reels our line in: after a bite, to catch what bit; before one, to stop fishing. |
+| 44 | KeyLogin | Signs in with this device's own key, on the auth server: the key and its signature over this connection's nonce and channel binding. |
 
 ## Server → client
 
@@ -91,7 +92,7 @@ A message is its id, a LEB128 varint, then its fields in order; on the wire each
 | 33 | QuickSlotsSwapped | Two of our quickslots swapped what they hold. |
 | 34 | Skills | All of our character's skills: after entering, and when one changes. |
 | 35 | SkillGroup | Our character's skill group. |
-| 36 | SignInOptions | The answer to StartSignIn: the providers players may sign in with, and the nonce the ID token must carry. |
+| 36 | SignInOptions | The answer to StartSignIn: the ways in (providers, a device's key) and the nonce an ID token or a key's signature must carry. |
 | 37 | SignedIn | The auth server accepted a provider's sign-in: the account and a ticket for the game server. |
 | 38 | MoveRefused | The server refused our last move (through a wall, off the map, out of reach): our character stands at this point instead. |
 | 39 | Projectile | A monster shot at a target: its attack motion's flying effect flies there. |
@@ -476,6 +477,15 @@ Reels our line in: after a bite, to catch what bit; before one, to stop fishing.
 
 No fields.
 
+### KeyLogin (id 44, client → server)
+
+Signs in with this device's own key, on the auth server: the key and its signature over this connection's nonce and channel binding.
+
+| Field | Type | Description |
+|---|---|---|
+| `public_key` | `[u8; 32]` | The device's Ed25519 public key; the account follows from it. |
+| `signature` | `[u8; 64]` | Ed25519 signature of `m2_protocol::key_sign_in::signed_message`: the nonce from SignInOptions and the connection's TLS channel binding. |
+
 ### Welcome (id 1, server → client)
 
 The server speaks the client's protocol: the session goes on.
@@ -516,7 +526,7 @@ The auth server or the game server refused the login.
 
 | Field | Type | Description |
 |---|---|---|
-| `reason` | `u8` | 2 the account is in the game, 3 the server is full, 4 too many failed tries, 5 the ticket is not valid, 6 the provider did not confirm the sign-in, 7 the server could not reach the provider; 1 is reserved and never sent. |
+| `reason` | `u8` | 2 the account is in the game, 3 the server is full, 4 too many failed tries, 5 the ticket is not valid, 6 the provider did not confirm the sign-in, 7 the server could not reach the provider, 8 the server did not accept this device's key; 1 is reserved and never sent. |
 
 ### Empire (id 7, server → client)
 
@@ -808,12 +818,13 @@ Our character's skill group.
 
 ### SignInOptions (id 36, server → client)
 
-The answer to StartSignIn: the providers players may sign in with, and the nonce the ID token must carry.
+The answer to StartSignIn: the ways in (providers, a device's key) and the nonce an ID token or a key's signature must carry.
 
 | Field | Type | Description |
 |---|---|---|
 | `providers` | `list<Provider; 8>` | The providers; empty when the server has none. |
-| `nonce` | `string<64>` | Single use, for this connection only; empty when the server has no providers. |
+| `nonce` | `string<64>` | Single use, for this connection only; empty when the server offers no way in. |
+| `key_sign_in` | `bool` | Whether the server takes a device's own key (KeyLogin). |
 
 ### SignedIn (id 37, server → client)
 

@@ -1,4 +1,6 @@
-//! Accounts and characters in memory: lost when the server stops.
+//! Accounts and characters in memory: lost when the server stops. The
+//! rules live in [`MemoryData::apply`], which the save file's store
+//! (`file.rs`) uses too.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex, PoisonError};
@@ -11,19 +13,90 @@ use m2_server_core::{
 
 use super::identity_account_name;
 
-#[derive(Debug, Default)]
-struct MemoryData {
-    accounts: BTreeMap<u64, Account>,
-    characters: BTreeMap<u32, (u64, Character)>,
-    /// Providers' players' accounts, by issuer and subject.
-    identities: BTreeMap<(String, String), u64>,
+/// Everything a store in memory holds.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(super) struct MemoryData {
+    pub(super) accounts: BTreeMap<u64, Account>,
+    /// Characters, by number, with their accounts' numbers; never their
+    /// friends (those are `friendships`).
+    pub(super) characters: BTreeMap<u32, (u64, Character)>,
+    /// Providers' players' and devices' keys' accounts, by issuer and
+    /// subject.
+    pub(super) identities: BTreeMap<(String, String), u64>,
     /// Friendships, each once: the lower character number first.
-    friendships: BTreeSet<(u32, u32)>,
-    next_account: u64,
-    next_character: u32,
+    pub(super) friendships: BTreeSet<(u32, u32)>,
+    pub(super) next_account: u64,
+    pub(super) next_character: u32,
 }
 
 impl MemoryData {
+    /// Carries out one request.
+    pub(super) fn apply(&mut self, request: StoreRequest) -> StoreAnswer {
+        match request {
+            StoreRequest::IdentityLogin {
+                provider,
+                issuer,
+                subject,
+            } => StoreAnswer::LoginChecked(Ok(self.identity(&provider, issuer, subject))),
+            StoreRequest::LoadCharacters { account } => {
+                let mut characters: Vec<Character> = self
+                    .characters
+                    .values()
+                    .filter(|(owner, _)| *owner == account.0)
+                    .map(|(_, character)| Character {
+                        friends: self.friends_of(character.id),
+                        ..character.clone()
+                    })
+                    .collect();
+                characters.sort_by_key(|character| character.slot);
+                StoreAnswer::Characters(Ok(characters))
+            }
+            StoreRequest::CreateCharacter { account, character } => {
+                StoreAnswer::CharacterCreated(self.create(account, character))
+            }
+            StoreRequest::SaveCharacter { account, character } => {
+                StoreAnswer::Saved(match self.characters.get_mut(&character.id) {
+                    Some((owner, stored)) if *owner == account.0 => {
+                        // Only a newer save; never its name, class, slot,
+                        // empire or friends.
+                        if stored.saves < character.saves {
+                            *stored = Character {
+                                id: stored.id,
+                                slot: stored.slot,
+                                name: stored.name.clone(),
+                                class: stored.class,
+                                empire: stored.empire,
+                                friends: Vec::new(),
+                                ..character
+                            };
+                        }
+                        Ok(())
+                    }
+                    _ => Err(StoreError(format!(
+                        "no character {} of account {}",
+                        character.id, account.0
+                    ))),
+                })
+            }
+            StoreRequest::AddFriendship { characters } => {
+                StoreAnswer::FriendshipWritten(self.pair(characters).map(|pair| {
+                    self.friendships.insert(pair);
+                }))
+            }
+            StoreRequest::RemoveFriendship { characters: [a, b] } => {
+                StoreAnswer::FriendshipWritten(if a == b {
+                    Err(StoreError(format!(
+                        "character {a} cannot be its own friend"
+                    )))
+                } else {
+                    // No such friendship, or no such character: nothing to end.
+                    self.friendships.remove(&(a.min(b), a.max(b)));
+                    Ok(())
+                })
+            }
+        }
+    }
+
     /// Two characters that exist, the lower number first, as a friendship
     /// is kept.
     fn pair(&self, [a, b]: [u32; 2]) -> Result<(u32, u32), StoreError> {
@@ -65,6 +138,65 @@ impl MemoryData {
         friends.sort_by_key(|friend| friend.name.to_ascii_lowercase());
         friends
     }
+
+    /// The account of an identity, made at its first sign-in.
+    fn identity(&mut self, provider: &str, issuer: String, subject: String) -> Account {
+        let name = identity_account_name(provider, &issuer, &subject);
+        let key = (issuer, subject);
+        let id = match self.identities.get(&key) {
+            Some(id) => *id,
+            None => {
+                self.next_account += 1;
+                let id = self.next_account;
+                let account = Account {
+                    id: AccountId(id),
+                    name,
+                    empire: None,
+                };
+                self.accounts.insert(id, account);
+                self.identities.insert(key, id);
+                id
+            }
+        };
+        self.accounts.get(&id).cloned().unwrap_or(Account {
+            id: AccountId(id),
+            name: String::new(),
+            empire: None,
+        })
+    }
+
+    fn create(
+        &mut self,
+        account: AccountId,
+        mut character: Character,
+    ) -> Result<Character, CreateRefusal> {
+        if self
+            .characters
+            .values()
+            .any(|(_, c)| c.name.eq_ignore_ascii_case(&character.name))
+        {
+            return Err(CreateRefusal::NameTaken);
+        }
+        let owned: Vec<u8> = self
+            .characters
+            .values()
+            .filter(|(owner, _)| *owner == account.0)
+            .map(|(_, c)| c.slot)
+            .collect();
+        if owned.len() >= MAX_CHARACTERS || owned.contains(&character.slot) {
+            return Err(CreateRefusal::NoRoom);
+        }
+        let Some(row) = self.accounts.get_mut(&account.0) else {
+            return Err(CreateRefusal::Unavailable);
+        };
+        row.empire.get_or_insert(character.empire);
+        self.next_character += 1;
+        character.id = self.next_character;
+        character.friends.clear();
+        self.characters
+            .insert(character.id, (account.0, character.clone()));
+        Ok(character)
+    }
 }
 
 /// Accounts and characters in memory.
@@ -100,132 +232,6 @@ impl MemoryStore {
     }
 
     pub(super) async fn handle(&self, request: StoreRequest) -> StoreAnswer {
-        match request {
-            StoreRequest::IdentityLogin {
-                provider,
-                issuer,
-                subject,
-            } => StoreAnswer::LoginChecked(Ok(self.identity(&provider, issuer, subject))),
-            StoreRequest::LoadCharacters { account } => {
-                let data = self.data();
-                let mut characters: Vec<Character> = data
-                    .characters
-                    .values()
-                    .filter(|(owner, _)| *owner == account.0)
-                    .map(|(_, character)| Character {
-                        friends: data.friends_of(character.id),
-                        ..character.clone()
-                    })
-                    .collect();
-                characters.sort_by_key(|character| character.slot);
-                StoreAnswer::Characters(Ok(characters))
-            }
-            StoreRequest::CreateCharacter { account, character } => {
-                StoreAnswer::CharacterCreated(self.create(account, character))
-            }
-            StoreRequest::SaveCharacter { account, character } => {
-                let mut data = self.data();
-                StoreAnswer::Saved(match data.characters.get_mut(&character.id) {
-                    Some((owner, stored)) if *owner == account.0 => {
-                        // Only a newer save; never its name, class, slot,
-                        // empire or friends.
-                        if stored.saves < character.saves {
-                            *stored = Character {
-                                id: stored.id,
-                                slot: stored.slot,
-                                name: stored.name.clone(),
-                                class: stored.class,
-                                empire: stored.empire,
-                                friends: Vec::new(),
-                                ..character
-                            };
-                        }
-                        Ok(())
-                    }
-                    _ => Err(StoreError(format!(
-                        "no character {} of account {}",
-                        character.id, account.0
-                    ))),
-                })
-            }
-            StoreRequest::AddFriendship { characters } => {
-                let mut data = self.data();
-                StoreAnswer::FriendshipWritten(data.pair(characters).map(|pair| {
-                    data.friendships.insert(pair);
-                }))
-            }
-            StoreRequest::RemoveFriendship { characters: [a, b] } => {
-                StoreAnswer::FriendshipWritten(if a == b {
-                    Err(StoreError(format!(
-                        "character {a} cannot be its own friend"
-                    )))
-                } else {
-                    // No such friendship, or no such character: nothing to end.
-                    self.data().friendships.remove(&(a.min(b), a.max(b)));
-                    Ok(())
-                })
-            }
-        }
-    }
-
-    /// The account of a provider's player, made at their first sign-in.
-    fn identity(&self, provider: &str, issuer: String, subject: String) -> Account {
-        let name = identity_account_name(provider, &issuer, &subject);
-        let mut data = self.data();
-        let key = (issuer, subject);
-        let id = match data.identities.get(&key) {
-            Some(id) => *id,
-            None => {
-                data.next_account += 1;
-                let id = data.next_account;
-                let account = Account {
-                    id: AccountId(id),
-                    name,
-                    empire: None,
-                };
-                data.accounts.insert(id, account);
-                data.identities.insert(key, id);
-                id
-            }
-        };
-        data.accounts.get(&id).cloned().unwrap_or(Account {
-            id: AccountId(id),
-            name: String::new(),
-            empire: None,
-        })
-    }
-
-    fn create(
-        &self,
-        account: AccountId,
-        mut character: Character,
-    ) -> Result<Character, CreateRefusal> {
-        let mut data = self.data();
-        if data
-            .characters
-            .values()
-            .any(|(_, c)| c.name.eq_ignore_ascii_case(&character.name))
-        {
-            return Err(CreateRefusal::NameTaken);
-        }
-        let owned: Vec<u8> = data
-            .characters
-            .values()
-            .filter(|(owner, _)| *owner == account.0)
-            .map(|(_, c)| c.slot)
-            .collect();
-        if owned.len() >= MAX_CHARACTERS || owned.contains(&character.slot) {
-            return Err(CreateRefusal::NoRoom);
-        }
-        let Some(row) = data.accounts.get_mut(&account.0) else {
-            return Err(CreateRefusal::Unavailable);
-        };
-        row.empire.get_or_insert(character.empire);
-        data.next_character += 1;
-        character.id = data.next_character;
-        character.friends.clear();
-        data.characters
-            .insert(character.id, (account.0, character.clone()));
-        Ok(character)
+        self.data().apply(request)
     }
 }

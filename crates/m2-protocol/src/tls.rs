@@ -65,17 +65,22 @@ impl FromStr for KeyPin {
     /// Reads `sha256:` and 64 hex digits, in either case.
     fn from_str(text: &str) -> Result<Self, Self::Err> {
         let hex = text.trim().strip_prefix(PREFIX).ok_or(PinError::Prefix)?;
-        if hex.len() != 64 || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
-            return Err(PinError::Digits);
-        }
-        let value = |digit: u8| char::from(digit).to_digit(16).unwrap_or(0) as u8;
-        let mut digest = [0u8; 32];
-        let (pairs, _) = hex.as_bytes().as_chunks::<2>();
-        for (byte, [high, low]) in digest.iter_mut().zip(pairs) {
-            *byte = value(*high) << 4 | value(*low);
-        }
-        Ok(Self(digest))
+        parse_hex32(hex).map(Self).ok_or(PinError::Digits)
     }
+}
+
+/// 64 hex digits, in either case, as 32 bytes; `None` for anything else.
+pub(crate) fn parse_hex32(hex: &str) -> Option<[u8; 32]> {
+    if hex.len() != 64 || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    let value = |digit: u8| char::from(digit).to_digit(16).unwrap_or(0) as u8;
+    let mut bytes = [0u8; 32];
+    let (pairs, _) = hex.as_bytes().as_chunks::<2>();
+    for (byte, [high, low]) in bytes.iter_mut().zip(pairs) {
+        *byte = value(*high) << 4 | value(*low);
+    }
+    Some(bytes)
 }
 
 #[cfg(test)]

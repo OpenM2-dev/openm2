@@ -1,0 +1,42 @@
+---
+source: crates/m2-server-core/tests/key_sign_in.rs
+expression: h.log
+---
+-- the auth server: no providers, but keys, and a nonce
+@1000 conn#1 accepted on auth from 10.0.0.1
+   -> event: conn#1: accepted on auth
+@1000 conn#1 sends Hello protocol=4 "openm2 test"
+   -> event: conn#1: openm2 test speaks protocol 4
+   -> send conn#1 Welcome protocol=4
+@1000 conn#1 sends StartSignIn
+   -> send conn#1 SignInOptions [] nonce="f400927857aaf64114f561baacb37970" key
+-- the key and its signature; the edge checks them with the nonce and the connection
+@1000 conn#1 sends KeyLogin
+   -> check key sign-in #1: conn#1 ed25519:1111111111111111111111111111111111111111111111111111111111111111 nonce=f400927857aaf64114f561baacb37970
+@1000 sign-in #1 checked: openm2:key ed25519:1111111111111111111111111111111111111111111111111111111111111111
+   -> store #2: identity login key openm2:key ed25519:1111111111111111111111111111111111111111111111111111111111111111
+@1000 store answers #2: login ok, account 1 None
+   -> event: conn#1: account 1 signed in with key
+   -> send conn#1 SignedIn key:ed25519:1111111111111111111111111111111111111111111111111111111111111111 8c79… (32 bytes)
+@1000 conn#1 closed: the client left
+   -> event: conn#1: closed: the client left
+-- the game server takes the ticket as for a provider's sign-in
+@1000 conn#2 accepted on game from 10.0.0.1
+   -> event: conn#2: accepted on game
+@1000 conn#2 sends Hello protocol=4 "openm2 test"
+   -> event: conn#2: openm2 test speaks protocol 4
+   -> send conn#2 Welcome protocol=4
+@1000 conn#2 sends TicketLogin key:ed25519:1111111111111111111111111111111111111111111111111111111111111111 8c79… (32 bytes)
+   -> event: conn#2: account 1 joined the game server
+   -> store #3: load characters of 1
+@1000 store answers #3: characters []
+   -> send conn#2 Empire 0
+   -> send conn#2 Phase 1
+   -> send conn#2 CharacterList []
+@1000 conn#2 sends CreateCharacter slot=0 Hero class=0 empire=3
+   -> store #4: create Hero for 1 in slot 0 at (963400, 278200) empire 3
+@1000 store answers #4: created #1 Hero in slot 0
+   -> event: conn#2: character 1 created
+   -> send conn#2 CharacterCreated slot=0 #1 Hero class=0 st=6 ht=4 dx=3 iq=3
+@1000 conn#2 closed: the client left
+   -> event: conn#2: closed: the client left

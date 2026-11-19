@@ -55,12 +55,12 @@ Every connection runs under TLS 1.3 from its first byte (rustls with aws-lc-rs);
 ## Versions
 - **The major version** is the TLS ALPN name, `openm2/1` ("TLS"): a client of another major version cannot finish the TLS handshake with the server.
 - **`Hello`** is the client's first message on each connection: the minor version it speaks (`PROTOCOL`), and its build for the logs.
-- **The minor version** is 3, the only one the server speaks. Client id 3 and server id 5 are reserved: no message uses them, so an older peer's message is never read as another.
+- **The minor version** is 4, the only one the server speaks. Client id 3 and server id 5 are reserved: no message uses them, so an older peer's message is never read as another.
 - **The server answers** `Welcome` (its own minor version and build) or `Refused` (`session.md`, "Versions"). After `Refused` it closes the connection.
 - **`Hello` (client 1), `Welcome` (server 1) and `Refused` (server 2) keep their ids and layouts in every version,** so any two versions can tell each other they do not match.
 
 ## Logins
-- **Two connections:** on the auth server a provider's sign-in takes `StartSignIn`, `SignInOptions` and `ProviderLogin`, and is answered with `SignedIn`, the account's name and a 32-byte ticket (`session.md`, "Signing in with a provider"); `TicketLogin` presents the ticket on the game server (`session.md`, "Logins"). There is no password login.
+- **Two connections:** on the auth server a provider's sign-in takes `StartSignIn`, `SignInOptions` and `ProviderLogin`, and is answered with `SignedIn`, the account's name and a 32-byte ticket (`session.md`, "Signing in with a provider"); a device's key takes `KeyLogin` instead of `ProviderLogin`, its signature bound to the connection's TLS channel binding (`session.md`, "Signing in with a device key"); `TicketLogin` presents the ticket on the game server (`session.md`, "Logins"). There is no password login.
 - **Secrets:** tickets, providers' codes and PKCE verifiers are marked `secret`. `Debug` prints `<redacted>`, and `redacted()` empties them before a message is written to a capture, so not even their length shows.
 
 ## Size

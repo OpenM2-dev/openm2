@@ -139,6 +139,8 @@ fn water_way(walls: &Walls, from: Point, facing: u16) -> Option<u16> {
 const HEAD_HEIGHT: f32 = 180.0;
 
 const TURN: f32 = 0.01;
+/// The largest logo file read, in bytes.
+const MAX_LOGO: u64 = 8 * 1024 * 1024;
 /// Pixels the mouse may move between press and release for a click.
 const CLICK_SLOP: f64 = 5.0;
 /// How far a click looks for the ground, in centimetres.
@@ -231,6 +233,10 @@ pub struct PlayArgs {
     /// (to open it elsewhere, or on a machine without one)
     #[arg(long)]
     no_browser: bool,
+    /// The device's key file, for `--provider key` (default:
+    /// device-key.pem beside the settings file); made when there is none
+    #[arg(long = "device-key", value_name = "FILE")]
+    device_key: Option<PathBuf>,
     /// Character slot to play (0-3), without the select screen
     #[arg(long)]
     slot: Option<u8>,
@@ -303,6 +309,9 @@ pub struct PlayArgs {
     /// host anywhere.
     #[arg(skip)]
     official: Option<String>,
+    /// The game's own logo, the settings file's `logo`.
+    #[arg(skip)]
+    logo: Option<PathBuf>,
     /// No window: draw one picture of a screen into this PNG, then log out
     #[arg(long, value_name = "FILE")]
     screenshot: Option<PathBuf>,
@@ -475,6 +484,27 @@ fn open_browser(url: &str) -> std::io::Result<()> {
         .map(|_| ())
 }
 
+/// The login board's buttons: the server's providers and, when it takes
+/// devices' keys, This device, which signs in with this device's key; it
+/// takes the last button there is room for.
+fn with_device(mut providers: Vec<SignInProvider>, key_sign_in: bool) -> Vec<SignInProvider> {
+    if key_sign_in {
+        let at = providers
+            .len()
+            .min(crate::interface::ids::PROVIDER_BUTTONS.len() - 1);
+        providers.insert(
+            at,
+            SignInProvider {
+                id: m2_protocol::key_sign_in::PROVIDER.to_owned(),
+                name: "This device".to_owned(),
+                authorize: String::new(),
+                client_id: String::new(),
+            },
+        );
+    }
+    providers
+}
+
 /// Asks the auth server at `net` for its providers on a thread of its own;
 /// the login screen shows a button each when they come, or why there are
 /// none.
@@ -484,7 +514,7 @@ fn ask_providers(net: NetConfig) -> mpsc::Receiver<Result<Vec<SignInProvider>, S
         .name("openm2 providers".to_owned())
         .spawn(move || {
             let result = match crate::servers::ask(&net) {
-                Ok(answer) => Ok(answer.providers),
+                Ok(answer) => Ok(with_device(answer.providers, answer.key_sign_in)),
                 Err(AskError::Session(error)) => Err(crate::screens::failure_text(&error)),
                 Err(AskError::Silent) => Err("The server did not say how to sign in.".to_owned()),
                 Err(AskError::Net(words)) => Err(crate::screens::sentence(&words)),
@@ -520,6 +550,8 @@ struct Connection {
     remote: Remote,
     shared: Arc<Mutex<Shared>>,
     thread: Option<JoinHandle<()>>,
+    /// It signs in with the device's key: no browser to wait for.
+    key: bool,
 }
 
 impl Connection {
@@ -527,10 +559,17 @@ impl Connection {
     /// `login`, from 1, which names its capture.
     fn start(
         args: &PlayArgs,
-        net_config: NetConfig,
+        mut net_config: NetConfig,
         config: SessionConfig,
         login: u32,
     ) -> Result<Self> {
+        let key = config.signs_with_key();
+        if key {
+            net_config.device_key = Some(crate::key::load(
+                args.device_key.as_deref(),
+                args.settings.as_deref(),
+            )?);
+        }
         let path = args
             .capture
             .as_deref()
@@ -571,6 +610,7 @@ impl Connection {
             remote,
             shared,
             thread: Some(thread),
+            key,
         })
     }
 
@@ -3098,6 +3138,12 @@ impl<'a> Client<'a> {
     fn new(args: &'a PlayArgs) -> Result<Self> {
         let mut game = Game::new(args)?;
         let mut interface = PlayInterface::new(game.source.skin()?, !args.no_interface)?;
+        if let Some(path) = &args.logo {
+            match read_logo(path) {
+                Ok(logo) => interface.set_logo(logo),
+                Err(error) => eprintln!("note: the client's logo shows: {error:#}"),
+            }
+        }
         let settings = player_settings(args);
         interface.set_settings(settings);
         interface
@@ -3743,6 +3789,10 @@ impl<'a> Client<'a> {
         let progress = match stage {
             None | Some(Stage::LoggedOut | Stage::Failed) => Progress::Offline,
             Some(Stage::Idle | Stage::Auth) => Progress::Connecting,
+            // A device's key signs at once: no browser to wait for.
+            Some(Stage::SigningIn) if self.connection.as_ref().is_some_and(|c| c.key) => {
+                Progress::Connecting
+            }
             Some(Stage::SigningIn) => Progress::SigningIn,
             Some(Stage::Joining) if world.selected.is_none() => Progress::Connecting,
             Some(Stage::Joining) => Progress::Loading(0.25),
@@ -3877,6 +3927,19 @@ impl<'a> Client<'a> {
     }
 }
 
+/// The game's own logo: a PNG of at most [`MAX_LOGO`] bytes.
+fn read_logo(path: &Path) -> Result<m2_formats::RgbaImage> {
+    let read = || -> Result<_> {
+        let size = std::fs::metadata(path)?.len();
+        if size > MAX_LOGO {
+            bail!("more than {MAX_LOGO} bytes");
+        }
+        let (image, _) = m2_render::png::decode_any(&std::fs::read(path)?)?;
+        Ok(image)
+    };
+    read().with_context(|| format!("the logo {}", path.display()))
+}
+
 /// How long changed settings wait before they are written.
 const SAVE_SETTINGS_AFTER: Duration = Duration::from_millis(500);
 
@@ -3892,6 +3955,7 @@ pub fn run(mut args: PlayArgs) -> Result<ExitCode> {
         );
     }
     args.assets = args.assets_arg.clone().or(config.assets);
+    args.logo = config.logo;
     if args.assets.is_none() {
         bail!(
             "which asset folder? Give --assets, or `assets` in the settings file (openm2.toml); `openm2 assets import` makes one of your client"
@@ -4671,6 +4735,35 @@ fn once_key(once: Once) -> u32 {
 mod tests {
     use super::*;
     use crate::actors::tests::motion;
+
+    #[test]
+    fn a_server_that_takes_devices_keys_has_a_this_device_button() {
+        let provider = |id: &str| SignInProvider {
+            id: id.to_owned(),
+            name: id.to_owned(),
+            authorize: "https://id.example/authorize".to_owned(),
+            client_id: "openm2".to_owned(),
+        };
+        let ids = |list: Vec<SignInProvider>| -> Vec<String> {
+            list.into_iter().map(|provider| provider.id).collect()
+        };
+        assert_eq!(ids(with_device(vec![provider("a")], false)), ["a"]);
+        assert_eq!(ids(with_device(Vec::new(), true)), ["key"]);
+        assert_eq!(ids(with_device(vec![provider("a")], true)), ["a", "key"]);
+        let four = ["a", "b", "c", "d"].map(provider).to_vec();
+        assert_eq!(
+            ids(with_device(four, true)),
+            ["a", "b", "c", "key", "d"],
+            "on the last button there is"
+        );
+        let device = with_device(Vec::new(), true).remove(0);
+        assert_eq!(device.name, "This device");
+        assert!(
+            SessionConfig::provider(&device.id)
+                .unwrap()
+                .signs_with_key()
+        );
+    }
 
     #[test]
     fn each_login_in_the_window_has_its_own_capture() {

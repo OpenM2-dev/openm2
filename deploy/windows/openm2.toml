@@ -1,0 +1,12 @@
+# The game's settings, as one of the version's files beside openm2.exe
+# (docs/specs/client.md, "The settings file"): every install has them, and
+# installs already out there get them with their next update. release.yml
+# puts this file into the version's folder.
+#
+# The project's own server, first on the login screen's Servers board under
+# its name, where it can be neither edited nor removed. Its certificate is
+# self-signed: players pin its key.
+format = 1
+host = "play.openm2.net"
+server_name = "OpenM2"
+server_key = "sha256:d6365035aab0d67e4f758fbe44a510b7fbca98b49dc85fcc058b8da203c802e6"

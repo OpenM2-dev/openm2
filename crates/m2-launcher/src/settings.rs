@@ -338,7 +338,7 @@ pub fn names_assets(path: &Path) -> Result<bool> {
 }
 
 /// A small file's text, or none when it doesn't exist.
-fn read_small(path: &Path) -> Result<Option<String>> {
+pub(crate) fn read_small(path: &Path) -> Result<Option<String>> {
     let file = match File::open(path) {
         Ok(file) => file,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),

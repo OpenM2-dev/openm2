@@ -10,7 +10,8 @@
 //!   each with a maximum ([`codec`]).
 //! - A frame is its length as a varint, then the message ([`wire`]).
 //! - The version and the frame limits are in [`profile::openm2`]; the
-//!   major version (the ALPN name) and server key pins in [`tls`].
+//!   major version (the ALPN name) and server key pins in [`tls`]; what a
+//!   device's key signs to sign in in [`key_sign_in`].
 
 #![forbid(unsafe_code)]
 #![deny(
@@ -21,6 +22,7 @@
 )]
 
 pub mod codec;
+pub mod key_sign_in;
 pub mod message;
 pub mod profile;
 pub mod tls;

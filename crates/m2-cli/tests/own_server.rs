@@ -268,6 +268,84 @@ fn the_bot_plays_on_our_own_server() {
     server.stop();
 }
 
+/// `openm2 bot --provider key` signs in with the device's own key, with no
+/// browser, on a server that takes keys; `openm2 key public` names the
+/// account the key gets, and the next sign-in finds it again.
+#[test]
+fn the_bot_signs_in_with_a_device_key_on_our_own_server() {
+    let server = Server::start(
+        m2_server_core::Config {
+            key_sign_in: true,
+            ..m2_server_core::Config::default()
+        },
+        m2_content::Content::default(),
+    );
+    let dir = std::env::temp_dir().join(format!("openm2-device-key-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let key = dir.join("device-key.pem");
+
+    let public = Command::new(env!("CARGO_BIN_EXE_openm2"))
+        .args(["key", "public", "--device-key"])
+        .arg(&key)
+        .env_remove("OPENM2_SETTINGS")
+        .output()
+        .unwrap();
+    assert!(public.status.success(), "{public:?}");
+    let public = String::from_utf8_lossy(&public.stdout).trim().to_owned();
+    let account = m2_server::store::key_account_name(&public.parse().unwrap());
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        let mode = std::fs::metadata(&key).unwrap().permissions().mode();
+        assert_eq!(mode & 0o777, 0o600);
+    }
+
+    let bot = |args: &[&str]| {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_openm2"));
+        command
+            .args([
+                "bot",
+                "--host",
+                "127.0.0.1",
+                "--auth-port",
+                &server.running.auth_port().to_string(),
+                "--game-port",
+                &server.running.game_port().to_string(),
+                "--server-key",
+                &server.running.server_key().to_string(),
+                "--provider",
+                "key",
+                "--device-key",
+            ])
+            .arg(&key)
+            .args(args)
+            .env_remove("RUST_LOG");
+        let output = support::run(command, |address| panic!("a browser for {address}"));
+        let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+        let report = format!("{stdout}\n{}", String::from_utf8_lossy(&output.stderr));
+        assert!(output.status.success(), "{report}");
+        stdout
+    };
+    let stdout = bot(&[
+        "--create", "Keyed", "--empire", "jinno", "--say", "/account", "--stay", "1",
+    ]);
+    for line in [
+        "auth: 1 provider(s) test (Test ID), and devices' keys".to_owned(),
+        "auth: logged in".to_owned(),
+        "game: created Keyed in slot 0".to_owned(),
+        format!("Your account: {account}"),
+    ] {
+        assert!(stdout.contains(&line), "missing {line:?}\n{stdout}");
+    }
+
+    let stdout = bot(&["--slot", "0"]);
+    assert!(stdout.contains("game: 1 character(s)"), "{stdout}");
+    assert!(stdout.contains("slot 0: Keyed"), "{stdout}");
+    std::fs::remove_dir_all(&dir).unwrap();
+    server.stop();
+}
+
 /// Made-up content: a group of two monsters 13 m south of Jinno's start and
 /// an NPC beside it. The monsters run 10 m/s, so a stroll (at most 7 m)
 /// ends before the next one starts.

@@ -1,7 +1,7 @@
 //! The client's settings file, `openm2.toml` (`docs/specs/client.md`): where
 //! the server is, its name in the Servers board and the key it holds, the provider to sign in with and what
-//! it shows, and the asset folder to play with. Flags and environment
-//! variables win over it.
+//! it shows, the asset folder to play with, and the game's own logo. Flags
+//! and environment variables win over it.
 
 use std::fs::File;
 use std::io::Read as _;
@@ -41,6 +41,9 @@ pub struct ClientConfig {
     /// The asset folder to play with, from the file's own folder when
     /// relative.
     pub assets: Option<PathBuf>,
+    /// A PNG the login screen shows in place of the client's logo, from
+    /// the file's own folder when relative.
+    pub logo: Option<PathBuf>,
 }
 
 /// The file as written.
@@ -56,9 +59,24 @@ struct Settings {
     provider: Option<String>,
     sign_in_prompt: Option<String>,
     assets: Option<PathBuf>,
+    logo: Option<PathBuf>,
 }
 
 impl ClientConfig {
+    /// The settings without the file's server (`host`, `server_name`, the
+    /// ports and the key), for a `--host` naming another server: they are
+    /// the file's server's.
+    pub fn without_server(self) -> Self {
+        Self {
+            host: None,
+            server_name: None,
+            auth_port: None,
+            game_port: None,
+            server_key: None,
+            ..self
+        }
+    }
+
     /// Reads `path`, or else `openm2.toml` beside the program when there is
     /// one (no settings without it).
     pub fn load(path: Option<&Path>) -> Result<Self> {
@@ -133,6 +151,7 @@ impl ClientConfig {
             provider: settings.provider,
             sign_in_prompt,
             assets: settings.assets.map(within),
+            logo: settings.logo.map(within),
         })
     }
 }
@@ -149,7 +168,7 @@ mod tests {
             "format = 1\nhost = \"play.example.net\"\nserver_name = \" Example \"\n\
              auth_port = 21002\ngame_port = 23001\n\
              server_key = \"{PIN}\"\nprovider = \"clerk\"\nsign_in_prompt = \"login\"\n\
-             assets = \"assets\"\n"
+             assets = \"assets\"\nlogo = \"logo.png\"\n"
         );
         let config = ClientConfig::parse(&text, Path::new("install")).unwrap();
         assert_eq!(config.host.as_deref(), Some("play.example.net"));
@@ -160,6 +179,7 @@ mod tests {
         assert_eq!(config.provider.as_deref(), Some("clerk"));
         assert_eq!(config.sign_in_prompt, Some(SignInPrompt::Login));
         assert_eq!(config.assets, Some(Path::new("install").join("assets")));
+        assert_eq!(config.logo, Some(Path::new("install").join("logo.png")));
         // Absolute on the system the test runs on: `C:/…` is relative on Linux.
         let assets = if cfg!(windows) {
             "C:/Games/assets"

@@ -13,15 +13,15 @@ use std::sync::Arc;
 use m2_content::Content;
 use m2_protocol::profile::openm2::{
     CharacterMove, ClearQuickSlot, ClientMessage, CreateCharacter, DropGold, DropItem, EnterGame,
-    Hello, Hit, LearnSkillGroup, MoveItem, PROTOCOL, PickUp, Pong, ProviderLogin, RaiseSkill,
-    RaiseStatus, Restart, SelectCharacter, SendChat, ServerMessage, SetQuickSlot, SetTarget,
-    ShopBuy, ShopClose, ShopSell, SignInOptions, StartSignIn, SwapQuickSlots, Talk, TicketLogin,
-    UseItem, UseItemOnSkill, UseSkill,
+    Hello, Hit, KeyLogin, LearnSkillGroup, MoveItem, PROTOCOL, PickUp, Pong, ProviderLogin,
+    RaiseSkill, RaiseStatus, Restart, SelectCharacter, SendChat, ServerMessage, SetQuickSlot,
+    SetTarget, ShopBuy, ShopClose, ShopSell, SignInOptions, StartSignIn, SwapQuickSlots, Talk,
+    TicketLogin, UseItem, UseItemOnSkill, UseSkill,
 };
 use m2_server_core::{
     Account, AccountId, Character, Config, ConnId, CreateRefusal, Effect, Identity, Input,
-    Listener, Millis, ProviderOffer, RequestId, Server, SignIn, SignInRefusal, StoreAnswer,
-    StoreError, StoreRequest, StoredFriend,
+    KeySignIn, Listener, Millis, ProviderOffer, RequestId, Server, SignIn, SignInRefusal,
+    StoreAnswer, StoreError, StoreRequest, StoredFriend,
 };
 
 pub const SEED: [u8; 32] = [7; 32];
@@ -48,6 +48,14 @@ pub fn identity(subject: &str) -> Identity {
     Identity {
         issuer: ISSUER.to_owned(),
         subject: subject.to_owned(),
+    }
+}
+
+/// The identity of a device's key, as the edge hands it in.
+pub fn key_identity(key: [u8; 32]) -> Identity {
+    Identity {
+        issuer: m2_protocol::key_sign_in::ISSUER.to_owned(),
+        subject: m2_protocol::key_sign_in::PublicKey::from_bytes(key).to_string(),
     }
 }
 
@@ -236,6 +244,8 @@ pub struct Harness {
     pub held: Vec<(RequestId, StoreRequest)>,
     /// Providers' sign-ins waiting for [`Harness::answer_sign_in`].
     pub sign_ins: Vec<(RequestId, SignIn)>,
+    /// Devices' keys waiting for [`Harness::answer_key_sign_in`].
+    pub key_sign_ins: Vec<(RequestId, KeySignIn)>,
     /// Leave ticks that do nothing out of the log.
     pub quiet_ticks: bool,
     /// The empire the next CreateCharacter carries ([`Harness::empire`]).
@@ -266,6 +276,15 @@ impl Harness {
         Self::exactly(Config::default(), Content::default())
     }
 
+    /// A server that takes devices' keys and has no providers.
+    pub fn with_key_sign_in() -> Self {
+        let config = Config {
+            key_sign_in: true,
+            ..Config::default()
+        };
+        Self::exactly(config, Content::default())
+    }
+
     fn exactly(config: Config, content: Content) -> Self {
         let detailed = !content.groups().is_empty() || !content.npcs().is_empty();
         Self {
@@ -282,6 +301,7 @@ impl Harness {
             hold_loads: false,
             held: Vec::new(),
             sign_ins: Vec::new(),
+            key_sign_ins: Vec::new(),
             quiet_ticks: false,
             empire: None,
             next_conn: 0,
@@ -328,17 +348,26 @@ impl Harness {
                 }
                 Effect::Close { conn } => self.clients.entry(*conn).or_default().closed = true,
                 Effect::Event(event) => self.events.push(event.clone()),
-                Effect::Store { .. } | Effect::CheckSignIn { .. } => {}
+                Effect::Store { .. }
+                | Effect::CheckSignIn { .. }
+                | Effect::CheckKeySignIn { .. } => {}
             }
             all.push(effect);
         }
         let mut answers = Vec::new();
-        let (checks, mut all): (Vec<Effect>, Vec<Effect>) = all
-            .into_iter()
-            .partition(|effect| matches!(effect, Effect::CheckSignIn { .. }));
+        let (checks, mut all): (Vec<Effect>, Vec<Effect>) = all.into_iter().partition(|effect| {
+            matches!(
+                effect,
+                Effect::CheckSignIn { .. } | Effect::CheckKeySignIn { .. }
+            )
+        });
         for effect in checks {
-            if let Effect::CheckSignIn { request, sign_in } = effect {
-                self.sign_ins.push((request, sign_in));
+            match effect {
+                Effect::CheckSignIn { request, sign_in } => self.sign_ins.push((request, sign_in)),
+                Effect::CheckKeySignIn { request, sign_in } => {
+                    self.key_sign_ins.push((request, sign_in));
+                }
+                _ => {}
             }
         }
         for effect in &mut all {
@@ -802,6 +831,23 @@ impl Harness {
         sign_in
     }
 
+    /// Sends a device's key and a signature; the core never checks the
+    /// signature itself, the edge does.
+    pub fn key_login(&mut self, conn: ConnId, public_key: [u8; 32]) {
+        let login = KeyLogin {
+            public_key,
+            signature: [0x5A; 64],
+        };
+        self.send(conn, ClientMessage::KeyLogin(login));
+    }
+
+    /// Answers the oldest key check waiting.
+    pub fn answer_key_sign_in(&mut self, result: Result<Identity, SignInRefusal>) -> KeySignIn {
+        let (request, sign_in) = self.key_sign_ins.remove(0);
+        self.step(Input::SignInChecked { request, result });
+        sign_in
+    }
+
     /// Answers the saves held so far, in order.
     pub fn release_saves(&mut self) {
         for (request, what) in std::mem::take(&mut self.held) {
@@ -939,6 +985,13 @@ pub fn show_effect_as(effect: &Effect, detailed: bool) -> String {
         Effect::CheckSignIn { request, sign_in } => format!(
             "check sign-in #{}: {} {} nonce={}",
             request.0, sign_in.provider, sign_in.redirect, sign_in.nonce
+        ),
+        Effect::CheckKeySignIn { request, sign_in } => format!(
+            "check key sign-in #{}: {} {} nonce={}",
+            request.0,
+            sign_in.conn,
+            m2_protocol::key_sign_in::PublicKey::from_bytes(sign_in.public_key),
+            sign_in.nonce
         ),
         Effect::Event(event) => format!("event: {event}"),
     }
@@ -1097,13 +1150,14 @@ pub fn show_server_as(message: &ServerMessage, detailed: bool) -> String {
         ServerMessage::Phase(p) => format!("Phase {}", p.phase),
         ServerMessage::SignedIn(s) => format!("SignedIn {} {}", s.account, show_ticket(&s.ticket)),
         ServerMessage::SignInOptions(o) => format!(
-            "SignInOptions [{}] nonce={:?}",
+            "SignInOptions [{}] nonce={:?}{}",
             o.providers
                 .iter()
                 .map(|p| p.id.as_str())
                 .collect::<Vec<_>>()
                 .join(", "),
-            o.nonce
+            o.nonce,
+            if o.key_sign_in { " key" } else { "" }
         ),
         ServerMessage::LoginRefused(r) => format!("LoginRefused {}", r.reason),
         ServerMessage::Empire(e) => format!("Empire {}", e.empire),

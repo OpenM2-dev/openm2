@@ -5,12 +5,12 @@ expression: s.log
 @0ms Start
     -> Connect { conn: ConnId(1), server: Auth }
 @5ms Connected(ConnId(1))
-    -> Send { conn: ConnId(1), message: Hello(Hello { protocol: 3, build: "openm2 test" }) }
-@6ms Message(ConnId(1), Welcome(Welcome { protocol: 3, server: "openm2-server test" }))
-    -> Event(Welcomed { server: Auth, protocol: 3, name: "openm2-server test" })
+    -> Send { conn: ConnId(1), message: Hello(Hello { protocol: 4, build: "openm2 test" }) }
+@6ms Message(ConnId(1), Welcome(Welcome { protocol: 4, server: "openm2-server test" }))
+    -> Event(Welcomed { server: Auth, protocol: 4, name: "openm2-server test" })
     -> Send { conn: ConnId(1), message: StartSignIn(StartSignIn) }
-@7ms Message(ConnId(1), SignInOptions(SignInOptions { providers: [Provider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }], nonce: "n0nce" }))
-    -> Event(SignInOptions([SignInProvider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }]))
+@7ms Message(ConnId(1), SignInOptions(SignInOptions { providers: [Provider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }], nonce: "n0nce", key_sign_in: false }))
+    -> Event(SignInOptions(SignInOffer { providers: [SignInProvider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }], key: false }))
     -> SignIn { provider: SignInProvider { id: "example", name: "Example ID", authorize: "https://id.example/authorize", client_id: "openm2" }, nonce: "n0nce" }
 @8ms SignInCode(SignInCode { redirect: "http://127.0.0.1:50000/callback", .. })
     -> Send { conn: ConnId(1), message: ProviderLogin(ProviderLogin { provider: "example", code: <redacted>, verifier: <redacted>, redirect: "http://127.0.0.1:50000/callback" }) }
@@ -19,9 +19,9 @@ expression: s.log
     -> Disconnect { conn: ConnId(1) }
     -> Connect { conn: ConnId(2), server: Game }
 @25ms Connected(ConnId(2))
-    -> Send { conn: ConnId(2), message: Hello(Hello { protocol: 3, build: "openm2 test" }) }
-@26ms Message(ConnId(2), Welcome(Welcome { protocol: 3, server: "openm2-server test" }))
-    -> Event(Welcomed { server: Game, protocol: 3, name: "openm2-server test" })
+    -> Send { conn: ConnId(2), message: Hello(Hello { protocol: 4, build: "openm2 test" }) }
+@26ms Message(ConnId(2), Welcome(Welcome { protocol: 4, server: "openm2-server test" }))
+    -> Event(Welcomed { server: Game, protocol: 4, name: "openm2-server test" })
     -> Send { conn: ConnId(2), message: TicketLogin(TicketLogin { username: "example:admin", ticket: <redacted> }) }
 @90ms Command(Select { slot: 0 })
     -> Event(Ignored { what: "Select", why: "not choosing a character" })

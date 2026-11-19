@@ -1,16 +1,18 @@
 //! The launcher's window: how far the update has got, then
-//! a Play button; the question for the player's client when a version
+//! a Play button, or Singleplayer and Multiplayer where the version plays
+//! local saves; the question for the player's client when a version
 //! needs it; and what failed, with Try again and Play the previous
-//! version. The steps run on worker threads ([`crate::flow`]) and tell the
-//! window through its event loop; while the game runs there is no window,
-//! and it comes back if the game stops with an error.
+//! version. Singleplayer is the local saves: their list, a new one's name,
+//! and one played ([`crate::host`]). The steps run on worker threads ([`crate::flow`]) and
+//! tell the window through its event loop; while the game runs there is no
+//! window, and it comes back if the game stops with an error.
 
 mod clipboard;
 mod draw;
 pub mod screen;
 
 pub use draw::render;
-pub use screen::{Action, Look, SKIN, Stage, new_ui, show};
+pub use screen::{Action, Look, SKIN, SaveRow, Stage, new_ui, show};
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -31,7 +33,9 @@ use winit::keyboard::{Key, ModifiersState, NamedKey};
 use winit::window::WindowId;
 
 use crate::flow::{self, Plan, Planned, Wanted};
+use crate::host::{self, Hosting, server_name};
 use crate::process::{GAME_LOG, Stop, tail};
+use crate::saves::{self, Save};
 use crate::{
     APP, ConsoleProgress, Http, IMPORT_LOG, Install, LAUNCHER_FILE, LauncherSettings, Log, Outcome,
     Progress, VERSION_WINDOW, WindowSettings, game_name, launcher_name, replace_launcher,
@@ -179,9 +183,25 @@ enum Event {
     GameStarted,
     /// The game ended.
     GameExited(Result<ExitStatus>),
+    /// How far playing a save has got.
+    Hosting(Hosting),
+    /// Playing a save ended: its game and its server stopped.
+    SaveEnded(Result<(), host::Failure>),
     /// The system's dialog closed: what the player picked, if anything.
     #[cfg(windows)]
     Browsed(Option<PathBuf>),
+}
+
+/// What follows the plan, once the game can start.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Then {
+    /// The ready screen.
+    Ready,
+    /// The game, at once (Play again, Play the previous version).
+    Play,
+    /// The game at once, unless the version plays local saves: then the
+    /// ready screen, for the player to choose (Play after a failed update).
+    Choose,
 }
 
 /// What Try again does.
@@ -193,6 +213,8 @@ enum Retry {
     Plan,
     /// The question for the client, its fields as they were.
     Ask,
+    /// The save played last.
+    Save,
 }
 
 struct App {
@@ -220,11 +242,19 @@ struct App {
     planned: Option<Planned>,
     /// The game and `play`'s arguments, once nothing else is needed.
     ready: Option<(PathBuf, Vec<OsString>)>,
-    /// Start the game as soon as it's ready (Play the previous version,
-    /// Play again).
-    then_play: bool,
+    /// What follows the plan.
+    then: Then,
     /// The plan is for the version before the last update.
     for_previous: bool,
+    /// The version can play local saves.
+    hostable: bool,
+    /// The local saves, as last read.
+    saves: Vec<Save>,
+    /// The first of them shown, and the one chosen.
+    first: usize,
+    selected: Option<usize>,
+    /// The save played last.
+    hosting: Option<Save>,
     retry: Retry,
     stop: Stop,
     /// When the import or check started.
@@ -263,8 +293,13 @@ impl App {
             notes: Vec::new(),
             planned: None,
             ready: None,
-            then_play: false,
+            then: Then::Ready,
             for_previous: start.previous,
+            hostable: false,
+            saves: Vec::new(),
+            first: 0,
+            selected: None,
+            hosting: None,
             retry: Retry::Update,
             stop: Stop::default(),
             since: None,
@@ -418,17 +453,17 @@ impl App {
     }
 
     /// Worker: what starting the version needs.
-    fn start_plan(&mut self, previous: bool, then_play: bool) {
+    fn start_plan(&mut self, previous: bool, then: Then) {
         let Some(install) = self.install.clone() else {
             self.start_update();
             return;
         };
         self.retry = Retry::Plan;
         self.for_previous = previous;
-        self.then_play = then_play;
+        self.then = then;
         self.ready = None;
         // The game starts next only when the player asked for it already.
-        self.set_stage(if then_play {
+        self.set_stage(if then == Then::Play {
             Stage::Launching
         } else {
             Stage::Starting
@@ -538,12 +573,18 @@ impl App {
 
     fn ready_or_play(&mut self, game: PathBuf, args: Vec<OsString>) {
         self.ready = Some((game, args));
-        if self.then_play {
+        let play = match self.then {
+            Then::Ready => false,
+            Then::Play => true,
+            Then::Choose => !self.hostable,
+        };
+        if play {
             self.launch();
         } else {
             self.set_stage(Stage::Ready {
                 version: self.version.clone(),
                 notes: self.notes.clone(),
+                saves: self.hostable,
             });
         }
     }
@@ -589,7 +630,7 @@ impl App {
                             self.log.line(&said);
                             self.version = Some(version);
                         }
-                        self.start_plan(self.previous_flag, false);
+                        self.start_plan(self.previous_flag, Then::Ready);
                     }
                     Err(error) if self.install.is_none() => {
                         self.fail("The launcher can't start", &error, Vec::new());
@@ -604,6 +645,11 @@ impl App {
                 }
                 let game = planned.game.clone();
                 let plan = planned.plan.clone();
+                // Local saves need the version's server, and the client
+                // imported for both the game and the saves' world.
+                self.hostable = planned.imports
+                    && !self.for_previous
+                    && game.with_file_name(server_name()).is_file();
                 self.planned = Some(planned);
                 match plan {
                     Plan::Play(args) => self.ready_or_play(game, args),
@@ -674,6 +720,34 @@ impl App {
                     self.open_window(event_loop);
                 }
             }
+            Event::Hosting(hosting) => self.hosting(hosting),
+            Event::SaveEnded(ended) => {
+                self.game_running = false;
+                match ended {
+                    Ok(()) => {
+                        self.log
+                            .line("the game ended, and the save's server with it");
+                        self.exit = Some(ExitCode::SUCCESS);
+                        event_loop.exit();
+                        return;
+                    }
+                    Err(_) if self.stop.is_stopped() => return,
+                    Err(failure) => {
+                        self.log
+                            .line(&format!("{}: {:#}", failure.what, failure.error));
+                        let mut why = vec![self.log.redacted(&format!("{:#}", failure.error))];
+                        why.extend(failure.lines.iter().map(|line| self.log.redacted(line)));
+                        self.exit = Some(ExitCode::FAILURE);
+                        self.set_stage(Stage::SaveFailed {
+                            what: failure.what,
+                            why,
+                        });
+                    }
+                }
+                if self.painter.is_none() {
+                    self.open_window(event_loop);
+                }
+            }
             #[cfg(windows)]
             Event::Browsed(picked) => {
                 if let Some(path) = picked {
@@ -707,13 +781,183 @@ impl App {
     }
 
     fn set_line(&mut self, new: String) {
-        if let Stage::Importing { why, seconds, .. } = &self.stage {
-            let stage = Stage::Importing {
+        let stage = match &self.stage {
+            Stage::Importing { why, seconds, .. } => Stage::Importing {
                 why: why.clone(),
                 line: new,
                 seconds: *seconds,
-            };
-            self.set_stage(stage);
+            },
+            Stage::Hosting { step, seconds, .. } => Stage::Hosting {
+                step: step.clone(),
+                line: new,
+                seconds: *seconds,
+            },
+            _ => return,
+        };
+        self.set_stage(stage);
+    }
+
+    /// What playing the save does now.
+    fn hosting(&mut self, hosting: Hosting) {
+        let name = self
+            .hosting
+            .as_ref()
+            .map(|save| save.name.clone())
+            .unwrap_or_default();
+        let step = match hosting {
+            Hosting::Progress(progress) => return self.progress(progress),
+            Hosting::GameStarted => {
+                self.game_running = true;
+                // The game has the screen: the window and its device go.
+                self.painter = None;
+                return;
+            }
+            Hosting::Importing(why) => {
+                self.log.line(&format!("importing the saves' world: {why}"));
+                format!("Making the world from your client ({why})")
+            }
+            Hosting::Starting => {
+                self.log
+                    .line(&format!("starting the server of the save {name}"));
+                format!("Opening {name}")
+            }
+            Hosting::Playing => "Starting the game".to_owned(),
+        };
+        let seconds = self.since.map_or(0, |since| since.elapsed().as_secs());
+        self.set_stage(Stage::Hosting {
+            step,
+            line: String::new(),
+            seconds,
+        });
+    }
+
+    /// The local saves, read again; `chosen` (a save's name) is the one
+    /// chosen if it's there, else the one chosen before, else the first.
+    fn show_saves(&mut self, chosen: Option<&str>) {
+        let before = self
+            .selected
+            .and_then(|at| self.saves.get(at))
+            .map(|save| save.name.clone());
+        match saves::list(&self.root) {
+            Ok(list) => self.saves = list,
+            Err(error) => {
+                self.log.line(&format!("the saves: {error:#}"));
+                self.retry = Retry::Save;
+                return self.set_stage(Stage::SaveFailed {
+                    what: "The saves can't be read".to_owned(),
+                    why: vec![format!("{error:#}")],
+                });
+            }
+        }
+        let named = |name: &str| self.saves.iter().position(|save| save.name == name);
+        self.selected = chosen
+            .and_then(named)
+            .or_else(|| before.as_deref().and_then(named))
+            .or((!self.saves.is_empty()).then_some(0));
+        self.first = screen::page(self.first, self.selected, self.saves.len());
+        self.show_saves_stage();
+    }
+
+    fn show_saves_stage(&mut self) {
+        let rows = self
+            .saves
+            .iter()
+            .map(|save| screen::SaveRow {
+                name: save.name.clone(),
+                detail: save.detail(),
+            })
+            .collect();
+        self.set_stage(Stage::Saves {
+            rows,
+            first: self.first,
+            selected: self.selected,
+        });
+    }
+
+    /// Moves the saves' page by `rows`.
+    fn scroll(&mut self, rows: isize) {
+        let last = self.saves.len().saturating_sub(screen::ROWS);
+        self.first = self.first.saturating_add_signed(rows).min(last);
+        self.show_saves_stage();
+    }
+
+    /// Asks for a new save's name, the field emptied.
+    fn naming(&mut self, problem: Option<String>) {
+        if let Some(ui) = &mut self.ui {
+            if problem.is_none() {
+                ui.set_text("launcher.save.name", "");
+            }
+            ui.focus("launcher.save.name");
+        }
+        self.set_stage(Stage::Naming { problem });
+    }
+
+    /// Makes the save named in the field, and chooses it.
+    fn create_typed(&mut self) {
+        let typed = self
+            .ui
+            .as_ref()
+            .and_then(|ui| ui.text("launcher.save.name"))
+            .unwrap_or_default()
+            .to_owned();
+        match saves::create(&self.root, &typed) {
+            Ok(save) => {
+                self.log.line(&format!("made the save {}", save.name));
+                self.show_saves(Some(&save.name));
+            }
+            Err(error) => self.naming(Some(format!("{error:#}"))),
+        }
+    }
+
+    /// Worker: plays `save` with the installed version.
+    fn host(&mut self, save: Save) {
+        let Some(install) = self.install.clone() else {
+            return;
+        };
+        let game = install.app().join(game_name());
+        let server = install.app().join(server_name());
+        self.retry = Retry::Save;
+        self.since = Some(Instant::now());
+        self.lines.clear();
+        self.stop = Stop::default();
+        self.log.line(&format!("playing the save {}", save.name));
+        self.hosting = Some(save.clone());
+        self.set_stage(Stage::Hosting {
+            step: format!("Opening {}", save.name),
+            line: String::new(),
+            seconds: 0,
+        });
+        let (proxy, root, stop) = (self.proxy.clone(), self.root.clone(), self.stop.clone());
+        let extra = self.play_args.clone();
+        thread::spawn(move || {
+            let ended = host::play_save(&game, &server, &root, &save, &extra, &stop, &mut |step| {
+                Self::send(&proxy, Event::Hosting(step));
+            });
+            Self::send(&proxy, Event::SaveEnded(ended));
+        });
+    }
+
+    /// Plays the save chosen.
+    fn host_selected(&mut self) {
+        if let Some(save) = self.selected.and_then(|at| self.saves.get(at)).cloned() {
+            self.host(save);
+        }
+    }
+
+    /// Back: from the saves to the choice of Singleplayer and Multiplayer,
+    /// from a new save or a failure to the saves.
+    fn back(&mut self) {
+        match self.stage {
+            Stage::Saves { .. } => self.set_stage(Stage::Ready {
+                version: self.version.clone(),
+                notes: self.notes.clone(),
+                saves: self.hostable,
+            }),
+            Stage::Naming { .. } | Stage::SaveFailed { .. } => {
+                self.exit = None;
+                self.show_saves(None);
+            }
+            _ => {}
         }
     }
 
@@ -730,6 +974,11 @@ impl App {
                 seconds: now,
             },
             Stage::CheckingClient { .. } => Stage::CheckingClient { seconds: now },
+            Stage::Hosting { step, line, .. } => Stage::Hosting {
+                step: step.clone(),
+                line: line.clone(),
+                seconds: now,
+            },
             _ => return,
         };
         self.set_stage(stage);
@@ -740,14 +989,35 @@ impl App {
         match action {
             Action::Play => match &self.stage {
                 Stage::Ready { .. } => self.launch(),
-                _ => self.start_plan(self.for_previous && self.has_game(true), true),
+                Stage::Saves { .. } => self.host_selected(),
+                Stage::Failed { .. } => {
+                    self.start_plan(self.for_previous && self.has_game(true), Then::Choose)
+                }
+                _ => self.start_plan(self.for_previous && self.has_game(true), Then::Play),
             },
-            Action::Previous => self.start_plan(true, true),
+            Action::Previous => self.start_plan(true, Then::Play),
             Action::Retry => match self.retry {
                 Retry::Update => self.start_update(),
-                Retry::Plan => self.start_plan(self.for_previous, self.then_play),
+                Retry::Plan => self.start_plan(self.for_previous, self.then),
                 Retry::Ask => self.ask(None),
+                Retry::Save => match self.hosting.clone() {
+                    Some(save) => self.host(save),
+                    None => self.show_saves(None),
+                },
             },
+            Action::Saves if self.hostable => self.show_saves(None),
+            Action::NewSave => self.naming(None),
+            Action::Create => self.create_typed(),
+            Action::Back => self.back(),
+            Action::Pick(at) => {
+                if self.first + at < self.saves.len() {
+                    self.selected = Some(self.first + at);
+                    self.show_saves_stage();
+                }
+            }
+            Action::Up => self.scroll(-1),
+            Action::Down => self.scroll(1),
+            Action::Saves => {}
             Action::Import => self.import_typed(),
             Action::BrowseClient => self.browse(false),
             Action::BrowseKeys => self.browse(true),
@@ -844,7 +1114,7 @@ impl App {
         self.stop.stop();
         self.exit = Some(match self.stage {
             Stage::GameFailed { .. } => self.exit.unwrap_or(ExitCode::FAILURE),
-            Stage::Failed { .. } => ExitCode::FAILURE,
+            Stage::Failed { .. } | Stage::SaveFailed { .. } => ExitCode::FAILURE,
             _ => ExitCode::SUCCESS,
         });
         event_loop.exit();
@@ -860,6 +1130,9 @@ impl App {
                 UiEvent::Clicked(id) => screen::action(&id),
                 UiEvent::Submitted { .. } if matches!(self.stage, Stage::Asking { .. }) => {
                     Some(Action::Import)
+                }
+                UiEvent::Submitted { .. } if matches!(self.stage, Stage::Naming { .. }) => {
+                    Some(Action::Create)
                 }
                 _ => None,
             };
@@ -987,11 +1260,16 @@ impl ApplicationHandler<Event> for App {
                 }
             }
             WindowEvent::MouseWheel { delta, .. } => {
-                if let Some(ui) = &mut self.ui {
-                    let lines = match delta {
-                        MouseScrollDelta::LineDelta(_, y) => y,
-                        MouseScrollDelta::PixelDelta(p) => (p.y / 20.0) as f32,
-                    };
+                let lines = match delta {
+                    MouseScrollDelta::LineDelta(_, y) => y,
+                    MouseScrollDelta::PixelDelta(p) => (p.y / 20.0) as f32,
+                };
+                if matches!(self.stage, Stage::Saves { .. }) {
+                    // Up the wheel, up the list.
+                    if lines.abs() >= 0.5 {
+                        self.scroll(if lines > 0.0 { -1 } else { 1 });
+                    }
+                } else if let Some(ui) = &mut self.ui {
                     ui.wheel(lines);
                 }
             }
@@ -1004,7 +1282,7 @@ impl ApplicationHandler<Event> for App {
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         let ticking = matches!(
             self.stage,
-            Stage::Importing { .. } | Stage::CheckingClient { .. }
+            Stage::Importing { .. } | Stage::CheckingClient { .. } | Stage::Hosting { .. }
         );
         event_loop.set_control_flow(if ticking {
             ControlFlow::WaitUntil(Instant::now() + TICK)
