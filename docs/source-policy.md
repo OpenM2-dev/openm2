@@ -48,5 +48,8 @@ The repo is to hold a small original sample world (`docs/roadmap.md`):
 - **Fixtures live in a `fixtures/` folder** (top level or `crates/<crate>/tests/fixtures/`) and stay small; `just no-assets` caps them at 64 KiB. Game format tests build their data at run time with our writers instead of committing binary files.
 - **Tests that need real game files** read them from the path in `OPENM2_CLIENT_DIR` (or an import of it from `OPENM2_ASSETS_DIR`) and are skipped when it isn't set. They never copy those files into the repo.
 
+## Names
+"Metin2" is a trademark of its owners. openm2's docs use it only to describe compatibility: which client's files openm2 reads. This project is not affiliated with or endorsed by them, and uses none of their logos or art.
+
 ## When unsure
 Don't add it. Ask a maintainer.
