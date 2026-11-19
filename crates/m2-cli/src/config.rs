@@ -237,4 +237,27 @@ mod tests {
         assert_eq!(config.assets, Some(dir.join("imported")));
         std::fs::remove_dir_all(&dir).unwrap();
     }
+
+    /// The Windows release's settings read, and their logo is one of
+    /// `branding/`'s that reads as a PNG and that release.yml puts beside
+    /// them.
+    #[test]
+    fn the_release_shows_the_projects_logo() {
+        let config = ClientConfig::parse(
+            include_str!("../../../deploy/windows/openm2.toml"),
+            Path::new(""),
+        )
+        .unwrap();
+        let logo = config.logo.expect("the release names a logo");
+        let name = logo.to_str().unwrap();
+        let file = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../branding")
+            .join(name);
+        m2_render::png::decode_any(&std::fs::read(&file).unwrap()).unwrap();
+        let release = include_str!("../../../.github/workflows/release.yml");
+        assert!(
+            release.contains(&format!("branding/{name}")),
+            "release.yml doesn't copy branding/{name} into the version"
+        );
+    }
 }
