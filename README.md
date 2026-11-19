@@ -33,8 +33,8 @@ On Windows:
 4. **On the Servers board, add a server** by its address. Its operator gives you its key, or the game shows it at the first join and asks you to trust it.
 
 - **Updates:** at each start the launcher checks the latest release and downloads only the programs that changed, signed with openm2's release key ([docs/specs/update.md](docs/specs/update.md)). Your client's files are never downloaded or uploaded. When a version reads clients differently, the launcher imports yours again by itself and says why.
-- **Servers:** openm2 lists none of its own; you join the servers you add. To run one, see [docs/server.md](docs/server.md).
-- **Local saves:** the launcher's **Local saves** plays a world of your own on your computer, with no account and no internet, you its game master. Its world is made from your client too; each save is a folder in `saves/` ([docs/specs/update.md](docs/specs/update.md), "Local saves").
+- **Servers:** the Servers board starts with the project's own server, OpenM2, and lists the servers you add by their address. To run one, see [docs/server.md](docs/server.md).
+- **Singleplayer:** the launcher's **Singleplayer** plays a world of your own on your computer, with no account and no internet, you its game master. Its world is made from your client too; each save is a folder in `saves/` ([docs/specs/update.md](docs/specs/update.md), "Local saves").
 
 ## Building
 Prerequisites: [rustup](https://rustup.rs) (the toolchain is pinned in `rust-toolchain.toml` and installed on first build), [just](https://github.com/casey/just), and `cargo install --locked cargo-deny`.

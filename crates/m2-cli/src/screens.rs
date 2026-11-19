@@ -53,6 +53,11 @@ const MINIMAP: &str = "@minimap";
 /// The atlas's picture.
 const ATLAS_PICTURE: ImageId = ImageId(u32::MAX - 2);
 const ATLAS: &str = "@atlas";
+/// The game's own logo on the login screen: its number, its name in
+/// `login.ron`, and the room it is fitted into there.
+const LOGO_PICTURE: ImageId = ImageId(u32::MAX - 3);
+const LOGO: &str = "@logo";
+const LOGO_ROOM: (f32, f32) = (560.0, 170.0);
 
 /// Classes on the create screen, with their male and female values.
 const CLASSES: [(&str, CharacterClass, CharacterClass); 4] = [
@@ -395,6 +400,8 @@ pub(crate) struct PlayInterface {
     picking: bool,
     /// The minimap's zoom step, an index into [`ZOOMS`].
     minimap_zoom: usize,
+    /// The game's own logo, shown in place of the client's.
+    logo: Option<RgbaImage>,
     actions: Vec<Action>,
 }
 
@@ -439,6 +446,7 @@ impl PlayInterface {
             servers: ServerList::new(),
             picking: true,
             minimap_zoom: START_ZOOM,
+            logo: None,
             actions: Vec::new(),
         };
         interface.go(Screen::Login);
@@ -455,9 +463,35 @@ impl PlayInterface {
         files: &Files<'_>,
         filter: UiFilter,
     ) -> anyhow::Result<()> {
-        let interface = GpuInterface::new(gpu, format, &mut self.ui, Some(files), filter)?;
+        let mut interface = GpuInterface::new(gpu, format, &mut self.ui, Some(files), filter)?;
+        if let Some(logo) = &self.logo {
+            interface.set_image(gpu, LOGO_PICTURE, logo)?;
+        }
         self.gpu = Some(interface);
         Ok(())
+    }
+
+    /// Shows `logo`, the game's own (the settings file's `logo`), on the
+    /// login screen in place of the client's: as large as fits the
+    /// client's logo's room, its sides kept, centred there. Before
+    /// [`Self::attach`], which uploads it.
+    pub fn set_logo(&mut self, logo: RgbaImage) {
+        let (w, h) = (logo.width() as f32, logo.height() as f32);
+        let fit = (LOGO_ROOM.0 / w).min(LOGO_ROOM.1 / h);
+        let size = ((w * fit).round().max(1.0), (h * fit).round().max(1.0));
+        self.ui
+            .set_size(ids::LOGO_OWN, (Length::Px(size.0), Length::Px(size.1)));
+        self.ui.set_visible(ids::LOGO_OWN, true);
+        self.ui.set_visible(ids::LOGO_CLIENT, false);
+        self.ui.set_sprite(
+            LOGO,
+            Sprite {
+                image: LOGO_PICTURE,
+                uv: Rect::new(0.0, 0.0, 1.0, 1.0),
+                size: (w, h),
+            },
+        );
+        self.logo = Some(logo);
     }
 
     /// The screen shown.
@@ -1750,6 +1784,33 @@ mod tests {
         all.into_iter()
             .filter(|id| interface.ui.is_visible(id))
             .collect()
+    }
+
+    #[test]
+    fn the_games_own_logo_takes_the_clients_place() {
+        let mut interface = interface();
+        let shown = |interface: &PlayInterface| {
+            (
+                interface.ui.is_visible(ids::LOGO_CLIENT),
+                interface.ui.is_visible(ids::LOGO_OWN),
+            )
+        };
+        assert_eq!(shown(&interface), (true, false));
+        // Twice as wide as high: as high as the room, centred across it.
+        let logo = RgbaImage::from_pixels(400, 200, vec![255; 400 * 200 * 4]).unwrap();
+        interface.set_logo(logo);
+        assert_eq!(shown(&interface), (false, true));
+        interface.ui.layout(1280.0, 800.0);
+        let room = interface.ui.rect(ids::LOGO).unwrap();
+        let logo = interface.ui.rect(ids::LOGO_OWN).unwrap();
+        assert_eq!((logo.w, logo.h), (340.0, 170.0));
+        assert_eq!((logo.x - room.x, logo.y - room.y), (110.0, 0.0));
+        // Very wide: as wide as the room.
+        let wide = RgbaImage::from_pixels(1120, 70, vec![255; 1120 * 70 * 4]).unwrap();
+        interface.set_logo(wide);
+        interface.ui.layout(1280.0, 800.0);
+        let logo = interface.ui.rect(ids::LOGO_OWN).unwrap();
+        assert_eq!((logo.w, logo.h), (560.0, 35.0));
     }
 
     #[test]

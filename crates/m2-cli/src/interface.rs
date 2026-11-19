@@ -405,6 +405,8 @@ pub(crate) mod ids {
     pub const LOADING_GAUGE: &str = "loading.gauge";
     // login.ron
     pub const LOGO: &str = "login.logo";
+    pub const LOGO_CLIENT: &str = "login.logo.client";
+    pub const LOGO_OWN: &str = "login.logo.own";
     pub const LOGIN: &str = "login";
     pub const SERVER: &str = "login.server";
     pub const LOGIN_STATUS: &str = "login.status";
@@ -533,7 +535,7 @@ pub(crate) mod ids {
     /// Every id above but the skills window's rows (`skills.rs` checks
     /// those), for the test that checks the layouts have them.
     #[cfg(test)]
-    pub const ALL: [&str; 351] = [
+    pub const ALL: [&str; 353] = [
         CHAT,
         AFFECTS,
         AFFECTS_ICONS,
@@ -719,6 +721,8 @@ pub(crate) mod ids {
         LOADING_TEXT,
         LOADING_GAUGE,
         LOGO,
+        LOGO_CLIENT,
+        LOGO_OWN,
         LOGIN,
         SERVER,
         LOGIN_STATUS,

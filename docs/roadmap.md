@@ -54,13 +54,15 @@ What openm2 does today, what comes next, and what is still unknown. When you fin
 - **Transport:** TLS 1.3 with ALPN `openm2/1`. Servers are trusted by their certificate or by a pinned key. Logins use single-use 32-byte tickets.
 
 **Releases and updates**
-- **Releases:** a tag publishes the server's image to GHCR, and the Windows client with `openm2-launcher` and `openm2-server` to a GitHub Release, with third-party notices.
+- **Releases:** a tag publishes the server's image to GHCR, and the Windows client with `openm2-launcher` and `openm2-server` to a GitHub Release, with third-party notices. Its Servers board starts with the project's own server, `play.openm2.net`.
 - **`openm2-launcher`:** a window that keeps an install up to date from a channel's signed manifests and bundles. It imports the player's client once (Browse buttons for the folder and the keys file on Windows), imports it again when a version reads clients differently, then starts the game.
-- **Local saves:** the launcher's Local saves list named worlds on the player's own machine; Play runs the release's own `openm2-server` on one (the world imported from the player's client, no internet, no account), signs in with the device's key, the player its game master, and stops the server when the game ends. The login board's This device signs in again after a logout.
+- **Local saves:** the launcher asks Singleplayer or Multiplayer; Singleplayer lists named worlds on the player's own machine, and Play runs the release's own `openm2-server` on one (the world imported from the player's client, no internet, no account), signs in with the device's key, the player its game master, and stops the server when the game ends. The login board's This device signs in again after a logout.
 - **The release updates itself:** `openm2-setup.exe` installs it for the player alone (or the zip, unzipped anywhere), and its launcher follows the latest GitHub release, a flat channel of the programs only, signed with openm2's own key.
 - **`openm2 release`:** makes keys, writes, signs and verifies manifests.
 
 ## Next
+- **The project's server on this release:** the Windows release pins `play.openm2.net`, and installs join it once it runs this release's server (protocol 4); until then its row says `no answer` or `another version`.
+- **openm2's logo on the login screen:** `openm2.toml`'s `logo` shows a game's own logo in place of the client's. The Windows release can name the project's once `branding/` has the wordmark on transparency, cut close (the banner's dark background draws as a box over the login screen's pattern); then the release carries that file and an `openm2.toml` naming it.
 - **Local saves on the LAN:** a save opened to the network (bound beyond `127.0.0.1`, its ports kept in `save.toml`), its link (address and key) to copy for friends' Servers boards, and a cap on the accounts devices' keys make there.
 - **Local saves on a real Windows install:** the first release with the server, played from the setup's install: a new save, a game, the launcher closed and opened again, the character still there.
 - **An original sample world** in the repo, under `docs/source-policy.md`, "Original content". It needs a rule that lets it through `just no-assets`.

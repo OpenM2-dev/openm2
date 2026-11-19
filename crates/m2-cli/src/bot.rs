@@ -136,16 +136,26 @@ impl ServerArgs {
     /// and what the provider shows at a sign-in.
     /// Returns the file's settings, for the rest of the command.
     pub fn resolve(&mut self) -> Result<ClientConfig> {
-        let config = ClientConfig::load(self.config.as_deref())?;
+        let config = self.for_flags(ClientConfig::load(self.config.as_deref())?);
         self.apply(&config)?;
         Ok(config)
+    }
+
+    /// The settings file as it goes with the flags: a `--host` naming
+    /// another server than the file's takes nothing of the file's server,
+    /// whose name, ports and key aren't its own.
+    fn for_flags(&self, config: ClientConfig) -> ClientConfig {
+        match (&self.host_arg, &config.host) {
+            (Some(flag), Some(file)) if !flag.eq_ignore_ascii_case(file) => config.without_server(),
+            _ => config,
+        }
     }
 
     /// As [`ServerArgs::resolve`], for `play`, whose login screen lists the
     /// player's own servers too: without a host anywhere there is no game's
     /// server, `host` stays empty and the second value is false.
     pub fn resolve_for_list(&mut self) -> Result<(ClientConfig, bool)> {
-        let config = ClientConfig::load(self.config.as_deref())?;
+        let config = self.for_flags(ClientConfig::load(self.config.as_deref())?);
         let named = self.host_arg.is_some() || config.host.is_some();
         if named {
             self.apply(&config)?;
@@ -1432,7 +1442,8 @@ mod tests {
     /// The server's settings from `args` over `config`.
     fn server(args: &[&str], config: &ClientConfig) -> Result<ServerArgs> {
         let mut cli = Cli::try_parse_from(std::iter::once("openm2").chain(args.iter().copied()))?;
-        cli.server.apply(config)?;
+        let config = cli.server.for_flags(config.clone());
+        cli.server.apply(&config)?;
         Ok(cli.server)
     }
 
@@ -1479,6 +1490,23 @@ mod tests {
             (flags.host.as_str(), flags.auth_port, flags.game_port),
             ("127.0.0.1", 1, 2)
         );
+
+        // Another server than the file's takes nothing of the file's server:
+        // not its ports, not its key (a local save the launcher runs).
+        let other = server(&["--host", "127.0.0.1"], &config).unwrap();
+        assert_eq!(
+            (other.host.as_str(), other.auth_port, other.game_port),
+            ("127.0.0.1", AUTH_PORT, GAME_PORT)
+        );
+        assert_eq!(other.server_key, None);
+        assert_eq!(
+            other.net_config().sign_in_prompt,
+            Some(m2_net::signin::SignInPrompt::Login),
+            "what the provider shows is the player's, for every server"
+        );
+        // The file's own server, by its host in any case, takes it all.
+        let same = server(&["--host", "PLAY.example.net"], &config).unwrap();
+        assert_eq!((same.auth_port, same.server_key), (21002, Some(pin)));
 
         let defaults = server(&["--host", "127.0.0.1"], &ClientConfig::default()).unwrap();
         assert_eq!(

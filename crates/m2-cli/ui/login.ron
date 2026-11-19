@@ -15,8 +15,14 @@
             click_through: true,
             kind: Group,
             children: [
-                (size: (429, 170), kind: Panel(skin: "logo_left")),
-                (anchor: TopRight, size: (142, 170), kind: Panel(skin: "logo_right")),
+                // The client's logo, in two pieces.
+                (id: "login.logo.client", size: (Fill(0), Fill(0)), kind: Group, children: [
+                    (size: (429, 170), kind: Panel(skin: "logo_left")),
+                    (anchor: TopRight, size: (142, 170), kind: Panel(skin: "logo_right")),
+                ]),
+                // In its place, the game's own logo (the settings file's
+                // `logo`), fitted in and centred (screens.rs).
+                (id: "login.logo.own", anchor: Center, size: (560, 170), hidden: true, kind: Image(image: "@logo")),
             ],
         ),
         (

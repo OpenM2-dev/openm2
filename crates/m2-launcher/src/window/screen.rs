@@ -196,6 +196,8 @@ pub fn new_ui(look: &Look, fonts: Fonts) -> Result<Ui, UiError> {
         "launcher.ask.keys",
         "launcher.ask.hint",
         "launcher.naming.hint",
+        "launcher.singleplayer.line",
+        "launcher.multiplayer.line",
     ]
     .map(str::to_owned);
     for id in dim.into_iter().chain(details) {
@@ -272,7 +274,9 @@ pub enum Stage {
         version: Option<String>,
         /// What the player should know (the launcher updated itself).
         notes: Vec<String>,
-        /// The version can play local saves: their button shows.
+        /// The version can play local saves: the player chooses
+        /// Singleplayer (the saves) or Multiplayer (the servers), else
+        /// there is only Play.
         saves: bool,
     },
     /// The player's local saves, to play one or make one.
@@ -341,7 +345,8 @@ pub struct SaveRow {
 /// What a click (or Enter) asks for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Action {
-    /// Start the installed version.
+    /// Start the installed version: Play, Multiplayer, or a save's Play
+    /// on the saves' screen.
     Play,
     /// Start the version before it.
     Previous,
@@ -353,14 +358,14 @@ pub enum Action {
     BrowseClient,
     /// Pick the keys file in the system's dialog.
     BrowseKeys,
-    /// Show the local saves.
+    /// Show the local saves (Singleplayer).
     Saves,
     /// Ask for a new save's name.
     NewSave,
     /// Make the save named in the field.
     Create,
-    /// Go back: from the saves to Play, from a new save or a failure to the
-    /// saves.
+    /// Go back: from the saves to the choice of Singleplayer and
+    /// Multiplayer, from a new save or a failure to the saves.
     Back,
     /// Choose the save of this row of the page.
     Pick(usize),
@@ -373,15 +378,16 @@ pub enum Action {
 }
 
 /// The buttons, and what they ask for.
-const BUTTONS: [(&str, Action); 18] = [
+const BUTTONS: [(&str, Action); 19] = [
     ("launcher.play", Action::Play),
+    ("launcher.singleplayer", Action::Saves),
+    ("launcher.multiplayer", Action::Play),
     ("launcher.previous", Action::Previous),
     ("launcher.retry", Action::Retry),
     ("launcher.again", Action::Retry),
     ("launcher.import", Action::Import),
     ("launcher.browse.client", Action::BrowseClient),
     ("launcher.browse.keys", Action::BrowseKeys),
-    ("launcher.saves", Action::Saves),
     ("launcher.new", Action::NewSave),
     ("launcher.create", Action::Create),
     ("launcher.back", Action::Back),
@@ -407,9 +413,11 @@ pub fn action(id: &str) -> Option<Action> {
         .map(|(_, action)| *action)
 }
 
-/// What Enter asks for at `stage`: its main button's action.
+/// What Enter asks for at `stage`: its main button's action. The choice
+/// of Singleplayer and Multiplayer has none.
 pub fn main_action(stage: &Stage) -> Option<Action> {
     match stage {
+        Stage::Ready { saves: true, .. } => None,
         Stage::Ready { .. } | Stage::GameFailed { .. } => Some(Action::Play),
         Stage::Asking { .. } => Some(Action::Import),
         Stage::Failed { play: true, .. } => Some(Action::Play),
@@ -434,7 +442,7 @@ pub fn show(ui: &mut Ui, stage: &Stage, look: &Look) {
         "launcher.play",
         "launcher.import",
         "launcher.retry",
-        "launcher.saves",
+        "launcher.modes",
         "launcher.saves.list",
         "launcher.naming",
         "launcher.back",
@@ -513,8 +521,10 @@ pub fn show(ui: &mut Ui, stage: &Stage, look: &Look) {
             notes,
             saves,
         } => {
-            ui.set_visible("launcher.play", true);
-            ui.set_visible("launcher.saves", *saves);
+            // Singleplayer and Multiplayer where the version plays local
+            // saves, else Play alone.
+            ui.set_visible("launcher.modes", *saves);
+            ui.set_visible("launcher.play", !*saves);
             let version = version
                 .as_ref()
                 .map(|version| format!("Version {version}"))
@@ -541,7 +551,7 @@ pub fn show(ui: &mut Ui, stage: &Stage, look: &Look) {
             } else {
                 ""
             };
-            ("Local saves".to_owned(), detail.to_owned())
+            ("Singleplayer".to_owned(), detail.to_owned())
         }
         Stage::Naming { problem } => {
             ui.set_visible("launcher.naming", true);
@@ -690,7 +700,7 @@ mod tests {
             "launcher.play",
             "launcher.import",
             "launcher.retry",
-            "launcher.saves",
+            "launcher.modes",
             "launcher.saves.list",
             "launcher.naming",
             "launcher.back",
@@ -765,7 +775,7 @@ mod tests {
                     notes: Vec::new(),
                     saves: true,
                 },
-                vec!["launcher.play", "launcher.saves", "launcher.close"],
+                vec!["launcher.modes", "launcher.close"],
                 "Ready to play",
                 "",
             ),
@@ -776,7 +786,7 @@ mod tests {
                     selected: None,
                 },
                 vec!["launcher.back", "launcher.new", "launcher.close"],
-                "Local saves",
+                "Singleplayer",
                 "No saves yet. A save is a world on this computer, where you are the game master.",
             ),
             (
@@ -792,7 +802,7 @@ mod tests {
                     "launcher.new",
                     "launcher.close",
                 ],
-                "Local saves",
+                "Singleplayer",
                 "",
             ),
             (
@@ -934,7 +944,15 @@ mod tests {
         assert_eq!(main_action(&failed), Some(Action::Retry));
         assert_eq!(action("launcher.again"), Some(Action::Retry));
         assert_eq!(action("launcher.save.2"), Some(Action::Pick(2)));
-        assert_eq!(action("launcher.saves"), Some(Action::Saves));
+        assert_eq!(action("launcher.singleplayer"), Some(Action::Saves));
+        assert_eq!(action("launcher.multiplayer"), Some(Action::Play));
+        let ready = |saves| Stage::Ready {
+            version: None,
+            notes: Vec::new(),
+            saves,
+        };
+        assert_eq!(main_action(&ready(false)), Some(Action::Play));
+        assert_eq!(main_action(&ready(true)), None, "two choices, no default");
         let saves = |rows, selected| Stage::Saves {
             rows,
             first: 0,

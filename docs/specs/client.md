@@ -31,14 +31,17 @@ The rules here are openm2's own.
   | `provider` | the provider to sign in with at once, as `--provider`; `key` for the device's own key | `play` |
   | `sign_in_prompt` | what the provider shows at every sign-in, OpenID Connect's `prompt`: `login` (its sign-in again, where another account can be chosen) or `select_account` (its choice of account). None by default: a provider that remembers the player then signs them in at once, so the same account comes back every time | `bot`, `play` |
   | `assets` | the asset folder to play with ([`assets.md`](assets.md)) | `play`, `openm2-launcher` |
+  | `logo` | the game's own logo: a PNG of at most 8 MiB, which the login screen shows in place of the client's ([`ui.md`](ui.md), "Login"); one that doesn't read is noted on stderr, and the client's shows. Builds of 0.19.1 and before refuse the key | `play` |
 
-- **Relative paths** (`assets`) start from the settings file's folder.
+- **Relative paths** (`assets`, `logo`) start from the settings file's folder.
 - **No client folder or keys file:** `play` reads only asset folders, so a file naming `client` or `keys` is refused as an unknown key. `openm2 assets import` converts a client into an asset folder; the launcher does it for players.
 - **What wins:**
   1. a flag (`--host`, `--auth-port`, `--game-port`, `--server-key`, `--provider`, `--assets`);
   2. then its environment variable (`OPENM2_SERVER_KEY`);
   3. then the file;
   4. then the defaults: ports 11002 and 13001, no key (the system's authorities), the login screen's buttons.
+
+  A `--host` naming another server than the file's `host` (any case) takes nothing of the file's server: not its `server_name`, ports or key, which are that server's. The launcher's local saves give `--host 127.0.0.1` with their own ports and key ([`update.md`](update.md), "Local saves").
 - **Without a host, or without an asset folder** anywhere, the command stops and says which flag or key to set. `play` alone starts without a host: its Servers board then lists only the player's own servers (below), and only `--provider` and `--screenshot`, which sign in to the settings' server at once, need one.
 - **Started by `openm2-launcher`** (`update.md`), `play` reads `openm2.toml` from the channel's version beside it, and gets the player's client imported as `--assets` (the install folder's `imported/`); a version whose `openm2.toml` names `assets` gets no flag.
 

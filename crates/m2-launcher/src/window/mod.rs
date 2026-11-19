@@ -1,8 +1,9 @@
 //! The launcher's window: how far the update has got, then
-//! a Play button; the question for the player's client when a version
+//! a Play button, or Singleplayer and Multiplayer where the version plays
+//! local saves; the question for the player's client when a version
 //! needs it; and what failed, with Try again and Play the previous
-//! version. The local saves: their list, a new one's name, and one played
-//! ([`crate::host`]). The steps run on worker threads ([`crate::flow`]) and
+//! version. Singleplayer is the local saves: their list, a new one's name,
+//! and one played ([`crate::host`]). The steps run on worker threads ([`crate::flow`]) and
 //! tell the window through its event loop; while the game runs there is no
 //! window, and it comes back if the game stops with an error.
 
@@ -191,6 +192,18 @@ enum Event {
     Browsed(Option<PathBuf>),
 }
 
+/// What follows the plan, once the game can start.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Then {
+    /// The ready screen.
+    Ready,
+    /// The game, at once (Play again, Play the previous version).
+    Play,
+    /// The game at once, unless the version plays local saves: then the
+    /// ready screen, for the player to choose (Play after a failed update).
+    Choose,
+}
+
 /// What Try again does.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Retry {
@@ -229,9 +242,8 @@ struct App {
     planned: Option<Planned>,
     /// The game and `play`'s arguments, once nothing else is needed.
     ready: Option<(PathBuf, Vec<OsString>)>,
-    /// Start the game as soon as it's ready (Play the previous version,
-    /// Play again).
-    then_play: bool,
+    /// What follows the plan.
+    then: Then,
     /// The plan is for the version before the last update.
     for_previous: bool,
     /// The version can play local saves.
@@ -281,7 +293,7 @@ impl App {
             notes: Vec::new(),
             planned: None,
             ready: None,
-            then_play: false,
+            then: Then::Ready,
             for_previous: start.previous,
             hostable: false,
             saves: Vec::new(),
@@ -441,17 +453,17 @@ impl App {
     }
 
     /// Worker: what starting the version needs.
-    fn start_plan(&mut self, previous: bool, then_play: bool) {
+    fn start_plan(&mut self, previous: bool, then: Then) {
         let Some(install) = self.install.clone() else {
             self.start_update();
             return;
         };
         self.retry = Retry::Plan;
         self.for_previous = previous;
-        self.then_play = then_play;
+        self.then = then;
         self.ready = None;
         // The game starts next only when the player asked for it already.
-        self.set_stage(if then_play {
+        self.set_stage(if then == Then::Play {
             Stage::Launching
         } else {
             Stage::Starting
@@ -561,7 +573,12 @@ impl App {
 
     fn ready_or_play(&mut self, game: PathBuf, args: Vec<OsString>) {
         self.ready = Some((game, args));
-        if self.then_play {
+        let play = match self.then {
+            Then::Ready => false,
+            Then::Play => true,
+            Then::Choose => !self.hostable,
+        };
+        if play {
             self.launch();
         } else {
             self.set_stage(Stage::Ready {
@@ -613,7 +630,7 @@ impl App {
                             self.log.line(&said);
                             self.version = Some(version);
                         }
-                        self.start_plan(self.previous_flag, false);
+                        self.start_plan(self.previous_flag, Then::Ready);
                     }
                     Err(error) if self.install.is_none() => {
                         self.fail("The launcher can't start", &error, Vec::new());
@@ -927,8 +944,8 @@ impl App {
         }
     }
 
-    /// Back: from the saves to Play, from a new save or a failure to the
-    /// saves.
+    /// Back: from the saves to the choice of Singleplayer and Multiplayer,
+    /// from a new save or a failure to the saves.
     fn back(&mut self) {
         match self.stage {
             Stage::Saves { .. } => self.set_stage(Stage::Ready {
@@ -973,12 +990,15 @@ impl App {
             Action::Play => match &self.stage {
                 Stage::Ready { .. } => self.launch(),
                 Stage::Saves { .. } => self.host_selected(),
-                _ => self.start_plan(self.for_previous && self.has_game(true), true),
+                Stage::Failed { .. } => {
+                    self.start_plan(self.for_previous && self.has_game(true), Then::Choose)
+                }
+                _ => self.start_plan(self.for_previous && self.has_game(true), Then::Play),
             },
-            Action::Previous => self.start_plan(true, true),
+            Action::Previous => self.start_plan(true, Then::Play),
             Action::Retry => match self.retry {
                 Retry::Update => self.start_update(),
-                Retry::Plan => self.start_plan(self.for_previous, self.then_play),
+                Retry::Plan => self.start_plan(self.for_previous, self.then),
                 Retry::Ask => self.ask(None),
                 Retry::Save => match self.hosting.clone() {
                     Some(save) => self.host(save),

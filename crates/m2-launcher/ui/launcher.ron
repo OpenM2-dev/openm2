@@ -1,6 +1,7 @@
 // The launcher's window, 640 × 400 (crates/m2-launcher/src/window/): the
 // game's picture or its name, how far the update has got, the question for
-// a client folder and keys file, the local saves, and the buttons. Which nodes show, and
+// a client folder and keys file, the choice of Singleplayer and
+// Multiplayer, the local saves, and the buttons. Which nodes show, and
 // their texts, follow the stage (screen.rs). Skins are in skin.ron; the
 // format is in docs/specs/ui.md.
 (
@@ -34,6 +35,23 @@
                     (id: "launcher.keys", pos: (0, 72), size: (Fill(104), 26), kind: Edit(skin: "field", max_chars: 1024)),
                     (id: "launcher.browse.keys", anchor: TopRight, pos: (0, 72), size: (96, 26), kind: Button(skin: "secondary", text: "Browse…")),
                     (id: "launcher.ask.hint", pos: (0, 102), size: (Fill(0), 16), kind: Text(text: "Browse, type or paste the paths, or drop the folder and the file on this window.")),
+                ]),
+                // Where the version plays local saves, the ready screen's
+                // two ways to play, side by side, each a button with its
+                // words over it.
+                (id: "launcher.modes", pos: (32, 258), size: (Fill(32), 72), hidden: true, kind: Group, children: [
+                    (id: "launcher.mode.single", pos: (0, 0), size: (280, 72), kind: Group, children: [
+                        (id: "launcher.singleplayer", size: (Fill(0), Fill(0)), kind: Button(skin: "secondary", text: "")),
+                        (id: "launcher.singleplayer.mark", size: (4, Fill(0)), kind: Panel(skin: "mark")),
+                        (id: "launcher.singleplayer.title", pos: (18, 12), size: (Fill(12), 26), kind: Text(text: "Singleplayer", size: 18)),
+                        (id: "launcher.singleplayer.line", pos: (18, 42), size: (Fill(12), 18), kind: Text(text: "Your own worlds, on this computer")),
+                    ]),
+                    (id: "launcher.mode.multi", anchor: TopRight, pos: (0, 0), size: (280, 72), kind: Group, children: [
+                        (id: "launcher.multiplayer", size: (Fill(0), Fill(0)), kind: Button(skin: "secondary", text: "")),
+                        (id: "launcher.multiplayer.mark", size: (4, Fill(0)), kind: Panel(skin: "mark")),
+                        (id: "launcher.multiplayer.title", pos: (18, 12), size: (Fill(12), 26), kind: Text(text: "Multiplayer", size: 18)),
+                        (id: "launcher.multiplayer.line", pos: (18, 42), size: (Fill(12), 18), kind: Text(text: "With others, on the servers you add")),
+                    ]),
                 ]),
                 // The local saves, four rows a page, the one chosen marked in
                 // the accent; the arrows beside them when there are more.
@@ -73,9 +91,7 @@
                 (id: "launcher.previous", anchor: BottomLeft, pos: (32, 24), size: (196, 36), hidden: true, kind: Button(skin: "secondary", text: "Play the previous version")),
                 // Beside it when the main button plays what's installed.
                 (id: "launcher.again", anchor: BottomLeft, pos: (236, 24), size: (106, 36), hidden: true, kind: Button(skin: "secondary", text: "Try again")),
-                // On the ready screen, the way to the local saves; on theirs,
-                // the way back and a new one.
-                (id: "launcher.saves", anchor: BottomLeft, pos: (32, 24), size: (140, 36), hidden: true, kind: Button(skin: "secondary", text: "Local saves")),
+                // On the saves' screen, the way back and a new one.
                 (id: "launcher.back", anchor: BottomLeft, pos: (32, 24), size: (100, 36), hidden: true, kind: Button(skin: "secondary", text: "Back")),
                 (id: "launcher.new", anchor: BottomLeft, pos: (140, 24), size: (120, 36), hidden: true, kind: Button(skin: "secondary", text: "New save")),
                 // Always there, in the corner; the main button beside it, one

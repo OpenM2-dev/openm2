@@ -116,7 +116,7 @@ Colours are RGBA, 0–255, in gamma space like the art. Every image path is a ga
 | `globe_1` to `globe_17` | the globe glowing red, frame by frame (`rampage_01/00.sub` to `16.sub`) |
 | `equipment`, `money` | the inventory's equipment backdrop and gold coin |
 | `slider_bar`, `slider_knob` | a slider's bar (`game/windows/sliderbar.sub`, 175 × 12, spear tips at its ends) and its knob (`sliderbar_cursor.sub`, 53 × 12): the Settings window's volumes |
-| `logo_left`, `logo_right` | the login screen's logo |
+| `logo_left`, `logo_right` | the login screen's logo, unless the settings file names the game's own ([`client.md`](client.md)) |
 | `flag_shinsoo`, `flag_chunjo`, `flag_jinno` | the empires' flags |
 | `minimap_camera`, `minimap_player`, `minimap_dot`, `minimap_target_1`, `minimap_target_2` | what the minimap draws its picture with ("The minimap" below) |
 
@@ -166,7 +166,7 @@ Layouts are written in layout pixels. `Ui::set_scale` draws them that many times
 
 | Screen | Windows | When |
 |---|---|---|
-| Login | `intro` (the red pattern, repeated), `login.logo` (the client's logo), `servers` (the Servers board, below) until a server is joined, then `login` (`Sign in`: a status line, a wide button per provider of the server's, up to four, hidden until the server says which, Back and Quit; `play` fits the board's height to the buttons shown, Back and Quit 12 px under the last), `login.server` (the server joined: `Server NAME · ADDRESS`) | no session, or signing in (its buttons wait) |
+| Login | `intro` (the red pattern, repeated), `login.logo` (the client's logo, or in its place the settings file's `logo`, as large as fits the client's 560 × 170, its sides kept, centred there), `servers` (the Servers board, below) until a server is joined, then `login` (`Sign in`: a status line, a wide button per provider of the server's, up to four, hidden until the server says which, Back and Quit; `play` fits the board's height to the buttons shown, Back and Quit 12 px under the last), `login.server` (the server joined: `Server NAME · ADDRESS`) | no session, or signing in (its buttons wait) |
 | Select | `intro`, `select.model` (the character's picture, `@character`), `select` (dragon arrows, status line, Create, Play, Back), `select.info` (name, class, level, empire, guild, vitality, intelligence, strength, dexterity) | the character list is here ([`Stage::Selecting`](protocol/openm2/session.md)), or the game menu's Change character is under way (`Stage::Leaving`) |
 | Create | `intro`, `select.model` (the chosen class's picture), `create` (name, class, gender, and on an account without an empire (no characters yet, or a game master's) the empire with its flag; status line, Create, Cancel) | the player chose Create, or the account has no characters yet |
 | Loading | `intro`, `loading` (`Loading <name>` and the client's loading gauge) | a character is picked, until the map is drawn |

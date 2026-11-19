@@ -139,6 +139,8 @@ fn water_way(walls: &Walls, from: Point, facing: u16) -> Option<u16> {
 const HEAD_HEIGHT: f32 = 180.0;
 
 const TURN: f32 = 0.01;
+/// The largest logo file read, in bytes.
+const MAX_LOGO: u64 = 8 * 1024 * 1024;
 /// Pixels the mouse may move between press and release for a click.
 const CLICK_SLOP: f64 = 5.0;
 /// How far a click looks for the ground, in centimetres.
@@ -307,6 +309,9 @@ pub struct PlayArgs {
     /// host anywhere.
     #[arg(skip)]
     official: Option<String>,
+    /// The game's own logo, the settings file's `logo`.
+    #[arg(skip)]
+    logo: Option<PathBuf>,
     /// No window: draw one picture of a screen into this PNG, then log out
     #[arg(long, value_name = "FILE")]
     screenshot: Option<PathBuf>,
@@ -3133,6 +3138,12 @@ impl<'a> Client<'a> {
     fn new(args: &'a PlayArgs) -> Result<Self> {
         let mut game = Game::new(args)?;
         let mut interface = PlayInterface::new(game.source.skin()?, !args.no_interface)?;
+        if let Some(path) = &args.logo {
+            match read_logo(path) {
+                Ok(logo) => interface.set_logo(logo),
+                Err(error) => eprintln!("note: the client's logo shows: {error:#}"),
+            }
+        }
         let settings = player_settings(args);
         interface.set_settings(settings);
         interface
@@ -3916,6 +3927,19 @@ impl<'a> Client<'a> {
     }
 }
 
+/// The game's own logo: a PNG of at most [`MAX_LOGO`] bytes.
+fn read_logo(path: &Path) -> Result<m2_formats::RgbaImage> {
+    let read = || -> Result<_> {
+        let size = std::fs::metadata(path)?.len();
+        if size > MAX_LOGO {
+            bail!("more than {MAX_LOGO} bytes");
+        }
+        let (image, _) = m2_render::png::decode_any(&std::fs::read(path)?)?;
+        Ok(image)
+    };
+    read().with_context(|| format!("the logo {}", path.display()))
+}
+
 /// How long changed settings wait before they are written.
 const SAVE_SETTINGS_AFTER: Duration = Duration::from_millis(500);
 
@@ -3931,6 +3955,7 @@ pub fn run(mut args: PlayArgs) -> Result<ExitCode> {
         );
     }
     args.assets = args.assets_arg.clone().or(config.assets);
+    args.logo = config.logo;
     if args.assets.is_none() {
         bail!(
             "which asset folder? Give --assets, or `assets` in the settings file (openm2.toml); `openm2 assets import` makes one of your client"
