@@ -98,7 +98,7 @@ xtask/           codegen and the checks behind `just` (Rust, not shell scripts)
 docs/
   roadmap.md     what works, what's next, open questions
   architecture.md the design and its Design choices
-  source-policy.md, glossary.md, server.md (running openm2's own server)
+  source-policy.md, glossary.md, server.md (running openm2's own server), building.md (building from source, trying the tools)
   specs/protocol/openm2/  the protocol: encoding, frames, versions (README), behaviour specs, generated messages.md
   specs/formats/  game file layouts (archives, containers, proto tables, keys.toml, GR2, DDS, TGA, scripts, maps, effects, sounds) and glTF, openm2's own
   specs/client.md the client's settings file (openm2.toml), the player's servers and `openm2 status`
