@@ -118,12 +118,12 @@ jobs:
       # holds with launcher.toml beside them. window.toml and the banner give
       # the launcher's window the project's look (branding/README.md);
       # openm2.toml gives the game the project's server, first on its
-      # Servers board.
+      # Servers board, and the login screen's logo, openm2-login-logo.png.
       - name: The version's files
         shell: pwsh
         run: |
           New-Item -ItemType Directory version | Out-Null
-          Copy-Item target/dist/openm2.exe, target/dist/openm2-launcher.exe, target/dist/openm2-server.exe, LICENSE-MIT, LICENSE-APACHE, README.md, deploy/windows/window.toml, deploy/windows/openm2.toml, branding/openm2-banner.png version
+          Copy-Item target/dist/openm2.exe, target/dist/openm2-launcher.exe, target/dist/openm2-server.exe, LICENSE-MIT, LICENSE-APACHE, README.md, deploy/windows/window.toml, deploy/windows/openm2.toml, branding/openm2-banner.png, branding/openm2-login-logo.png version
           # The licences of every package the programs are built from.
           cargo xtask notices --out "version/THIRD-PARTY-NOTICES.txt"
           if ($LASTEXITCODE -ne 0) { throw "cargo xtask notices failed" }
@@ -176,7 +176,7 @@ jobs:
           $dir = Join-Path $env:RUNNER_TEMP "openm2-tried"
           $setup = Start-Process -FilePath ./openm2-setup.exe -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=`"$dir`"" -Wait -PassThru
           if ($setup.ExitCode -ne 0) { throw "the setup exited with $($setup.ExitCode)" }
-          foreach ($file in "openm2-launcher.exe", "openm2.exe", "openm2-server.exe", "launcher.toml", "window.toml", "openm2.toml", "openm2-banner.png", "openm2.ico") {
+          foreach ($file in "openm2-launcher.exe", "openm2.exe", "openm2-server.exe", "launcher.toml", "window.toml", "openm2.toml", "openm2-banner.png", "openm2-login-logo.png", "openm2.ico") {
             if (-not (Test-Path (Join-Path $dir $file))) { throw "the setup didn't install $file" }
           }
           $uninstall = Start-Process -FilePath (Join-Path $dir "unins000.exe") -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -Wait -PassThru

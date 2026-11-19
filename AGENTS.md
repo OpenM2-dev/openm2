@@ -92,7 +92,7 @@ crates/
     src/store/migrations/  the database's migrations, numbered SQL files (never changed once released)
   m2-update/     updates without I/O: a channel's manifests, their Ed25519 signatures, paths that can't leave the install folder, the checks, the plan of what to reuse and the requests that fetch the rest; bundles of small files
   m2-launcher/   `openm2-launcher`: a channel's signed manifest, files and bundles over HTTPS, 8 requests at once, the install folder's versions (app/, previous/, staging/) and their swap, the launcher's own update, the player's client folder and keys, the client's import into `imported/`, then `openm2 play`; local saves (`saves.rs`, `host.rs`: `openm2-server` run on one, the world imported into `content/`); its window (`src/window/`, `ui/`: the layout and the flat-colour skin)
-branding/        the project's logo (the README's banner, the launcher's, the setup's icon and pictures), not under the code's licence; made outside the repo, never edited here (its README)
+branding/        the project's logo (the README's banner, the launcher's, the login screen's, the setup's icon and pictures), not under the code's licence; made outside the repo, never edited here (its README)
 Dockerfile, compose.yaml, deploy/   the server's image, the server with Postgres (and a collector for telemetry; an empty content folder; licenses/ the terms the image carries)
 xtask/           codegen and the checks behind `just` (Rust, not shell scripts)
 docs/
