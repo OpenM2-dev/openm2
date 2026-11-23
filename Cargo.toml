@@ -100,7 +100,7 @@ tracing = { version = "=0.1.44", default-features = false, features = ["std"] }
 tracing-opentelemetry = { version = "=0.34.0", default-features = false }
 tracing-subscriber = { version = "=0.3.23", default-features = false, features = ["fmt", "std", "ansi"] }
 # URLs of providers' endpoints and of the client's sign-in redirect.
-url = "=2.5.8"
+url = "=2.5.9"
 # Window decorations on Wayland come from the compositor (no wayland-csd-adwaita).
 winit = { version = "=0.30.13", default-features = false, features = ["rwh_06", "x11", "wayland", "wayland-dlopen"] }
 # No WebGPU (browser) or GLSL front end; Vulkan, Metal, DX12 and GLES backends.
