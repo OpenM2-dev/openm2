@@ -2,10 +2,15 @@
 #
 #   OPENM2_DB_PASSWORD=<a password for the database> \
 #   OPENM2_PROVIDERS_FILE=./local/providers.toml docker compose up --build
-#   docker compose run --rm server tls key    # the key players pin
+#   docker compose run --rm --no-deps server tls key    # the key players pin
 #
-# The game's ports are published on the host's 127.0.0.1, or on
-# OPENM2_PUBLISH (0.0.0.0: every address). The server's self-signed
+# Settings come from the environment or a .env file beside this one, and
+# only those named here reach the server. OPENM2_IMAGE names a release's
+# image (ghcr.io/openm2-dev/server:X.Y.Z) to pull with
+# `docker compose pull server` instead of building one from the repo.
+# OPENM2_GAME_MASTERS names the game masters' accounts (docs/server.md,
+# "Game masters"). The game's ports are published on the host's 127.0.0.1,
+# or on OPENM2_PUBLISH (0.0.0.0: every address). The server's self-signed
 # certificate lives in the `data` volume (docs/server.md, "TLS"). With
 # `--profile telemetry` and
 # OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318, an OpenTelemetry
@@ -35,7 +40,8 @@ services:
 
   server:
     build: .
-    image: openm2-server:dev
+    # A release's image when OPENM2_IMAGE names one, else built from here.
+    image: ${OPENM2_IMAGE:-openm2-server:dev}
     depends_on:
       postgres:
         condition: service_healthy
@@ -48,6 +54,9 @@ services:
       RUST_LOG: ${RUST_LOG:-}
       OPENM2_CONTENT: /content
       OPENM2_PROVIDERS: /providers.toml
+      # Account names separated by commas, as /account shows them; empty:
+      # nobody.
+      OPENM2_GAME_MASTERS: ${OPENM2_GAME_MASTERS:-}
     # Providers' client secrets, OPENM2_PROVIDER_<ID>_SECRET=…, if any: a file
     # of yours in local/ (gitignored), never in the providers file.
     env_file:

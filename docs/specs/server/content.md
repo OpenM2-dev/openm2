@@ -30,7 +30,7 @@ What openm2's own server knows about its world, as a folder of TOML files and wa
 - Files are optional except `content.toml`; a folder with only `content.toml` is an empty world.
 - Spawn files are read in name order; their names are ASCII letters, digits, `_` and `-`, at most 64. Other `*.toml` files at the top are refused; files that are not `.toml` are ignored, so a README may sit beside them.
 - Walk masks' names are ASCII letters, digits, `_`, `-` and `.`, at most 64, not starting with `.`, then `.png`; a `.png` file with another name in `walk/` is refused, other files there are ignored.
-- Units: metres, seconds, degrees. Positions are **metres from the map's top-left corner** (east, south), as `openm2 view map --at X,Y` and `openm2 map info` show them; the server adds the map's base. Directions: 0 faces south (+y), 90 east, as on the wire.
+- Units: metres, seconds, degrees. Positions are **metres from the map's top-left corner** (east, south), as `/where` in the game ([`session.md`](session.md), "Chat"), `openm2 view map --at X,Y` and `openm2 map info` show them; the server adds the map's base. Directions: 0 faces south (+y), 90 east, as on the wire.
 - Unknown keys are refused, so a typo never goes unnoticed. Keys left out take the defaults below.
 
 ## Entries

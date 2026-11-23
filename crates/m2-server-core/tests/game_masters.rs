@@ -1,5 +1,5 @@
 //! Game masters (`docs/specs/server/session.md`, "Game masters"):
-//! `/account` for everyone, and `/level`, `/gold`, `/item`, `/heal`,
+//! `/account` and `/where` for everyone, and `/level`, `/gold`, `/item`, `/heal`,
 //! `/speed` and `/gm` for the accounts the operator names, unknown to
 //! anyone else; their mark.
 //! The content is made up: characters start at level 1 in Shinsoo.
@@ -9,7 +9,7 @@ mod support;
 use std::collections::BTreeSet;
 
 use m2_content::{Content, Sources, parse};
-use m2_protocol::profile::openm2::ServerMessage;
+use m2_protocol::profile::openm2::{CharacterMove, ClientMessage, ServerMessage};
 use m2_server_core::store::Character;
 use m2_server_core::{Config, ConnId};
 use support::{Harness, account_of};
@@ -242,12 +242,76 @@ fn the_dead_restart_first() {
         h.say(alice, 0, line);
     }
     assert_eq!(lines(&h, alice), ["Restart first."; 5]);
-    h.note("/account still answers");
+    h.note("/account and /where still answer");
     h.say(alice, 0, "/account");
     assert_eq!(
         lines(&h, alice).last().unwrap(),
         "Your account: example:alice"
     );
+    h.say(alice, 0, "/where");
+    assert!(lines(&h, alice).last().unwrap().contains("world ["));
+}
+
+/// `test_map`'s top-left corner, world centimetres.
+const MAP_CORNER: (i32, i32) = (460_000, 960_000);
+
+#[test]
+fn where_says_the_map_the_point_and_the_facing() {
+    let mut h = harness();
+    // Bob is no game master: /where is for everyone.
+    let bob = warrior(&mut h, "bob", "Bob", |c| {
+        (c.x, c.y) = (MAP_CORNER.0 + 24_453, MAP_CORNER.1 + 6_100);
+    });
+    h.say(bob, 0, "/where");
+    h.note("a stop where it stands, facing west");
+    h.send(
+        bob,
+        ClientMessage::CharacterMove(CharacterMove {
+            kind: 0,
+            argument: 0,
+            angle: 270,
+            x: MAP_CORNER.0 + 24_453,
+            y: MAP_CORNER.1 + 6_100,
+            time: h.now.wire(),
+        }),
+    );
+    h.say(bob, 0, "/where");
+    assert_eq!(
+        lines(&h, bob),
+        [
+            "map = \"test_map\", at = [244.53, 61.0], rotation = 0; world [4844.53, 9661.0]",
+            "map = \"test_map\", at = [244.53, 61.0], rotation = 270; world [4844.53, 9661.0]",
+        ]
+    );
+}
+
+#[test]
+fn where_follows_a_walk() {
+    let mut h = harness();
+    let start = (MAP_CORNER.0 + 1_000, MAP_CORNER.1 + 1_000);
+    let bob = warrior(&mut h, "bob", "Bob", |c| (c.x, c.y) = start);
+    h.walk(bob, 1, start.0 + 5_000, start.1);
+    h.wait(500);
+    h.say(bob, 0, "/where");
+    let line = lines(&h, bob).pop().unwrap();
+    // `at = [X, 10.0]`: X along the walk, past its start and short of its end.
+    let x: f64 = line
+        .split("at = [")
+        .nth(1)
+        .and_then(|rest| rest.split(',').next())
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(10.0 < x && x < 60.0, "{line}");
+    assert!(line.contains(", 10.0], rotation = 90;"), "{line}");
+}
+
+#[test]
+fn where_off_every_map_gives_the_world_point() {
+    let mut h = harness();
+    let bob = warrior(&mut h, "bob", "Bob", |c| (c.x, c.y) = (105, 5));
+    h.say(bob, 0, "/where");
+    assert_eq!(lines(&h, bob), ["On no map; world [1.05, 0.05]"]);
 }
 
 #[test]

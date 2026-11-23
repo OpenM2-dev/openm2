@@ -4,29 +4,125 @@
 
 > **What it does:** players sign in, create characters, enter, walk (the maps' walls hold), see other players, talk, shout, whisper and keep friends; characters are kept in Postgres and found where they were left. Monsters and NPCs from a content folder stand and stroll around the players; players fight them, the monsters fight back, both die, monsters come back and players restart, gain experience and levels. New characters start with the content's level, items and gold; players wear and take off items, drink potions, drop and pick up items and gold, monsters drop gold and items, NPCs open their shops and smiths upgrade items. Players choose a skill group, spend skill points and use skills; game masters the operator names have commands of their own. The bot does most of it on our server in CI.
 
-> **Sign-in:** players sign in only with the OpenID Connect providers you list (Google, Microsoft, Clerk, Keycloak, …). The server keeps no passwords, and it does not start without a provider ([Sign-in with a provider](#sign-in-with-a-provider)).
+> **Sign-in:** players sign in only with the OpenID Connect providers you list (Google, Microsoft, Clerk, Keycloak, …). The server keeps no passwords, and it does not start without a provider, or devices' keys where you allow them ([Sign-in with a provider](#sign-in-with-a-provider), [Sign-in with a device key](#sign-in-with-a-device-key)).
 
 > **TLS:** both ports speak TLS 1.3 only. Without a certificate of yours the server makes a self-signed one, and players pin its key ([TLS](#tls)). The server listens on 127.0.0.1 by default, and `compose.yaml` publishes its ports on the host's 127.0.0.1 unless `OPENM2_PUBLISH` says otherwise.
 
 ## With Docker
-`compose.yaml` runs the server and Postgres (on Windows: inside WSL, `wsl docker compose …` from the repo folder, or a WSL shell in `/mnt/c/…`):
+`compose.yaml` runs the server and Postgres on a machine with Docker Compose, a Linux server for example. On Windows Docker runs inside WSL: `wsl docker compose …` from the repo folder, or a WSL shell in `/mnt/c/…`.
+
+**You need:**
+- TCP ports 11002 (auth) and 13001 (game) open to players, in the firewall and the router;
+- a provider players sign in with, Google or Keycloak for example, where openm2 is registered ([Sign-in with a provider](#sign-in-with-a-provider));
+- the world: a content folder made from your own client with `openm2.exe content import`, from the release's `openm2-windows-x64.zip` ([Content](#content)). Without one the world is empty.
+
+### 1. The files
 ```sh
-export OPENM2_DB_PASSWORD=<a password for the database>    # or put both in .env (gitignored)
-export OPENM2_PROVIDERS_FILE=./local/providers.toml        # your providers (Sign-in with a provider)
-docker compose up --build -d                               # Postgres, then the server; migrations run at start
-docker compose run --rm server tls key                     # the key players pin: sha256:…
-docker compose logs -f server
-docker compose stop                                        # saves every character, then stops
+git clone https://github.com/OpenM2-dev/openm2.git && cd openm2
+git checkout vX.Y.Z        # the release you run, so that compose.yaml goes with its image
+mkdir -p local
 ```
-- The image is built from the repo (`Dockerfile`): the server alone, in a small runtime image (distroless, no shell) as a non-root user. Base images are pinned by digest.
-- Postgres keeps its data in the `postgres` volume, and the server its self-signed certificate in the `data` volume ([TLS](#tls)); `docker compose down` keeps them, `down -v` deletes them (and players then need the new key).
-- `OPENM2_PUBLISH=0.0.0.0` publishes the game's ports on every address of the host, for players on other machines.
-- `OPENM2_PROVIDERS_FILE` names your providers file (`deploy/providers.example.toml` shows the format), their secrets in `./local/provider-secrets.env` ([Sign-in with a provider](#sign-in-with-a-provider)). Compose refuses to run without it.
-- The server waits up to 30 s for Postgres at start (`docker compose restart` starts both at once), then gives up; compose's restart policy starts it again.
+Your files go beside `compose.yaml`, in `.env` and in `local/` (both gitignored):
+```
+openm2/
+  compose.yaml
+  .env                        your settings (2.)
+  local/
+    providers.toml            your providers
+    provider-secrets.env      their client secrets, if they have one: OPENM2_PROVIDER_<ID>_SECRET=…
+    content/                  the world, which the server sees read-only at /content
+      content.toml, maps.toml, monsters.toml, items.toml, …    the import's
+      drops.toml, shops.toml, start.toml, packs.toml, …         yours
+      spawns/imported.toml    the import's spawns
+      spawns/<name>.toml      yours
+      walk/*.png              the maps' walk masks
+```
+Docker keeps the rest in two volumes: `postgres` holds the accounts and characters, `data` the server's certificate and the key players pin ([TLS](#tls)).
+
+### 2. The settings
+`.env`, one setting a line:
+```sh
+OPENM2_IMAGE=ghcr.io/openm2-dev/server:X.Y.Z
+OPENM2_DB_PASSWORD=<a long random password>
+OPENM2_PROVIDERS_FILE=./local/providers.toml
+OPENM2_CONTENT_DIR=./local/content
+OPENM2_PUBLISH=0.0.0.0
+OPENM2_GAME_MASTERS=
+```
+- `OPENM2_IMAGE` is the release's image, with its digest in the release's notes (`…:X.Y.Z@sha256:…` pins it). Without it compose builds the image from the repo (below).
+- `OPENM2_PUBLISH=0.0.0.0` lets players on other machines in; without it only this machine reaches the server.
+- `OPENM2_GAME_MASTERS` stays empty until you know your account (4.).
+- **Only the settings `compose.yaml` names reach the server:** these, `RUST_LOG`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and the lines of `local/provider-secrets.env`. The others of [Settings](#settings) are for a server run without compose.
+
+### 3. Start it
+```sh
+docker compose pull server     # the release's image
+docker compose up -d           # Postgres, then the server; it migrates the database at start
+docker compose logs -f server
+```
+- **The log** says what the content holds (`content "…": N maps …, N monsters, …`), the providers (`provider google: https://accounts.google.com (2 keys)`) and the key players pin (`TLS 1.3 with the key sha256:…`). `docker compose run --rm --no-deps server tls key` prints the key again.
+- **Players** pick Multiplayer in openm2, press Add and type your server's address. At the first join they compare its key with the one you gave them. Give it to them yourself, not through the server.
+- **From another machine,** `openm2 status --host <address> --server-key sha256:…` checks that both servers answer ([`specs/client.md`](specs/client.md)).
+- **Without `OPENM2_IMAGE`,** `docker compose up --build -d` builds the image from the repo, which takes a while (`Dockerfile`). With it, leave out `--build`: it would build from the repo under the release's name.
+
+### 4. Become a game master
+1. Sign in to your server and type `/account` in the chat. It answers `Your account: google:nixzoi2rkfeta`.
+2. Put it in `.env`: `OPENM2_GAME_MASTERS=google:nixzoi2rkfeta`, several separated by commas.
+3. `docker compose up -d`. It makes the server's container again with the new settings; `restart` would keep the old ones. The log says `game masters: 1`.
+
+The commands: [Game masters](#game-masters).
+
+### 5. Build the world
+The content folder is yours, on this machine; the server reads it once, at start.
+1. **Edit its files:** what monsters drop, what NPCs sell, where monsters and NPCs stand ([Content](#content); every file and rule in [`specs/server/content.md`](specs/server/content.md)).
+2. **Find places in the game:** `/where` says where your character stands and the way it faces, as spawn files write them: `map = "metin2_map_a1", at = [244.53, 61.0], rotation = 180; world [4340.53, 9021.0]`. The world point is for warps' `to`.
+3. **Check the folder:** `docker compose run --rm --no-deps server content check /content` says what it holds, or lists each problem as `file:line:column: message`.
+4. **Restart the server:** `docker compose restart server` saves every character, stops, and starts again on the new content. A server refuses content that breaks a rule, so check it first.
+
+- Another folder, a new `OPENM2_CONTENT_DIR`, needs `docker compose up -d`, as a setting does.
+- A new import (`content import --force`) replaces the import's files only; `drops.toml`, your spawn files and the rest of yours stay.
+
+### 6. Update to a new release
+Players' launchers update them to the latest release, and a server that falls behind a release that changed the protocol refuses them ([`specs/server/session.md`](specs/server/session.md), "Hello").
+1. **Back up** (below).
+2. **The release's files:** `git fetch --tags && git checkout vX.Y.Z`, and `OPENM2_IMAGE` in `.env` set to its image.
+3. **Start it:** `docker compose pull server && docker compose up -d`. Compose stops the old server, which saves everyone, before it starts the new one, and the new one migrates the database.
+4. **The content:** `openm2 content current local/content`, with the release's `openm2`, says whether the folder holds its import. When it doesn't, import again with `--force` (your own files stay).
+
+A database a newer server migrated is refused by an older one ([`specs/server/storage.md`](specs/server/storage.md), "Postgres"): to go back to an older release, restore the backup of before the update.
+
+### Back up
+```sh
+docker compose exec -T postgres pg_dump -U openm2 -d openm2 > local/openm2.sql   # accounts and characters
+docker compose cp server:/data/tls local/tls                                    # the server's certificate and key
+```
+- **The content folder** is a folder of yours already: keep a copy of it with the backup.
+- **Restore** into a new database, after `docker compose down -v` or on a new machine: `docker compose up -d postgres`, then `docker compose exec -T postgres psql -U openm2 -d openm2 < local/openm2.sql`, then `docker compose up -d`. Restore before the server first starts on that database: its migrations would make the tables, and the backup would not go in.
+- **The key** stays as long as the `data` volume does. A server elsewhere takes the copy with `OPENM2_TLS_CERT` and `OPENM2_TLS_KEY` (`local/tls/cert.pem`, `key.pem`), and players keep their pin.
+
+### Stop
+- `docker compose stop` saves every character, then stops; `docker compose up -d` starts the server again.
+- `docker compose down` removes the containers and keeps the volumes. `down -v` deletes the volumes too: every account and character, and the key, so players then need the new one.
+
+### When something is wrong
+| What you see | Why, and what to do |
+|---|---|
+| No monsters or NPCs; the log says `content "empty"` | `OPENM2_CONTENT_DIR` is not set, and compose gave the server `deploy/empty-content`. Set it in `.env`, then `docker compose up -d` |
+| `docker compose pull server` says `unauthorized` | `OPENM2_IMAGE` names an image that isn't there or that only its owner may pull. Check the name against the release's notes, or build from the repo: `OPENM2_IMAGE` left out, `docker compose up --build -d` |
+| `file:line:column: …`, and the server stops | the content breaks a rule there. Compose starts the server again every few seconds, and it stops again until the content is fixed: fix it, check the folder (5.), and it comes back by itself |
+| `reading the providers' discovery documents`, and the server stops | a provider does not answer, names another issuer, or offers no PKCE ([Sign-in with a provider](#sign-in-with-a-provider)) |
+| `another server runs this database's world: waiting for it to stop` | another server holds the database, an old one still saving for example. This one starts once it has stopped |
+| The server gives up waiting for Postgres | it waits up to 30 s at start (`docker compose restart` starts both at once); compose's restart policy starts it again |
+| Players cannot connect | `OPENM2_PUBLISH=0.0.0.0`, the firewall's and the router's ports 11002 and 13001; `openm2 status` from another machine |
+| Players are told the server's key changed | the `data` volume is gone (`down -v`). Give them the new key |
+| A setting changed nothing | `restart` keeps the container's settings: `docker compose up -d`. Or compose doesn't hand that setting to the server (2.) |
+
+### More
+- **The image:** the server alone, in a small runtime image (distroless, no shell) as a non-root user; base images are pinned by digest (`Dockerfile`).
 - **Telemetry:** `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318 docker compose --profile telemetry up -d` adds an OpenTelemetry collector that prints the traces and metrics it receives (`docker compose logs otel-collector`; its configuration is `deploy/otel-collector.yaml`). Point the endpoint at your own collector or backend to keep them.
 
-## Running from the published image
-Each release publishes the server's image: `ghcr.io/openm2-dev/openm2-server:X.Y.Z`, with its digest in the release's notes. A deployment pulls it by digest instead of building:
+## Other deployments
+Each release publishes the server's image: `ghcr.io/openm2-dev/server:X.Y.Z`, with its digest in the release's notes (0.20.1 and earlier published `openm2-server`, which is not public). With compose: [With Docker](#with-docker). Another deployment (Kubernetes, a platform that runs containers) pulls it by digest:
 - **The settings** are the same as `compose.yaml`'s ([Settings](#settings)):
   - `OPENM2_DATABASE_URL`, the providers file and their secrets, the content folder;
   - `OPENM2_LISTEN=0.0.0.0` inside a container.
@@ -58,7 +154,7 @@ just openm2 content import --client "<client folder>" --keys local/keys.toml --o
 ```
 It writes `content.toml`, `maps.toml`, `monsters.toml`, `items.toml`, `races.toml` and `skills.toml` (from the client's skill table), and a walk mask per map in `walk/` (where one may walk, from the maps' attribute files: a black and white PNG a pixel a metre), into `local/content` (gitignored), each marked as imported. A mask can be edited in any image editor (black is blocked), or drawn for a map that has none and named with `walk = "walk/<name>.png"` in `maps.toml` ([`specs/server/content.md`](specs/server/content.md), "Walk masks"). The experience each level takes can go into a `levels.toml` of your own ([`specs/server/content.md`](specs/server/content.md), "Level"); without it the server has a table of its own. What monsters drop goes into a `drops.toml` of your own, what new characters start with (a level, gold, items) into a `start.toml`, what NPCs sell into a `shops.toml`, which NPCs teach the skill groups into a `teachers.toml`, and how skills train past a master's into a `training.toml` ("Drop", "Starting items", "Shops", "Teachers", "Training"); without them monsters drop only their gold, characters start at level 1 with nothing, NPCs sell nothing, players choose a skill group with `/skillgroup 1` or `2`, and only skill books train skills past a master's, with openm2's chance and wait. From level 5 players choose their group at a teacher of their class, or with `/skillgroup` in a world without teachers, and spend skill points in `play`'s skills window. They hold your client's data: **never commit them** (`docs/source-policy.md`); `just no-assets` refuses them. It also writes `spawns/imported.toml`: the spawn lists your client's maps carry, if any ([`specs/server/content.md`](specs/server/content.md), "The import"). Their group lines name packs by number, and which monsters a pack holds is not in the client: write them into a `packs.toml` of your own ("Pack"), and the import's summary lists the numbers each map waits for. A second import needs `--force`, which replaces those files, `spawns/imported.toml` among them, and never touches `packs.toml` or the other spawn files.
 
-**Then the spawns:** write `local/content/spawns/<name>.toml` yourself for what the client doesn't carry: groups of monsters (a monster number or a pack, a circle or a rectangle on a map, how many) and NPCs (a number and a point). Positions are metres from the map's top-left corner: `just openm2 map info <map> --client <dir>` shows the map's points, and `just openm2 view map <map> --assets <dir> --at X,Y --pitch 90 --screenshot local/spot.png` shows a spot from above (of an asset folder `assets import` made of the client: below).
+**Then the spawns:** write `local/content/spawns/<name>.toml` yourself for what the client doesn't carry: groups of monsters (a monster number or a pack, a circle or a rectangle on a map, how many) and NPCs (a number and a point). Positions are metres from the map's top-left corner: in the game, `/where` says where your character stands, as spawn files write it (`map = "metin2_map_a1", at = [244.53, 61.0], rotation = 180; world [4340.53, 9021.0]`); `just openm2 map info <map> --client <dir>` shows the map's points, and `just openm2 view map <map> --assets <dir> --at X,Y --pitch 90 --screenshot local/spot.png` shows a spot from above (of an asset folder `assets import` made of the client: below).
 ```toml
 format = 1
 
@@ -139,6 +235,7 @@ openm2 play --host 127.0.0.1 --server-key sha256:… --provider key --assets …
 - **The owner:** `--owner-key ed25519:…` (`OPENM2_OWNER_KEY`), the key `openm2 key public` prints, makes that key's account a game master ([Game masters](#game-masters)). It needs `--key-sign-in`.
 - **Account names** are `key:` and 13 letters and digits; `openm2 key public` and the server agree on them (`m2_server::store::key_account_name`).
 - **With providers too:** both work at once; the providers file may not use the id `key`.
+- **Not with compose yet:** `compose.yaml` wants a providers file and doesn't hand these settings to the server. Run `openm2-server` without Docker for it ([Saves](#saves)).
 
 ## Saves
 A world on your own machine, without a database: `--save DIR` keeps accounts and characters in one file, `DIR/world.json`, written at every change ([`specs/server/storage.md`](specs/server/storage.md), "In a save folder"). The folder is also the server's data folder, so its key (`DIR/tls/`) stays the same from one start to the next, unless `--data` or `--tls-cert` says otherwise.
@@ -166,11 +263,12 @@ A program that starts the server for its player (the launcher for a local save, 
 | `OPENM2_SAVE`, `--save` | none | a save's folder: accounts and characters in `world.json` instead of Postgres ([Saves](#saves)) |
 | `--ready-line`, `--until-stdin-closes` | off | for a program that runs the server ([Run by another program](#run-by-another-program)) |
 | `OPENM2_PUBLISH` | `127.0.0.1` | `compose.yaml` only: the host's address the game's ports are published on; `0.0.0.0` for every address |
+| `OPENM2_IMAGE` | `openm2-server:dev`, built from the repo | `compose.yaml` only: the server's image, a release's `ghcr.io/openm2-dev/server:X.Y.Z` to pull ([With Docker](#with-docker)) |
 | `OPENM2_PROVIDERS`, `--providers` | none: required without `--key-sign-in` | the providers file ([Sign-in with a provider](#sign-in-with-a-provider)); the Docker image reads `/providers.toml`, which `compose.yaml` mounts from `OPENM2_PROVIDERS_FILE` (required) |
 | `OPENM2_KEY_SIGN_IN`, `--key-sign-in` | `false` | devices' own keys may sign in ([Sign-in with a device key](#sign-in-with-a-device-key)) |
 | `OPENM2_OWNER_KEY`, `--owner-key` | none | a device's key, `ed25519:` and 64 hex digits, whose account is a game master; needs `--key-sign-in` |
 | `OPENM2_PROVIDER_<ID>_SECRET` | none | a provider's client secret, for a confidential client; with Docker, in `./local/provider-secrets.env` |
-| `OPENM2_GAME_MASTERS`, `--game-masters` | none: nobody | the accounts that may use the game masters' commands, account names separated by commas ([Game masters](#game-masters)) |
+| `OPENM2_GAME_MASTERS`, `--game-masters` | none: nobody | the accounts that may use the game masters' commands, account names separated by commas ([Game masters](#game-masters)); with compose, a line of `.env` |
 | `OPENM2_AUTH_PORT`, `--auth-port` | `11002` | the auth server's port |
 | `OPENM2_GAME_PORT`, `--game-port` | `13001` | the game server's port |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | none | where traces and metrics go (OTLP over HTTP, e.g. `http://127.0.0.1:4318`); unset or empty: logs only. The other standard `OTEL_*` variables apply too |
@@ -192,7 +290,7 @@ Players of the accounts you name may set their character's level and give it gol
 | `/gm off`, `/gm on` | the mark over the character hidden, or shown again; kept with the character |
 
 1. **Find your account's name:** sign in and type `/account` in the chat. It answers `Your account: google:nixzoi2rkfeta`. It is the same on every server with the same provider, and after the database is wiped.
-2. **Name it** in `OPENM2_GAME_MASTERS` (or `--game-masters`), several separated by commas, then start the server again. The log says `game masters: 1`. A name that is not one stops the server at start, saying which. On a server that takes devices' keys, `--owner-key` names a key instead ([Sign-in with a device key](#sign-in-with-a-device-key)).
+2. **Name it** in `OPENM2_GAME_MASTERS` (or `--game-masters`), several separated by commas, then start the server again; with compose, in `.env`, then `docker compose up -d` ([With Docker](#with-docker), 4.). The log says `game masters: 1`. A name that is not one stops the server at start, saying which. On a server that takes devices' keys, `--owner-key` names a key instead ([Sign-in with a device key](#sign-in-with-a-device-key)).
 3. For anyone else these commands are unknown, as any other. Each one used is in the log: `game master account 2 on character 5: /item 11299 1`.
 
 ## What it records

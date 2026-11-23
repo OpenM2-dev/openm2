@@ -328,13 +328,16 @@ fn the_bot_signs_in_with_a_device_key_on_our_own_server() {
         stdout
     };
     let stdout = bot(&[
-        "--create", "Keyed", "--empire", "jinno", "--say", "/account", "--stay", "1",
+        "--create", "Keyed", "--empire", "jinno", "--say", "/account", "--say", "/where", "--stay",
+        "1",
     ]);
     for line in [
         "auth: 1 provider(s) test (Test ID), and devices' keys".to_owned(),
         "auth: logged in".to_owned(),
         "game: created Keyed in slot 0".to_owned(),
         format!("Your account: {account}"),
+        // The server of this test has no content: no map anywhere.
+        "On no map; world [".to_owned(),
     ] {
         assert!(stdout.contains(&line), "missing {line:?}\n{stdout}");
     }

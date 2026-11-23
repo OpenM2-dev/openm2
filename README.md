@@ -76,9 +76,9 @@ On Windows:
 With Docker and PostgreSQL, on a Linux server:
 
 1. **Register openm2 at an OpenID Connect provider** (Google, Microsoft, Keycloak, Clerk, …) as a desktop app, with PKCE and the redirect URI `http://127.0.0.1/callback`.
-2. **Get the repo, and list the provider** in `local/providers.toml`:
+2. **Get the repo at the [latest release](https://github.com/OpenM2-dev/openm2/releases/latest)** (`X.Y.Z` below), **and list the provider** in `local/providers.toml`:
    ```sh
-   git clone https://github.com/OpenM2-dev/openm2.git && cd openm2 && mkdir -p local
+   git clone https://github.com/OpenM2-dev/openm2.git && cd openm2 && git checkout vX.Y.Z && mkdir -p local
    ```
    ```toml
    [[provider]]
@@ -95,18 +95,20 @@ With Docker and PostgreSQL, on a Linux server:
 4. **Start it:**
    ```sh
    cat > .env <<'EOF'
+   OPENM2_IMAGE=ghcr.io/openm2-dev/server:X.Y.Z
    OPENM2_DB_PASSWORD=<a long random password>
    OPENM2_PROVIDERS_FILE=./local/providers.toml
    OPENM2_CONTENT_DIR=./local/content
    OPENM2_PUBLISH=0.0.0.0
    EOF
-   docker compose up --build -d             # Postgres, then the server
-   docker compose run --rm server tls key   # the key to give your players: sha256:…
+   docker compose pull server                         # the release's image
+   docker compose up -d                               # Postgres, then the server
+   docker compose run --rm --no-deps server tls key   # the key to give your players: sha256:…
    ```
 
 **Players** pick **Multiplayer** in openm2, press **Add** and type your server's address. At the first join they compare its key with the one you gave them. The server takes TCP ports 11002 and 13001; keep it on the latest release, as players' launchers update by themselves.
 
-Your own certificate (Let's Encrypt works), a managed database, the published image, game masters, telemetry and every setting: [docs/server.md](docs/server.md).
+The rest, step by step: becoming a game master, changing the world and restarting, updating to a new release, backups, and what to do when something is wrong: [docs/server.md, "With Docker"](docs/server.md#with-docker). Your own certificate (Let's Encrypt works), a managed database, telemetry and every setting are there too.
 
 ### Make the world yours
 
@@ -123,7 +125,7 @@ monster = 101
 count = 5
 ```
 
-`openm2-server content check content` says what a folder holds, and the server refuses a broken one, pointing at the file, line and column. Every file and rule: [docs/specs/server/content.md](docs/specs/server/content.md).
+In the game, `/where` says where your character stands, as spawn files write it: `map = "<map>", at = [250.0, 80.0], rotation = 90; world […]`. `openm2-server content check content` says what a folder holds, and the server refuses a broken one, pointing at the file, line and column. Every file and rule: [docs/specs/server/content.md](docs/specs/server/content.md).
 
 ## Documentation
 
