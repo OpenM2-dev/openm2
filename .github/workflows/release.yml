@@ -1,7 +1,7 @@
 name: release
 
 # A tag vX.Y.Z publishes a release: the server's image to
-# GHCR, ghcr.io/<owner>/openm2-server:X.Y.Z, and the Windows client with its
+# GHCR, ghcr.io/<owner>/server:X.Y.Z, and the Windows client with its
 # launcher to a GitHub Release with its SHA-256, the release's notes starting
 # with the changelog since the previous tag. The release is also the
 # launcher's update channel (deploy/windows/launcher.toml): its downloads
@@ -59,6 +59,10 @@ jobs:
     env:
       VERSION: ${{ needs.version.outputs.version }}
       OWNER: ${{ github.repository_owner }}
+      # The image's package, ghcr.io/<owner>/server. The first release that
+      # pushes it makes the package, linked to this repository; GHCR makes
+      # a new package private, so its owner makes it public once, by hand.
+      PACKAGE: server
       SOURCE: ${{ github.server_url }}/${{ github.repository }}
       REVISION: ${{ github.sha }}
     steps:
@@ -69,7 +73,7 @@ jobs:
       # The source label links the package to this repository.
       - name: Build the image
         run: |
-          image="ghcr.io/${OWNER,,}/openm2-server"
+          image="ghcr.io/${OWNER,,}/$PACKAGE"
           docker build \
             --label "org.opencontainers.image.source=$SOURCE" \
             --label "org.opencontainers.image.version=$VERSION" \
@@ -83,7 +87,7 @@ jobs:
           TOKEN: ${{ github.token }}
           ACTOR: ${{ github.actor }}
         run: |
-          image="ghcr.io/${OWNER,,}/openm2-server"
+          image="ghcr.io/${OWNER,,}/$PACKAGE"
           echo "$TOKEN" | docker login ghcr.io --username "$ACTOR" --password-stdin
           docker push "$image:$VERSION"
           docker logout ghcr.io

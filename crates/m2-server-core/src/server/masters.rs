@@ -4,7 +4,8 @@
 //! mount, set how fast it moves, and hide or show the mark over it, with
 //! chat commands. For everyone else these
 //! are unknown commands. Every one that changes something is an event, so
-//! the log says what was given.
+//! the log says what was given. `/account` and `/where`, which help an
+//! operator name game masters and write content, are for every player.
 //!
 //! [`Config::game_masters`]: crate::Config::game_masters
 
@@ -49,6 +50,31 @@ impl Server {
             return;
         };
         self.info(conn, &format!("Your account: {name}"));
+    }
+
+    /// `/where`, for every player: the map the character stands on, its
+    /// point there and the way it faces, written as spawn files write them,
+    /// then its point of the world, as warps' `to` takes it.
+    pub(super) fn show_where(&mut self, now: Millis, conn: ConnId) {
+        let Some(player) = self.player(conn) else {
+            return;
+        };
+        let at = player.position(now);
+        let rotation = player.angle % 360;
+        let world = format!("world [{}, {}]", metres(at.0), metres(at.1));
+        let line = match self.content.map_at(at) {
+            Some(map) => {
+                let (left, top) = map.origin_cm();
+                format!(
+                    "map = \"{}\", at = [{}, {}], rotation = {rotation}; {world}",
+                    map.name,
+                    metres(at.0.saturating_sub(left)),
+                    metres(at.1.saturating_sub(top)),
+                )
+            }
+            None => format!("On no map; {world}"),
+        };
+        self.info(conn, &line);
     }
 
     /// A game master's command, `name` with its `arguments`; `false` when
@@ -327,6 +353,19 @@ impl Server {
             character,
             command,
         });
+    }
+}
+
+/// Whole centimetres as metres to the centimetre, as content files write
+/// them: `244.53`, `61.0`, `-0.5`.
+fn metres(cm: i32) -> String {
+    let sign = if cm < 0 { "-" } else { "" };
+    let cm = cm.unsigned_abs();
+    let (whole, part) = (cm / 100, cm % 100);
+    if part % 10 == 0 {
+        format!("{sign}{whole}.{}", part / 10)
+    } else {
+        format!("{sign}{whole}.{part:02}")
     }
 }
 

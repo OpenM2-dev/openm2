@@ -46,8 +46,8 @@ What openm2 does today, what comes next, and what is still unknown. When you fin
 - **Accounts:** sign-in through OpenID Connect providers, or, where the operator allows it, with the device's own key (no browser, no internet), with no passwords. Accounts and characters live in Postgres, in a save's folder (one file, for a server on the player's own machine), or in memory for tests.
 - **The world:** monsters and NPCs from a content folder. Spawns, packs, and stones that call packs. Walk masks hold for players and monsters, and moves are checked.
 - **Gameplay:** fights, deaths and levels, drops and gold, shops, skills and their effects, teachers, master training, mounts and stables, upgrades, fishing, warps, whispers and friends.
-- **Game masters:** named by the operator (by account, or the owner's device key), with `/level`, `/gold`, `/item`, `/heal`, `/speed`, `/gm on|off`, and their choice of empire.
-- **Operations:** OpenTelemetry, a Docker image and a compose file with Postgres. One world per database or save. A ready line and a stop on stdin's close for a program that runs the server.
+- **Game masters:** named by the operator (by account, or the owner's device key), with `/level`, `/gold`, `/item`, `/heal`, `/speed`, `/gm on|off`, and their choice of empire. Every player has `/account` and `/where`, which says the map, the point and the way one faces as spawn files write them.
+- **Operations:** OpenTelemetry, a Docker image and a compose file with Postgres that runs a release's image or builds one, and a step-by-step guide for running it (`docs/server.md`). One world per database or save. A ready line and a stop on stdin's close for a program that runs the server.
 
 **Protocol and security**
 - **The protocol:** openm2's own, versioned, generated from `crates/m2-protocol/packets/openm2.toml`, with byte-exact vectors for every message.
@@ -61,6 +61,7 @@ What openm2 does today, what comes next, and what is still unknown. When you fin
 - **`openm2 release`:** makes keys, writes, signs and verifies manifests.
 
 ## Next
+- **The server's image as `ghcr.io/openm2-dev/server`:** the next release makes the package, linked to this repository. GHCR makes it private: its owner makes it public then (Package settings, Change visibility), and checks an anonymous `docker compose pull server`.
 - **The project's server on this release:** the Windows release pins `play.openm2.net`, and installs join it once it runs this release's server (protocol 4); until then its row says `no answer` or `another version`.
 - **Local saves on the LAN:** a save opened to the network (bound beyond `127.0.0.1`, its ports kept in `save.toml`), its link (address and key) to copy for friends' Servers boards, and a cap on the accounts devices' keys make there.
 - **Local saves on a real Windows install:** the first release with the server, played from the setup's install: a new save, a game, the launcher closed and opened again, the character still there.
@@ -76,6 +77,7 @@ What openm2 does today, what comes next, and what is still unknown. When you fin
   - name tags raised over riders
   - horseback skills' own motions
 - **Deleting characters:** the original asks for a code typed on the select screen.
+- **Compose with devices' keys:** a server for friends under Docker with no provider. `compose.yaml` wants a providers file and hands the server neither `OPENM2_KEY_SIGN_IN` nor `OPENM2_OWNER_KEY`.
 - **The server's image carries the third-party notices** (`just notices --package m2-server --target x86_64-unknown-linux-gnu`). Today it carries only webpki-roots' terms.
 - **The launcher on a real channel on Windows:** an update to a new version, and a manifest edited by hand refused. The first release with its own channel is the first that can show it: the one after it updates from it.
 

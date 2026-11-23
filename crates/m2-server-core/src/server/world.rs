@@ -502,8 +502,9 @@ impl Server {
 
     /// A chat command: `/logout` and `/quit` leave the game, `/skillgroup`
     /// chooses the skill group (a game master's command when the content
-    /// has teachers) and `/account` shows the account's name; a game master
-    /// has its own commands too (`masters.rs`). Anything else is unknown.
+    /// has teachers), `/account` shows the account's name and `/where` the
+    /// character's map, point and facing; a game master has its own
+    /// commands too (`masters.rs`). Anything else is unknown.
     fn command(&mut self, now: Millis, conn: ConnId, command: &str) {
         let words: Vec<&str> = command.split(' ').filter(|w| !w.is_empty()).collect();
         let (name, arguments) = words.split_first().map_or(("", &[][..]), |(n, a)| (*n, a));
@@ -513,6 +514,7 @@ impl Server {
                 self.choose_skill_group(conn, argument);
             }
             "account" => self.show_account(conn),
+            "where" => self.show_where(now, conn),
             "logout" | "quit" => {
                 self.info(conn, "Logging out.");
                 self.close(now, conn, "logged out");
